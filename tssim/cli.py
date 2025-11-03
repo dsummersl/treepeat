@@ -9,8 +9,10 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.table import Table
 
+from tssim.config import NormalizerSettings, PythonNormalizerSettings, set_settings
 from tssim.models import ParseResult
 from tssim.pipeline import parse_path
+from tssim.pipeline.normalize import normalize_files
 
 console = Console()
 
@@ -50,7 +52,7 @@ def display_parsed_files(result: ParseResult) -> None:
     console.print("\n[bold green]Successfully Parsed Files:[/bold green]")
     for parsed_file in result.parsed_files:
         console.print(
-            f"  [green]✓[/green] {parsed_file.path} " f"([dim]{parsed_file.language}[/dim])"
+            f"  [green]✓[/green] {parsed_file.path} ([dim]{parsed_file.language}[/dim])"
         )
 
 
@@ -74,7 +76,14 @@ def display_failed_files(result: ParseResult, show_details: bool) -> None:
     default="INFO",
     help="Set the logging level",
 )
-def main(path: Path, log_level: str) -> None:
+# TODO we'll need a generic solution here since they'll be so many to disable (maybe just take a list of values rather than explicit tags for each one)
+@click.option(
+    "--python-no-ignore-imports",
+    is_flag=True,
+    default=False,
+    help="Include import statements in Python files (by default they are ignored)",
+)
+def main(path: Path, log_level: str, python_no_ignore_imports: bool) -> None:
     """
     Analyze code similarity in PATH.
 
@@ -82,12 +91,24 @@ def main(path: Path, log_level: str) -> None:
     """
     setup_logging(log_level.upper())
 
+    # Initialize normalizer settings
+    settings = NormalizerSettings(
+        python=PythonNormalizerSettings(
+            ignore_imports=not python_no_ignore_imports,
+        )
+    )
+    set_settings(settings)
+
     console.print("\n[bold blue]tssim - Code Similarity Detection[/bold blue]")
     console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
 
     # Parse stage
     with console.status("[bold green]Parsing files..."):
         result = parse_path(path)
+
+    # Normalize stage
+    with console.status("[bold green]Normalizing files..."):
+        result = normalize_files(result)
 
     # Check for complete failure
     if result.success_count == 0 and result.failure_count > 0:
