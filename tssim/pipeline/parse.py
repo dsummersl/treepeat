@@ -66,6 +66,7 @@ def detect_language(file_path: Path) -> LanguageName | None:
     Returns:
         Language name if detected, None otherwise
     """
+    # TODO support a more robust detection mechanism (something like enry maybe or pygments)
     suffix = file_path.suffix.lower()
     return LANGUAGE_MAP.get(suffix)
 
