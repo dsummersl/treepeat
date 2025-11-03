@@ -11,8 +11,9 @@ from tree_sitter import Node
 
 from tssim.models.ast import ParsedFile, ParseResult
 from tssim.models.normalization import NodeRepresentation, SkipNode
-from tssim.models.shingle import ShingleResult, ShingleSet, ShingledFile
+from tssim.models.shingle import ShingledRegion, ShingleResult, ShingleSet, ShingledFile
 from tssim.pipeline.normalizers import Normalizer
+from tssim.pipeline.region_extraction import ExtractedRegion
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,35 @@ class ASTShingler:
         return ShingledFile(
             path=parsed_file.path,
             language=parsed_file.language,
+            shingles=ShingleSet(shingles=shingles),
+        )
+
+    def shingle_region(self, extracted_region: ExtractedRegion, source: bytes) -> ShingledRegion:
+        """Extract shingles from a code region.
+
+        Args:
+            extracted_region: The region with its AST node to shingle
+            source: Source code bytes (from the parsed file)
+
+        Returns:
+            ShingledRegion with extracted shingles
+        """
+        region = extracted_region.region
+        shingles = self._extract_shingles(
+            extracted_region.node,
+            region.language,
+            source,
+        )
+
+        logger.debug(
+            "Extracted %d shingle(s) from %s (k=%d)",
+            len(shingles),
+            region.region_name,
+            self.k,
+        )
+
+        return ShingledRegion(
+            region=region,
             shingles=ShingleSet(shingles=shingles),
         )
 
@@ -203,3 +233,57 @@ def shingle_files(
         shingled_files=shingled_files,
         failed_files=failed_files,
     )
+
+
+def shingle_regions(
+    extracted_regions: list[ExtractedRegion],
+    parsed_files: list[ParsedFile],
+    normalizers: list[Normalizer],
+    k: int = 3,
+    include_text: bool = False,
+) -> list[ShingledRegion]:
+    """Shingle all extracted regions.
+
+    Args:
+        extracted_regions: Regions extracted from parsed files
+        parsed_files: Original parsed files (needed for source bytes)
+        normalizers: List of normalizers to apply during shingling
+        k: Length of k-grams for shingling
+        include_text: If True, include node text in shingles
+
+    Returns:
+        List of shingled regions
+    """
+    logger.info(
+        "Shingling %d region(s) across %d file(s) with k=%d",
+        len(extracted_regions),
+        len(parsed_files),
+        k,
+    )
+
+    # Create a map from path to source bytes for efficient lookup
+    path_to_source = {pf.path: pf.source for pf in parsed_files}
+
+    shingler = ASTShingler(normalizers=normalizers, k=k, include_text=include_text)
+    shingled_regions = []
+
+    for extracted_region in extracted_regions:
+        try:
+            source = path_to_source.get(extracted_region.region.path)
+            if source is None:
+                logger.error(
+                    "Source not found for region %s in %s",
+                    extracted_region.region.region_name,
+                    extracted_region.region.path,
+                )
+                continue
+
+            shingled_region = shingler.shingle_region(extracted_region, source)
+            shingled_regions.append(shingled_region)
+        except Exception as e:
+            logger.error(
+                "Failed to shingle region %s: %s", extracted_region.region.region_name, e
+            )
+
+    logger.info("Shingling complete: %d region(s) shingled", len(shingled_regions))
+    return shingled_regions

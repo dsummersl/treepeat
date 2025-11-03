@@ -45,6 +45,35 @@ class ShingleSettings(BaseSettings):
     )
 
 
+class MinHashSettings(BaseSettings):
+    """Settings for MinHash."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="MINHASH_",
+    )
+
+    num_perm: int = Field(
+        default=128,
+        ge=1,
+        description="Number of hash permutations (higher = more accurate, slower)",
+    )
+
+
+class LSHSettings(BaseSettings):
+    """Settings for Locality Sensitive Hashing."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="LSH_",
+    )
+
+    threshold: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Jaccard similarity threshold for candidate pairs (0.0 to 1.0)",
+    )
+
+
 class PipelineSettings(BaseSettings):
     """Global settings for the entire pipeline."""
 
@@ -54,6 +83,8 @@ class PipelineSettings(BaseSettings):
 
     normalizer: NormalizerSettings = Field(default_factory=NormalizerSettings)
     shingle: ShingleSettings = Field(default_factory=ShingleSettings)
+    minhash: MinHashSettings = Field(default_factory=MinHashSettings)
+    lsh: LSHSettings = Field(default_factory=LSHSettings)
 
 
 # Global settings instance that can be accessed throughout the application

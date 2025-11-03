@@ -4,6 +4,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from tssim.models.similarity import Region
+
 
 class ShingleSet(BaseModel):
     """A set of shingles extracted from an AST.
@@ -34,6 +36,20 @@ class ShingledFile(BaseModel):
     @property
     def shingle_count(self) -> int:
         """Return the number of unique shingles in this file."""
+        return self.shingles.size
+
+
+class ShingledRegion(BaseModel):
+    """A region with its extracted shingles."""
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    region: Region = Field(description="The code region")
+    shingles: ShingleSet = Field(description="Set of shingles extracted from the region")
+
+    @property
+    def shingle_count(self) -> int:
+        """Return the number of unique shingles in this region."""
         return self.shingles.size
 
 
