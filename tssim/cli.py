@@ -7,18 +7,17 @@ from pathlib import Path
 import click
 from rich.console import Console
 from rich.logging import RichHandler
-from rich.table import Table
 
 from tssim.config import (
     LSHSettings,
     MinHashSettings,
     NormalizerSettings,
     PipelineSettings,
-    PythonNormalizerSettings,
     ShingleSettings,
     set_settings,
 )
 from tssim.models.similarity import SimilarityResult
+from tssim.pipeline.normalizer_factory import get_available_normalizers
 from tssim.pipeline.pipeline import run_pipeline
 
 console = Console()
@@ -36,21 +35,6 @@ def setup_logging(log_level: str) -> None:
         format="%(message)s",
         handlers=[RichHandler(console=console, rich_tracebacks=True)],
     )
-
-
-def display_summary_table(result: SimilarityResult) -> None:
-    """Display a summary table of pipeline results."""
-    table = Table(title="Pipeline Results", show_header=True, header_style="bold magenta")
-    table.add_column("Metric", style="cyan", no_wrap=True)
-    table.add_column("Count", justify="right", style="green")
-
-    table.add_row("Total Files", str(result.total_files))
-    table.add_row("Total Regions", str(result.total_regions))
-    table.add_row("Failed Files", str(result.failure_count))
-    table.add_row("Similar Pairs Found", str(result.pair_count))
-    table.add_row("Self-Similar Regions", str(result.self_similarity_count))
-
-    console.print(table)
 
 
 def display_processed_regions(result: SimilarityResult) -> None:
@@ -85,28 +69,25 @@ def display_similar_pairs(result: SimilarityResult) -> None:
         console.print("\n[yellow]No similar regions found above threshold.[/yellow]")
         return
 
-    # Separate cross-file and self-similarity
-    cross_file_pairs = [p for p in result.similar_pairs if not p.is_self_similarity]
-    self_similar_pairs = [p for p in result.similar_pairs if p.is_self_similarity]
+    console.print("\n[bold cyan]Similar Regions:[/bold cyan]")
+    for pair in result.similar_pairs:
+        # Calculate line counts for each region
+        lines1 = pair.region1.end_line - pair.region1.start_line + 1
+        lines2 = pair.region2.end_line - pair.region2.start_line + 1
 
-    if cross_file_pairs:
-        console.print("\n[bold cyan]Similar Regions Across Files:[/bold cyan]")
-        for pair in cross_file_pairs:
-            console.print(
-                f"  [cyan]↔[/cyan] {pair.region1.region_name} in {pair.region1.path}:{pair.region1.start_line}-{pair.region1.end_line}\n"
-                f"     [dim]↔[/dim] {pair.region2.region_name} in {pair.region2.path}:{pair.region2.start_line}-{pair.region2.end_line}\n"
-                f"     ([bold]{pair.similarity:.1%}[/bold] similar)"
-            )
+        # Display similarity group header
+        console.print(
+            f"  2 regions, [bold]{pair.similarity:.1%}[/bold] similar, {lines1}-{lines2} lines:"
+        )
 
-    if self_similar_pairs:
-        console.print("\n[bold yellow]Self-Similar Regions (within same file):[/bold yellow]")
-        for pair in self_similar_pairs:
-            console.print(
-                f"  [yellow]⚠[/yellow] {pair.region1.path}\n"
-                f"     • {pair.region1.region_name} (lines {pair.region1.start_line}-{pair.region1.end_line})\n"
-                f"     • {pair.region2.region_name} (lines {pair.region2.start_line}-{pair.region2.end_line})\n"
-                f"     ([bold]{pair.similarity:.1%}[/bold] similar)"
-            )
+        # Display each region in the group
+        console.print(
+            f"    • {pair.region1.path}:{pair.region1.start_line}-{pair.region1.end_line} ({pair.region1.region_name})"
+        )
+        console.print(
+            f"    • {pair.region2.path}:{pair.region2.start_line}-{pair.region2.end_line} ({pair.region2.region_name})"
+        )
+        console.print()  # Blank line between groups
 
 
 def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
@@ -122,19 +103,24 @@ def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
 
 
 @click.command()
-@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.argument("path", type=click.Path(exists=True, path_type=Path), required=False)
 @click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
-    default="INFO",
+    default="WARNING",
     help="Set the logging level",
 )
-# TODO we'll need a generic solution here since they'll be so many to disable (maybe just take a list of values rather than explicit tags for each one)
 @click.option(
-    "--python-no-ignore-imports",
+    "--list-normalizers",
     is_flag=True,
     default=False,
-    help="Include import statements in Python files (by default they are ignored)",
+    help="List all available normalizers and exit",
+)
+@click.option(
+    "--disable-normalizers",
+    type=str,
+    default="",
+    help="Comma-separated list of normalizers to disable (e.g., 'python-imports')",
 )
 @click.option(
     "--shingle-k",
@@ -157,13 +143,14 @@ def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
 @click.option(
     "--lsh-threshold",
     type=float,
-    default=0.5,
+    default=0.8,
     help="LSH similarity threshold 0.0-1.0 (default: 0.5)",
 )
 def main(
-    path: Path,
+    path: Path | None,
     log_level: str,
-    python_no_ignore_imports: bool,
+    list_normalizers: bool,
+    disable_normalizers: str,
     shingle_k: int,
     shingle_include_text: bool,
     minhash_num_perm: int,
@@ -176,11 +163,36 @@ def main(
     """
     setup_logging(log_level.upper())
 
+    # Handle --list-normalizers
+    if list_normalizers:
+        console.print("\n[bold blue]Available Normalizers:[/bold blue]\n")
+        for spec in get_available_normalizers():
+            console.print(f"  [cyan]{spec.name}[/cyan]")
+            console.print(f"    {spec.description}")
+            console.print()
+        return
+
+    # PATH is required for normal operation
+    if path is None:
+        console.print("[bold red]Error:[/bold red] PATH is required")
+        console.print("Try 'tssim --help' for more information.")
+        sys.exit(1)
+
+    # Parse disabled normalizers
+    disabled_list = [n.strip() for n in disable_normalizers.split(",") if n.strip()]
+
+    # Validate normalizer names
+    available_names = {spec.name for spec in get_available_normalizers()}
+    for name in disabled_list:
+        if name not in available_names:
+            console.print(f"[bold red]Error:[/bold red] Unknown normalizer '{name}'")
+            console.print(f"Available normalizers: {', '.join(sorted(available_names))}")
+            console.print("Use --list-normalizers to see all available normalizers")
+            sys.exit(1)
+
     # Initialize pipeline settings
     settings = PipelineSettings(
-        normalizer=NormalizerSettings(
-            python=PythonNormalizerSettings(ignore_imports=not python_no_ignore_imports)
-        ),
+        normalizer=NormalizerSettings(disabled_normalizers=disabled_list),
         shingle=ShingleSettings(k=shingle_k, include_text=shingle_include_text),
         minhash=MinHashSettings(num_perm=minhash_num_perm),
         lsh=LSHSettings(threshold=lsh_threshold),
@@ -201,9 +213,7 @@ def main(
         sys.exit(1)
 
     # Display results
-    display_summary_table(result)
     display_similar_pairs(result)
-    display_processed_regions(result)
     display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
 
     console.print()

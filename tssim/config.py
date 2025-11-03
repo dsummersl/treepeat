@@ -4,19 +4,6 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class PythonNormalizerSettings(BaseSettings):
-    """Settings for Python-specific normalizers."""
-
-    model_config = SettingsConfigDict(
-        env_prefix="PYTHON_",
-    )
-
-    ignore_imports: bool = Field(
-        default=True,
-        description="Ignore import statements during normalization",
-    )
-
-
 class NormalizerSettings(BaseSettings):
     """Main settings for all normalizers."""
 
@@ -24,7 +11,10 @@ class NormalizerSettings(BaseSettings):
         env_prefix="NORMALIZER_",
     )
 
-    python: PythonNormalizerSettings = Field(default_factory=PythonNormalizerSettings)
+    disabled_normalizers: list[str] = Field(
+        default_factory=list,
+        description="List of normalizer names to disable",
+    )
 
 
 class ShingleSettings(BaseSettings):

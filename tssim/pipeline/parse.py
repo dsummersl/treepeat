@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 LanguageName = Literal[
     "python",
     "javascript",
+    "markdown",
     "typescript",
     "tsx",
     "java",
@@ -34,6 +35,7 @@ LanguageName = Literal[
 LANGUAGE_MAP: dict[str, LanguageName] = {
     ".py": "python",
     ".js": "javascript",
+    ".md": "markdown",
     ".ts": "typescript",
     ".tsx": "tsx",
     ".jsx": "javascript",

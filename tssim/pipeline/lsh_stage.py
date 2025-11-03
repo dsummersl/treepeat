@@ -129,6 +129,11 @@ def find_similar_pairs(
 
             seen_pairs.add(pair_key)
             pair = _create_similar_pair(sig, similar_sig)
+
+            # Filter by actual threshold (LSH returns candidates that may be below threshold)
+            if pair.similarity < threshold:
+                continue
+
             pairs.append(pair)
 
             logger.debug(
