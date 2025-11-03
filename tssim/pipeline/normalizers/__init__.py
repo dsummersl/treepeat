@@ -2,37 +2,45 @@
 
 from abc import ABC, abstractmethod
 
-from tssim.models.ast import ParsedFile
+from tree_sitter import Node
+
+from tssim.models.normalization import NormalizationResult, SkipNode  # noqa: F401
 
 
 class Normalizer(ABC):
     """Base interface for AST normalizers.
 
-    Normalizers transform parsed ASTs to reduce noise and focus on
-    structural similarities. Each normalizer can be language-specific
-    and can be enabled/disabled via configuration.
+    Normalizers are pure functions that can:
+    - Return None if not applicable (no change)
+    - Return NormalizationResult to modify node name and/or value
+    - Raise SkipNode to exclude the node from shingling
+
+    Normalizers should NOT check configuration settings - the pipeline
+    assembles the appropriate normalizers based on settings.
     """
 
     @abstractmethod
-    def normalize(self, parsed_file: ParsedFile) -> ParsedFile:
-        """Normalize a parsed file's AST.
+    def normalize_node(
+        self,
+        node: Node,
+        name: str,
+        value: str | None,
+        language: str,
+        source: bytes,
+    ) -> NormalizationResult | None:
+        """Normalize a node's representation for shingling.
 
         Args:
-            parsed_file: The parsed file to normalize
+            node: The tree-sitter node
+            name: Current node name (typically node.type)
+            value: Current node value (from source) or None for structural nodes
+            language: Programming language of the file
+            source: Source code bytes
 
         Returns:
-            A new ParsedFile with the normalized AST
-        """
-        pass
+            NormalizationResult with modified name/value, or None if not applicable
 
-    @abstractmethod
-    def should_apply(self, parsed_file: ParsedFile) -> bool:
-        """Check if this normalizer should be applied to the given file.
-
-        Args:
-            parsed_file: The parsed file to check
-
-        Returns:
-            True if this normalizer should be applied, False otherwise
+        Raises:
+            SkipNode: If this node should be excluded from shingling entirely
         """
         pass
