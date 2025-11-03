@@ -143,6 +143,7 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
         logger.warning("Need at least 2 regions for similarity detection, returning empty result")
         return SimilarityResult(failed_files=parse_result.failed_files)
 
+    # TODO regions...what is this? I think...we got a little bit of a problem in the sense that what about things not in a region?
     shingled_regions = _run_shingle_stage(extracted_regions, parse_result.parsed_files, normalizers, settings)
     if len(shingled_regions) < 2:
         logger.warning("Need at least 2 shingled regions, returning empty result")

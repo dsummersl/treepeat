@@ -103,6 +103,9 @@ def _extract_python_regions(
                 traverse(child, in_class=name)
             return  # Don't traverse children again
 
+        # TODO what I don't like about this is that it has the potential to leave regions out of the comparisons all together!
+        # When breaking something into regions I think its fine to do that (mark important sections of the file), but we have to ensure that the regions represent the entirety of the file.
+        #
         # Continue traversing
         for child in current.children:
             traverse(child, in_class)
@@ -219,6 +222,7 @@ def extract_all_regions(parsed_files: list[ParsedFile]) -> list[ExtractedRegion]
 
     for parsed_file in parsed_files:
         try:
+            # TODO I'm not sure this doesn't leave something out. Imagine a file of text? The region is the whole file - but it might just have 10 lines that are similar.
             regions = extract_regions(parsed_file)
             all_regions.extend(regions)
         except Exception as e:
