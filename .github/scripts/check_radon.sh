@@ -23,7 +23,7 @@ L=$(uv run radon cc --json "${PACKAGE}" | jq -r 'to_entries[] |
   .value[] |
   select(.type == "method" or .type == "function") |
   (.endline - .lineno + 1) as $length |
-  select($length > $MAX_LINE_LENGTH) |
+  select($length > 80) |
   "\($file):\(.lineno) - \(.name) (\($length) lines)"
 ')
 echo "$L"

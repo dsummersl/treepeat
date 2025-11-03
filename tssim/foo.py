@@ -1,2 +1,2 @@
-def bar():
+def bar() -> str:
   return "foobar"
