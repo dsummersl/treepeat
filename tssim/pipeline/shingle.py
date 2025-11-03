@@ -104,6 +104,57 @@ class ASTShingler:
             shingles=ShingleSet(shingles=shingles),
         )
 
+    def _extract_node_value(self, node: Node, source: bytes) -> str | None:
+        """Extract text value from a leaf node.
+
+        Args:
+            node: The tree-sitter node
+            source: Source code bytes
+
+        Returns:
+            Extracted and escaped text value, or None
+        """
+        if not self.include_text or len(node.children) != 0:
+            return None
+
+        if node.end_byte - node.start_byte >= 50:  # Limit value length
+            return None
+
+        text = source[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
+        return text.replace("→", "->").replace("\n", "\\n").replace("\t", "\\t")
+
+    def _apply_normalizers(
+        self,
+        node: Node,
+        name: str,
+        value: str | None,
+        language: str,
+        source: bytes,
+    ) -> tuple[str, str | None]:
+        """Apply all normalizers to a node.
+
+        Args:
+            node: The tree-sitter node
+            name: Initial node name
+            value: Initial node value
+            language: Programming language
+            source: Source code bytes
+
+        Returns:
+            Tuple of (final_name, final_value)
+
+        Raises:
+            SkipNode: If any normalizer requests this node be skipped
+        """
+        for normalizer in self.normalizers:
+            result = normalizer.normalize_node(node, name, value, language, source)
+            if result is not None:
+                if result.name is not None:
+                    name = result.name
+                if result.value is not None:
+                    value = result.value
+        return name, value
+
     def _get_node_representation(
         self,
         node: Node,
@@ -125,27 +176,9 @@ class ASTShingler:
         Raises:
             SkipNode: If any normalizer requests this node be skipped
         """
-        # Start with defaults
         name = node.type
-        value = None
-
-        # Extract value for leaf nodes if include_text is enabled
-        if self.include_text and len(node.children) == 0:
-            if node.end_byte - node.start_byte < 50:  # Limit value length
-                text = source[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
-                # Escape special characters
-                value = text.replace("→", "->").replace("\n", "\\n").replace("\t", "\\t")
-
-        # Apply all normalizers
-        for normalizer in self.normalizers:
-            result = normalizer.normalize_node(node, name, value, language, source)
-            if result is not None:
-                # Apply modifications
-                if result.name is not None:
-                    name = result.name
-                if result.value is not None:
-                    value = result.value
-
+        value = self._extract_node_value(node, source)
+        name, value = self._apply_normalizers(node, name, value, language, source)
         return NodeRepresentation(name=name, value=value)
 
     def _extract_shingles(self, root: Node, language: str, source: bytes) -> set[str]:

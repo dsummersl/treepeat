@@ -16,7 +16,7 @@ from tssim.config import (
     ShingleSettings,
     set_settings,
 )
-from tssim.models.similarity import SimilarityResult
+from tssim.models.similarity import RegionSignature, SimilarityResult
 from tssim.pipeline.normalizer_factory import get_available_normalizers
 from tssim.pipeline.pipeline import run_pipeline
 
@@ -37,20 +37,30 @@ def setup_logging(log_level: str) -> None:
     )
 
 
+def _group_signatures_by_file(signatures: list[RegionSignature]) -> dict[Path, list[RegionSignature]]:
+    """Group region signatures by file path.
+
+    Args:
+        signatures: List of region signatures
+
+    Returns:
+        Dictionary mapping file paths to lists of signatures
+    """
+    regions_by_file: dict[Path, list[RegionSignature]] = {}
+    for sig in signatures:
+        path = sig.region.path
+        if path not in regions_by_file:
+            regions_by_file[path] = []
+        regions_by_file[path].append(sig)
+    return regions_by_file
+
+
 def display_processed_regions(result: SimilarityResult) -> None:
     """Display successfully processed regions grouped by file."""
     if not result.signatures:
         return
 
-    # Group regions by file
-    from tssim.models.similarity import RegionSignature
-
-    regions_by_file: dict[Path, list[RegionSignature]] = {}
-    for sig in result.signatures:
-        path = sig.region.path
-        if path not in regions_by_file:
-            regions_by_file[path] = []
-        regions_by_file[path].append(sig)
+    regions_by_file = _group_signatures_by_file(result.signatures)
 
     console.print(f"\n[bold green]Processed {len(regions_by_file)} file(s) with {len(result.signatures)} region(s):[/bold green]")
     for path, sigs in sorted(regions_by_file.items()):
@@ -100,6 +110,63 @@ def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
         console.print(f"  [red]✗[/red] {file_path}")
         if show_details:
             console.print(f"    [dim]{error}[/dim]")
+
+
+def _handle_list_normalizers() -> None:
+    """Display available normalizers and exit."""
+    console.print("\n[bold blue]Available Normalizers:[/bold blue]\n")
+    for spec in get_available_normalizers():
+        console.print(f"  [cyan]{spec.name}[/cyan]")
+        console.print(f"    {spec.description}")
+        console.print()
+
+
+def _parse_normalizer_list(disable_normalizers: str) -> list[str]:
+    """Parse comma-separated normalizer list.
+
+    Args:
+        disable_normalizers: Comma-separated list of normalizer names
+
+    Returns:
+        List of normalizer names
+    """
+    return [n.strip() for n in disable_normalizers.split(",") if n.strip()]
+
+
+def _validate_normalizer_names(disabled_list: list[str]) -> None:
+    """Validate normalizer names against available normalizers.
+
+    Args:
+        disabled_list: List of normalizer names to validate
+
+    Raises:
+        SystemExit: If any normalizer name is invalid
+    """
+    available_names = {spec.name for spec in get_available_normalizers()}
+    for name in disabled_list:
+        if name not in available_names:
+            console.print(f"[bold red]Error:[/bold red] Unknown normalizer '{name}'")
+            console.print(f"Available normalizers: {', '.join(sorted(available_names))}")
+            console.print("Use --list-normalizers to see all available normalizers")
+            sys.exit(1)
+
+
+def _validate_and_parse_normalizers(disable_normalizers: str) -> list[str]:
+    """Parse and validate normalizer names.
+
+    Args:
+        disable_normalizers: Comma-separated list of normalizer names
+
+    Returns:
+        List of validated normalizer names
+
+    Raises:
+        SystemExit: If any normalizer name is invalid
+    """
+    disabled_list = _parse_normalizer_list(disable_normalizers)
+    if disabled_list:
+        _validate_normalizer_names(disabled_list)
+    return disabled_list
 
 
 @click.command()
@@ -163,34 +230,17 @@ def main(
     """
     setup_logging(log_level.upper())
 
-    # Handle --list-normalizers
     if list_normalizers:
-        console.print("\n[bold blue]Available Normalizers:[/bold blue]\n")
-        for spec in get_available_normalizers():
-            console.print(f"  [cyan]{spec.name}[/cyan]")
-            console.print(f"    {spec.description}")
-            console.print()
+        _handle_list_normalizers()
         return
 
-    # PATH is required for normal operation
     if path is None:
         console.print("[bold red]Error:[/bold red] PATH is required")
         console.print("Try 'tssim --help' for more information.")
         sys.exit(1)
 
-    # Parse disabled normalizers
-    disabled_list = [n.strip() for n in disable_normalizers.split(",") if n.strip()]
+    disabled_list = _validate_and_parse_normalizers(disable_normalizers)
 
-    # Validate normalizer names
-    available_names = {spec.name for spec in get_available_normalizers()}
-    for name in disabled_list:
-        if name not in available_names:
-            console.print(f"[bold red]Error:[/bold red] Unknown normalizer '{name}'")
-            console.print(f"Available normalizers: {', '.join(sorted(available_names))}")
-            console.print("Use --list-normalizers to see all available normalizers")
-            sys.exit(1)
-
-    # Initialize pipeline settings
     settings = PipelineSettings(
         normalizer=NormalizerSettings(disabled_normalizers=disabled_list),
         shingle=ShingleSettings(k=shingle_k, include_text=shingle_include_text),
@@ -202,17 +252,14 @@ def main(
     console.print("\n[bold blue]tssim - Code Similarity Detection[/bold blue]")
     console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
 
-    # Run the full pipeline
     with console.status("[bold green]Running pipeline..."):
         result = run_pipeline(path)
 
-    # Check for complete failure
     if result.success_count == 0 and result.failure_count > 0:
         console.print("[bold red]Error:[/bold red] Failed to parse any files")
         display_failed_files(result, show_details=True)
         sys.exit(1)
 
-    # Display results
     display_similar_pairs(result)
     display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
 

@@ -79,6 +79,88 @@ def _create_similar_pair(
     )
 
 
+def _process_candidate_pair(
+    sig: RegionSignature,
+    similar_key: str,
+    current_key: str,
+    signatures: list[RegionSignature],
+    seen_pairs: set[tuple[str, str]],
+    threshold: float,
+) -> SimilarRegionPair | None:
+    """Process a candidate similar pair.
+
+    Args:
+        sig: Current signature
+        similar_key: Key of potentially similar region
+        current_key: Key of current region
+        signatures: All signatures
+        seen_pairs: Set of already processed pair keys
+        threshold: Similarity threshold
+
+    Returns:
+        SimilarRegionPair if valid and above threshold, None otherwise
+    """
+    if similar_key == current_key:
+        return None
+
+    similar_sig = _find_signature_by_key(signatures, similar_key)
+    if similar_sig is None:
+        return None
+
+    sorted_keys = sorted([current_key, similar_key])
+    pair_key = (sorted_keys[0], sorted_keys[1])
+    if pair_key in seen_pairs:
+        return None
+
+    seen_pairs.add(pair_key)
+    pair = _create_similar_pair(sig, similar_sig)
+
+    if pair.similarity < threshold:
+        return None
+
+    logger.debug(
+        "Found similar pair: %s ↔ %s (%.1%% similar)",
+        sig.region.region_name,
+        similar_sig.region.region_name,
+        pair.similarity * 100,
+    )
+
+    return pair
+
+
+def _process_signature_candidates(
+    sig: RegionSignature,
+    lsh: MinHashLSH,
+    signatures: list[RegionSignature],
+    seen_pairs: set[tuple[str, str]],
+    threshold: float,
+) -> list[SimilarRegionPair]:
+    """Process all candidate pairs for a signature.
+
+    Args:
+        sig: Signature to find candidates for
+        lsh: LSH index
+        signatures: All signatures
+        seen_pairs: Set of already processed pair keys
+        threshold: Similarity threshold
+
+    Returns:
+        List of valid similar pairs
+    """
+    pairs: list[SimilarRegionPair] = []
+    similar_keys = lsh.query(sig.minhash)
+    current_key = f"{sig.region.path}:{sig.region.start_line}-{sig.region.end_line}"
+
+    for similar_key in similar_keys:
+        pair = _process_candidate_pair(
+            sig, similar_key, current_key, signatures, seen_pairs, threshold
+        )
+        if pair is not None:
+            pairs.append(pair)
+
+    return pairs
+
+
 def find_similar_pairs(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
@@ -103,45 +185,12 @@ def find_similar_pairs(
     )
 
     lsh = _create_lsh_index(signatures, threshold)
-
-    pairs = []
-    seen_pairs = set()
+    seen_pairs: set[tuple[str, str]] = set()
+    pairs: list[SimilarRegionPair] = []
 
     for sig in signatures:
-        similar_keys = lsh.query(sig.minhash)
-        current_key = f"{sig.region.path}:{sig.region.start_line}-{sig.region.end_line}"
-
-        for similar_key in similar_keys:
-            # Skip exact self-matches (same region)
-            if similar_key == current_key:
-                continue
-
-            # Find the corresponding signature
-            similar_sig = _find_signature_by_key(signatures, similar_key)
-            if similar_sig is None:
-                continue
-
-            # Create canonical pair key (sorted to avoid duplicates)
-            # Use unique region keys to distinguish different regions in same file
-            pair_key = tuple(sorted([current_key, similar_key]))
-            if pair_key in seen_pairs:
-                continue
-
-            seen_pairs.add(pair_key)
-            pair = _create_similar_pair(sig, similar_sig)
-
-            # Filter by actual threshold (LSH returns candidates that may be below threshold)
-            if pair.similarity < threshold:
-                continue
-
-            pairs.append(pair)
-
-            logger.debug(
-                "Found similar pair: %s ↔ %s (%.1%% similar)",
-                sig.region.region_name,
-                similar_sig.region.region_name,
-                pair.similarity * 100,
-            )
+        sig_pairs = _process_signature_candidates(sig, lsh, signatures, seen_pairs, threshold)
+        pairs.extend(sig_pairs)
 
     pairs.sort(key=lambda p: p.similarity, reverse=True)
     logger.info(
