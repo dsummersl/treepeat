@@ -67,7 +67,6 @@ def _run_shingle_stage(
         parsed_files,
         normalizers=normalizers,
         k=settings.shingle.k,
-        include_text=settings.shingle.include_text,
     )
     logger.info("Shingling complete: %d region(s) shingled", len(shingled_regions))
     return shingled_regions
@@ -139,16 +138,7 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
         return SimilarityResult(failed_files=parse_result.failed_files)
 
     extracted_regions = _run_extract_stage(parse_result.parsed_files)
-    if len(extracted_regions) < 2:
-        logger.warning("Need at least 2 regions for similarity detection, returning empty result")
-        return SimilarityResult(failed_files=parse_result.failed_files)
-
-    # TODO regions...what is this? I think...we got a little bit of a problem in the sense that what about things not in a region?
     shingled_regions = _run_shingle_stage(extracted_regions, parse_result.parsed_files, normalizers, settings)
-    if len(shingled_regions) < 2:
-        logger.warning("Need at least 2 shingled regions, returning empty result")
-        return SimilarityResult(failed_files=parse_result.failed_files)
-
     signatures = _run_minhash_stage(shingled_regions, settings.minhash.num_perm)
     similarity_result = _run_lsh_stage(signatures, settings.lsh.threshold, parse_result.failed_files)
 

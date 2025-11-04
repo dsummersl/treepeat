@@ -1,6 +1,7 @@
 """Extract regions (functions, classes, sections, etc) from parsed files."""
 
 import logging
+from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 from tree_sitter import Node
@@ -20,6 +21,43 @@ class ExtractedRegion(BaseModel):
     node: Node = Field(description="AST node for this region")
 
 
+@dataclass
+class RegionTypeMapping:
+    """Mapping of node types to region types for a language."""
+
+    types: list[str]  # Node types to extract (e.g., "function_definition")
+    region_type: str  # Region type label (e.g., "function")
+
+
+# Language-specific mappings of node types to region types
+LANGUAGE_REGION_MAPPINGS: dict[str, list[RegionTypeMapping]] = {
+    "python": [
+        RegionTypeMapping(types=["function_definition"], region_type="function"),
+        RegionTypeMapping(types=["class_definition"], region_type="class"),
+    ],
+    "javascript": [
+        RegionTypeMapping(
+            types=["function_declaration", "function", "arrow_function"],
+            region_type="function",
+        ),
+        RegionTypeMapping(types=["method_definition"], region_type="method"),
+        RegionTypeMapping(types=["class_declaration"], region_type="class"),
+    ],
+    "typescript": [
+        RegionTypeMapping(
+            types=["function_declaration", "function", "arrow_function"],
+            region_type="function",
+        ),
+        RegionTypeMapping(types=["method_definition"], region_type="method"),
+        RegionTypeMapping(types=["class_declaration"], region_type="class"),
+    ],
+}
+
+# Copy typescript mappings for tsx and jsx
+LANGUAGE_REGION_MAPPINGS["tsx"] = LANGUAGE_REGION_MAPPINGS["typescript"]
+LANGUAGE_REGION_MAPPINGS["jsx"] = LANGUAGE_REGION_MAPPINGS["javascript"]
+
+
 def _extract_node_name(node: Node, source: bytes) -> str:
     """Extract the name of a function/class/method from its node.
 
@@ -37,145 +75,152 @@ def _extract_node_name(node: Node, source: bytes) -> str:
     return "anonymous"
 
 
-def _extract_python_regions(
+def _collect_top_level_nodes(root_node: Node) -> list[Node]:
+    """Collect all top-level nodes that are direct children of the root.
+
+    Args:
+        root_node: The root node of the AST
+
+    Returns:
+        List of top-level nodes (direct children)
+    """
+    # For most languages, the root is a "program" or "module" node
+    # We want its direct children as top-level nodes
+    if root_node.type in ("module", "program", "source_file"):
+        return list(root_node.children)
+    return [root_node]
+
+
+def _create_section_region(
+    pending_nodes: list[Node],
     parsed_file: ParsedFile,
-    parent_node: Node | None = None,
-    parent_name: str | None = None,
+) -> ExtractedRegion:
+    """Create a section region from a list of pending nodes.
+
+    Args:
+        pending_nodes: List of nodes to group into a section
+        parsed_file: The parsed file for context
+
+    Returns:
+        ExtractedRegion for the section
+    """
+    first_node = pending_nodes[0]
+    last_node = pending_nodes[-1]
+    start_line = first_node.start_point[0] + 1
+    end_line = last_node.end_point[0] + 1
+
+    region = Region(
+        path=parsed_file.path,
+        language=parsed_file.language,
+        region_type="lines",
+        region_name=f"lines_{start_line}_{end_line}",
+        start_line=start_line,
+        end_line=end_line,
+    )
+    return ExtractedRegion(region=region, node=first_node)
+
+
+def _get_region_type_for_node(node_type: str, language: str) -> str:
+    """Get the region type label for a node type.
+
+    Args:
+        node_type: The AST node type
+        language: Programming language
+
+    Returns:
+        Region type label (e.g., "function", "class")
+    """
+    mappings = LANGUAGE_REGION_MAPPINGS.get(language, [])
+    for mapping in mappings:
+        if node_type in mapping.types:
+            return mapping.region_type
+    return "unknown"
+
+
+def _create_target_region(
+    node: Node,
+    parsed_file: ParsedFile,
+) -> ExtractedRegion:
+    """Create a region for a target node (function, class, etc).
+
+    Args:
+        node: The AST node
+        parsed_file: The parsed file for context
+
+    Returns:
+        ExtractedRegion for the target node
+    """
+    name = _extract_node_name(node, parsed_file.source)
+    region_type = _get_region_type_for_node(node.type, parsed_file.language)
+
+    region = Region(
+        path=parsed_file.path,
+        language=parsed_file.language,
+        region_type=region_type,
+        region_name=name,
+        start_line=node.start_point[0] + 1,
+        end_line=node.end_point[0] + 1,
+    )
+
+    logger.debug(
+        "Extracted %s: %s at lines %d-%d",
+        region_type,
+        name,
+        region.start_line,
+        region.end_line,
+    )
+
+    return ExtractedRegion(region=region, node=node)
+
+
+def _partition_by_type(
+    nodes: list[Node],
+    target_types: set[str],
+    parsed_file: ParsedFile,
 ) -> list[ExtractedRegion]:
-    """Extract regions from Python code.
+    """Partition nodes into regions, ensuring all code is covered.
+
+    This function groups consecutive nodes into regions based on whether they match
+    target types. Nodes that match target types become their own regions, while
+    consecutive non-matching nodes are grouped into "section" regions.
 
     Args:
-        parsed_file: Parsed Python file
-        parent_node: Parent node to search within (None for root)
-        parent_name: Name of parent class (for methods)
+        nodes: List of top-level nodes to partition
+        target_types: Set of node types to extract as named regions
+        parsed_file: The parsed file for context
 
     Returns:
-        List of extracted regions
+        List of extracted regions covering all nodes
     """
     regions: list[ExtractedRegion] = []
-    node = parent_node or parsed_file.root_node
+    pending_section_nodes: list[Node] = []
 
-    def traverse(current: Node, in_class: str | None = None) -> None:
-        # Extract functions (top-level or methods)
-        if current.type == "function_definition":
-            name = _extract_node_name(current, parsed_file.source)
-            region_type = "method" if in_class else "function"
-            full_name = f"{in_class}.{name}" if in_class else name
+    for node in nodes:
+        if node.type in target_types:
+            # Flush any pending section first
+            if pending_section_nodes:
+                regions.append(_create_section_region(pending_section_nodes, parsed_file))
+                pending_section_nodes.clear()
 
-            region = Region(
-                path=parsed_file.path,
-                language=parsed_file.language,
-                region_type=region_type,
-                region_name=full_name,
-                start_line=current.start_point[0] + 1,  # 0-indexed to 1-indexed
-                end_line=current.end_point[0] + 1,
-            )
-            regions.append(ExtractedRegion(region=region, node=current))
-            logger.debug(
-                "Extracted %s: %s at lines %d-%d",
-                region_type,
-                full_name,
-                region.start_line,
-                region.end_line,
-            )
+            # Create a region for this target node
+            regions.append(_create_target_region(node, parsed_file))
+        else:
+            # Accumulate non-target nodes into pending section
+            pending_section_nodes.append(node)
 
-        # Extract classes and recursively find methods
-        elif current.type == "class_definition":
-            name = _extract_node_name(current, parsed_file.source)
-            region = Region(
-                path=parsed_file.path,
-                language=parsed_file.language,
-                region_type="class",
-                region_name=name,
-                start_line=current.start_point[0] + 1,
-                end_line=current.end_point[0] + 1,
-            )
-            regions.append(ExtractedRegion(region=region, node=current))
-            logger.debug(
-                "Extracted class: %s at lines %d-%d",
-                name,
-                region.start_line,
-                region.end_line,
-            )
+    # Flush any remaining pending section
+    if pending_section_nodes:
+        regions.append(_create_section_region(pending_section_nodes, parsed_file))
 
-            # Find methods within this class
-            for child in current.children:
-                traverse(child, in_class=name)
-            return  # Don't traverse children again
-
-        # TODO what I don't like about this is that it has the potential to leave regions out of the comparisons all together!
-        # When breaking something into regions I think its fine to do that (mark important sections of the file), but we have to ensure that the regions represent the entirety of the file.
-        #
-        # Continue traversing
-        for child in current.children:
-            traverse(child, in_class)
-
-    traverse(node, parent_name)
-    return regions
-
-
-def _extract_javascript_regions(parsed_file: ParsedFile) -> list[ExtractedRegion]:
-    """Extract regions from JavaScript/TypeScript code.
-
-    Args:
-        parsed_file: Parsed JavaScript/TypeScript file
-
-    Returns:
-        List of extracted regions
-    """
-    regions: list[ExtractedRegion] = []
-    node = parsed_file.root_node
-
-    def traverse(current: Node) -> None:
-        # Function declarations
-        if current.type in ("function_declaration", "function", "arrow_function"):
-            name = _extract_node_name(current, parsed_file.source)
-            region = Region(
-                path=parsed_file.path,
-                language=parsed_file.language,
-                region_type="function",
-                region_name=name,
-                start_line=current.start_point[0] + 1,
-                end_line=current.end_point[0] + 1,
-            )
-            regions.append(ExtractedRegion(region=region, node=current))
-
-        # Method definitions
-        elif current.type in ("method_definition", "method"):
-            name = _extract_node_name(current, parsed_file.source)
-            region = Region(
-                path=parsed_file.path,
-                language=parsed_file.language,
-                region_type="method",
-                region_name=name,
-                start_line=current.start_point[0] + 1,
-                end_line=current.end_point[0] + 1,
-            )
-            regions.append(ExtractedRegion(region=region, node=current))
-
-        # Class declarations
-        elif current.type == "class_declaration":
-            name = _extract_node_name(current, parsed_file.source)
-            region = Region(
-                path=parsed_file.path,
-                language=parsed_file.language,
-                region_type="class",
-                region_name=name,
-                start_line=current.start_point[0] + 1,
-                end_line=current.end_point[0] + 1,
-            )
-            regions.append(ExtractedRegion(region=region, node=current))
-
-        # Continue traversing
-        for child in current.children:
-            traverse(child)
-
-    traverse(node)
     return regions
 
 
 def extract_regions(parsed_file: ParsedFile) -> list[ExtractedRegion]:
     """Extract code regions from a parsed file.
+
+    Uses language-specific mappings to partition the file into regions,
+    ensuring all code is covered (either as named regions like functions/classes
+    or as "section" regions for other code).
 
     Args:
         parsed_file: Parsed source file
@@ -185,11 +230,9 @@ def extract_regions(parsed_file: ParsedFile) -> list[ExtractedRegion]:
     """
     logger.info("Extracting regions from %s (%s)", parsed_file.path, parsed_file.language)
 
-    if parsed_file.language == "python":
-        regions = _extract_python_regions(parsed_file)
-    elif parsed_file.language in ("javascript", "typescript", "tsx", "jsx"):
-        regions = _extract_javascript_regions(parsed_file)
-    else:
+    # Check if language has region mappings
+    mappings = LANGUAGE_REGION_MAPPINGS.get(parsed_file.language)
+    if mappings is None:
         # For unsupported languages, treat the entire file as one region
         logger.warning(
             "Language '%s' not supported for region extraction, treating entire file as one region",
@@ -204,25 +247,27 @@ def extract_regions(parsed_file: ParsedFile) -> list[ExtractedRegion]:
             end_line=parsed_file.root_node.end_point[0] + 1,
         )
         regions = [ExtractedRegion(region=region, node=parsed_file.root_node)]
+    else:
+        # Collect all target types from mappings
+        target_types: set[str] = set()
+        for mapping in mappings:
+            target_types.update(mapping.types)
+
+        # Collect top-level nodes
+        top_level_nodes = _collect_top_level_nodes(parsed_file.root_node)
+
+        # Partition nodes into regions
+        regions = _partition_by_type(top_level_nodes, target_types, parsed_file)
 
     logger.info("Extracted %d region(s) from %s", len(regions), parsed_file.path)
     return regions
 
 
 def extract_all_regions(parsed_files: list[ParsedFile]) -> list[ExtractedRegion]:
-    """Extract regions from multiple parsed files.
-
-    Args:
-        parsed_files: List of parsed files
-
-    Returns:
-        List of all extracted regions across all files
-    """
     all_regions: list[ExtractedRegion] = []
 
     for parsed_file in parsed_files:
         try:
-            # TODO I'm not sure this doesn't leave something out. Imagine a file of text? The region is the whole file - but it might just have 10 lines that are similar.
             regions = extract_regions(parsed_file)
             all_regions.extend(regions)
         except Exception as e:

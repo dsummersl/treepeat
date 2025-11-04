@@ -243,7 +243,7 @@ def main(
 
     settings = PipelineSettings(
         normalizer=NormalizerSettings(disabled_normalizers=disabled_list),
-        shingle=ShingleSettings(k=shingle_k, include_text=shingle_include_text),
+        shingle=ShingleSettings(k=shingle_k),
         minhash=MinHashSettings(num_perm=minhash_num_perm),
         lsh=LSHSettings(threshold=lsh_threshold),
     )

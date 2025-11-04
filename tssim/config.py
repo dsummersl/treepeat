@@ -29,10 +29,6 @@ class ShingleSettings(BaseSettings):
         ge=1,
         description="Length of k-grams (number of nodes in each shingle path)",
     )
-    include_text: bool = Field(
-        default=False,
-        description="Include node text in shingles for more specificity",
-    )
 
 
 class MinHashSettings(BaseSettings):

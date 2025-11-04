@@ -7,14 +7,14 @@ from pydantic import BaseModel, Field
 from tssim.models.similarity import Region
 
 
-class ShingleSet(BaseModel):
+class ShingleList(BaseModel):
     """A set of shingles extracted from an AST.
 
     Shingles are sequences of node types that represent structural patterns.
     These will be used for MinHash similarity estimation.
     """
 
-    shingles: set[str] = Field(
+    shingles: list[str] = Field(
         description="Set of unique shingles (stringified k-gram paths through the AST)"
     )
 
@@ -31,7 +31,7 @@ class ShingledFile(BaseModel):
 
     path: Path = Field(description="Path to the source file")
     language: str = Field(description="Programming language of the file")
-    shingles: ShingleSet = Field(description="Set of shingles extracted from the AST")
+    shingles: ShingleList = Field(description="Set of shingles extracted from the AST")
 
     @property
     def shingle_count(self) -> int:
@@ -45,7 +45,7 @@ class ShingledRegion(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     region: Region = Field(description="The code region")
-    shingles: ShingleSet = Field(description="Set of shingles extracted from the region")
+    shingles: ShingleList = Field(description="Set of shingles extracted from the region")
 
     @property
     def shingle_count(self) -> int:

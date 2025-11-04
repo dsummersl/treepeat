@@ -17,7 +17,7 @@ class NodeRepresentation(BaseModel):
     def __str__(self) -> str:
         """Format as string for shingle representation."""
         if self.value:
-            return f"{self.name}:{self.value}"
+            return f"{self.name}({self.value})"
         return self.name
 
 

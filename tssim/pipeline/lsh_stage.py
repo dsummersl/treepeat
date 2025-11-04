@@ -119,7 +119,7 @@ def _process_candidate_pair(
         return None
 
     logger.debug(
-        "Found similar pair: %s ↔ %s (%.1%% similar)",
+        "Found similar pair: %s ↔ %s (%.1f%% similar)",
         sig.region.region_name,
         similar_sig.region.region_name,
         pair.similarity * 100,
