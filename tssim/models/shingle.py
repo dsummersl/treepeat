@@ -23,6 +23,9 @@ class ShingleList(BaseModel):
         """Return the number of unique shingles."""
         return len(self.shingles)
 
+    def __repr__(self):
+        return f"ShingleList(size={self.size})"
+
 
 class ShingledFile(BaseModel):
     """A file with its extracted shingles."""

@@ -12,6 +12,9 @@ from tssim.pipeline.region_extraction import ExtractedRegion
 
 logger = logging.getLogger(__name__)
 
+# Maximum length for node values in shingles (longer values are truncated)
+MAX_NODE_VALUE_LENGTH = 50
+
 
 class ASTShingler:
     def __init__(
@@ -46,11 +49,21 @@ class ASTShingler:
 
     def shingle_region(self, extracted_region: ExtractedRegion, source: bytes) -> ShingledRegion:
         region = extracted_region.region
-        shingles = self._extract_shingles(
-            extracted_region.node,
-            region.language,
-            source,
-        )
+
+        # If region has multiple nodes (section regions), extract shingles from all
+        if extracted_region.nodes is not None:
+            all_shingles: list[str] = []
+            for node in extracted_region.nodes:
+                node_shingles = self._extract_shingles(node, region.language, source)
+                all_shingles.extend(node_shingles)
+            shingles = all_shingles
+        else:
+            # Single node region (target regions like functions/classes)
+            shingles = self._extract_shingles(
+                extracted_region.node,
+                region.language,
+                source,
+            )
 
         logger.debug(
             "Extracted %d shingle(s) from %s (k=%d)",
@@ -68,11 +81,14 @@ class ASTShingler:
         if len(node.children) != 0:
             return None
 
-        if node.end_byte - node.start_byte >= 50:  # Limit value length
-            return None
-
         text = source[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
-        return text.replace("→", "->").replace("\n", "\\n").replace("\t", "\\t")
+        text = text.replace("→", "->").replace("\n", "\\n").replace("\t", "\\t")
+
+        # Truncate long values instead of dropping them
+        if len(text) > MAX_NODE_VALUE_LENGTH:
+            text = text[:MAX_NODE_VALUE_LENGTH]
+
+        return text
 
     def _apply_normalizers(
         self,

@@ -176,8 +176,6 @@ def parse_path(target_path: Path) -> ParseResult:
 
     parse_files(files, result)
 
-    logger.info(
-        f"Parse complete: {result.success_count} succeeded, {result.failure_count} failed"
-    )
+    logger.info(f"Parse complete: {result.success_count} succeeded, {result.failure_count} failed")
 
     return result

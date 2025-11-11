@@ -13,12 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 class ExtractedRegion(BaseModel):
-    """A region with its AST node for further processing."""
+    """A region with its AST node(s) for further processing."""
 
     model_config = {"arbitrary_types_allowed": True}
 
     region: Region = Field(description="Region metadata")
-    node: Node = Field(description="AST node for this region")
+    node: Node = Field(description="Primary AST node for this region")
+    nodes: list[Node] | None = Field(default=None, description="Multiple nodes for section regions")
 
 
 @dataclass
@@ -50,6 +51,14 @@ LANGUAGE_REGION_MAPPINGS: dict[str, list[RegionTypeMapping]] = {
         ),
         RegionTypeMapping(types=["method_definition"], region_type="method"),
         RegionTypeMapping(types=["class_declaration"], region_type="class"),
+    ],
+    "markdown": [
+        RegionTypeMapping(
+            types=["atx_heading", "setext_heading", "section"], region_type="heading"
+        ),
+        RegionTypeMapping(
+            types=["fenced_code_block", "indented_code_block"], region_type="code_block"
+        ),
     ],
 }
 
@@ -117,7 +126,10 @@ def _create_section_region(
         start_line=start_line,
         end_line=end_line,
     )
-    return ExtractedRegion(region=region, node=first_node)
+    # Store all nodes for sections so shingling can process them all
+    return ExtractedRegion(
+        region=region, node=first_node, nodes=pending_nodes if len(pending_nodes) > 1 else None
+    )
 
 
 def _get_region_type_for_node(node_type: str, language: str) -> str:
@@ -273,7 +285,5 @@ def extract_all_regions(parsed_files: list[ParsedFile]) -> list[ExtractedRegion]
         except Exception as e:
             logger.error("Failed to extract regions from %s: %s", parsed_file.path, e)
 
-    logger.info(
-        "Extracted %d total region(s) from %d file(s)", len(all_regions), len(parsed_files)
-    )
+    logger.info("Extracted %d total region(s) from %d file(s)", len(all_regions), len(parsed_files))
     return all_regions

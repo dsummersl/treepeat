@@ -70,8 +70,18 @@ def _create_similar_pair(
 
     Returns:
         SimilarRegionPair with Jaccard similarity
+
+    Note:
+        If both signatures have zero shingles, similarity is set to 0.0
+        (not 1.0) because empty regions shouldn't be considered similar.
     """
-    similarity = sig1.minhash.jaccard(sig2.minhash)
+    # If both regions have no shingles, they should not be considered similar
+    # (even though mathematically Jaccard(∅, ∅) = 1.0)
+    if sig1.shingle_count == 0 and sig2.shingle_count == 0:
+        similarity = 0.0
+    else:
+        similarity = sig1.minhash.jaccard(sig2.minhash)
+
     return SimilarRegionPair(
         region1=sig1.region,
         region2=sig2.region,
