@@ -1,0 +1,81 @@
+name: Testing Framework
+
+on:
+  workflow_dispatch:  # Manual trigger
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight
+  pull_request:
+    paths:
+      - 'testing-framework/**'
+      - '.github/workflows/testing-framework.yml'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: |
+          uv sync --group dev
+          npm install -g jscpd
+
+      - name: Build tssim
+        run: |
+          uv run python -m tssim --version || echo "tssim build not required for testing framework"
+
+      - name: Run testing framework
+        working-directory: testing-framework/duplication-testing
+        run: |
+          python3 simple_test_runner.py
+        continue-on-error: true
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: testing-framework/duplication-testing/reports/
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Upload raw results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-results
+          path: testing-framework/duplication-testing/results/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Display results summary
+        if: always()
+        working-directory: testing-framework/duplication-testing
+        run: |
+          echo "=== Testing Framework Results ==="
+          if [ -d "reports" ]; then
+            ls -lh reports/
+            if [ -f "reports/comparison_tools.csv" ]; then
+              echo ""
+              echo "=== Tool Comparison ==="
+              cat reports/comparison_tools.csv
+            fi
+          else
+            echo "No reports generated"
+          fi
