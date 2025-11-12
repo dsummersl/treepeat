@@ -100,6 +100,35 @@ def _collect_top_level_nodes(root_node: Node) -> list[Node]:
     return [root_node]
 
 
+def _collect_all_matching_nodes(root_node: Node, target_types: set[str]) -> list[Node]:
+    """Recursively collect all nodes matching target types from the AST.
+
+    This function performs a depth-first traversal of the AST to find ALL nodes
+    that match the target types, not just top-level ones. This allows extraction
+    of nested functions, methods within classes, etc.
+
+    Args:
+        root_node: The root node to start traversal from
+        target_types: Set of node types to collect
+
+    Returns:
+        List of all nodes matching target types (in depth-first order)
+    """
+    matching_nodes: list[Node] = []
+
+    def traverse(node: Node) -> None:
+        # If this node matches, add it
+        if node.type in target_types:
+            matching_nodes.append(node)
+
+        # Recursively traverse children
+        for child in node.children:
+            traverse(child)
+
+    traverse(root_node)
+    return matching_nodes
+
+
 def _create_section_region(
     pending_nodes: list[Node],
     parsed_file: ParsedFile,
@@ -232,13 +261,18 @@ def extract_regions(parsed_file: ParsedFile, include_sections: bool = True) -> l
     """Extract code regions from a parsed file.
 
     Uses language-specific mappings to partition the file into regions.
-    When include_sections is True, ensures all code is covered (either as named
-    regions like functions/classes or as "section" regions for other code).
-    When False, only extracts named regions.
+
+    When include_sections is True: Extracts top-level nodes and creates section
+    regions for code that doesn't match target types (original behavior).
+
+    When include_sections is False: Recursively extracts ALL matching nodes
+    (functions, methods, classes, nested functions, etc.) without sections.
+    This allows matching individual methods even when their containing classes differ.
 
     Args:
         parsed_file: Parsed source file
-        include_sections: If True, create section regions for non-target code
+        include_sections: If True, use top-level extraction with sections.
+                         If False, use recursive extraction without sections.
 
     Returns:
         List of extracted regions with their AST nodes
@@ -268,11 +302,14 @@ def extract_regions(parsed_file: ParsedFile, include_sections: bool = True) -> l
         for mapping in mappings:
             target_types.update(mapping.types)
 
-        # Collect top-level nodes
-        top_level_nodes = _collect_top_level_nodes(parsed_file.root_node)
-
-        # Partition nodes into regions
-        regions = _partition_by_type(top_level_nodes, target_types, parsed_file, include_sections)
+        if include_sections:
+            # Original behavior: top-level nodes with sections
+            top_level_nodes = _collect_top_level_nodes(parsed_file.root_node)
+            regions = _partition_by_type(top_level_nodes, target_types, parsed_file, include_sections)
+        else:
+            # Recursive extraction: find ALL matching nodes (methods, nested functions, etc.)
+            matching_nodes = _collect_all_matching_nodes(parsed_file.root_node, target_types)
+            regions = [_create_target_region(node, parsed_file) for node in matching_nodes]
 
     logger.info("Extracted %d region(s) from %s", len(regions), parsed_file.path)
     return regions

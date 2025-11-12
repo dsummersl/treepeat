@@ -1,4 +1,10 @@
-from ..conftest import parsed_fixture, fixture_path1, fixture_path2, fixture_nested
+from ..conftest import (
+    parsed_fixture,
+    fixture_path1,
+    fixture_path2,
+    fixture_nested,
+    fixture_class_methods,
+)
 from tssim.pipeline.region_extraction import extract_all_regions, get_matched_line_ranges
 
 
@@ -99,22 +105,20 @@ def test_region_nodes_include_all_children():
 
 
 def test_extract_nested_functions():
-    """Test that only top-level functions are extracted as regions.
+    """Test that with include_sections=True, only top-level functions are extracted.
 
-    Nested functions are part of the outer function's AST node and will be
-    included in the shingles for the outer function. This is correct behavior
-    because when an outer function matches, we want its nested functions to be
-    considered part of that match.
+    With include_sections=True (original behavior), nested functions are part of
+    the outer function's AST node and included in the shingles for that region.
     """
     parsed = parsed_fixture(fixture_nested)
-    regions = extract_all_regions([parsed])
+    regions = extract_all_regions([parsed], include_sections=True)
 
     # Extract region names
     region_names = [r.region.region_name for r in regions]
     region_types = [r.region.region_type for r in regions]
 
     # Should only have top-level regions:
-    # - lines_1_1 (module docstring)
+    # - lines_1_3 (module docstring and blanks)
     # - outer_function (contains inner_function_1 and inner_function_2 in its AST)
     # - another_outer (contains process and transform in its AST)
     # - ClassWithMethods (class with methods)
@@ -124,7 +128,7 @@ def test_extract_nested_functions():
     assert "another_outer" in region_names
     assert "ClassWithMethods" in region_names
 
-    # Nested functions should NOT be separate regions
+    # Nested functions should NOT be separate regions when include_sections=True
     assert "inner_function_1" not in region_names
     assert "inner_function_2" not in region_names
     assert "process" not in region_names
@@ -187,8 +191,13 @@ def test_matched_line_ranges_covers_entire_function():
     assert len(matched_lines) == expected_line_count
 
 
-def test_include_sections_false_extracts_only_top_level():
-    """Test that include_sections=False extracts top-level functions/classes without section regions."""
+def test_include_sections_false_extracts_all_recursively():
+    """Test that include_sections=False recursively extracts ALL functions/methods/classes.
+
+    This is the Level 1 behavior - extract everything that could potentially match,
+    including nested functions, methods within classes, etc. This allows detection
+    of duplicate methods even when their containing classes differ.
+    """
     parsed = parsed_fixture(fixture_nested)
 
     # Extract with include_sections=False (level 1 behavior)
@@ -196,14 +205,94 @@ def test_include_sections_false_extracts_only_top_level():
 
     region_names = [r.region.region_name for r in regions]
 
-    # Should have top-level functions and classes
+    # Should have ALL functions (top-level and nested)
     assert "outer_function" in region_names
+    assert "inner_function_1" in region_names  # nested in outer_function
+    assert "inner_function_2" in region_names  # nested in outer_function
     assert "another_outer" in region_names
+    assert "process" in region_names  # nested in another_outer
+    assert "transform" in region_names  # nested in another_outer
+
+    # Should have the class
     assert "ClassWithMethods" in region_names
+
+    # Should have ALL methods (including method with nested function)
+    assert "method_with_nested" in region_names
+    assert "helper" in region_names  # nested in method_with_nested
+    assert "simple_method" in region_names
 
     # Should NOT have any "lines_X_Y" section regions
     for name in region_names:
         assert not name.startswith("lines_"), f"Found unexpected section region: {name}"
 
-    # Should have exactly 3 regions (2 functions + 1 class)
-    assert len(regions) == 3
+    # Should have 10 regions total (all functions/methods + class)
+    # outer_function, inner_function_1, inner_function_2, another_outer, process, transform,
+    # ClassWithMethods, method_with_nested, helper, simple_method
+    assert len(regions) == 10
+
+
+def test_class_methods_extracted_separately():
+    """Test that methods within classes are extracted as separate regions.
+
+    This demonstrates the scenario where ClassA and ClassB have some duplicate
+    methods and some different methods. With recursive extraction, individual
+    methods can be matched even if the classes overall don't match.
+    """
+    parsed = parsed_fixture(fixture_class_methods)
+
+    # Extract with include_sections=False (recursive extraction)
+    regions = extract_all_regions([parsed], include_sections=False)
+
+    region_names = [r.region.region_name for r in regions]
+    region_types = {r.region.region_name: r.region.region_type for r in regions}
+
+    # Should have all three classes
+    assert "ClassA" in region_names
+    assert "ClassB" in region_names
+    assert "ClassC" in region_names
+
+    # Should have ALL methods from ClassA
+    assert "method1" in region_names
+    assert "method2" in region_names
+    assert "method3" in region_names
+
+    # Should have ALL methods from ClassB (including renamed method1)
+    assert "method1_renamed" in region_names
+    # method2 and method3 appear twice (once for ClassA, once for ClassB)
+    method2_regions = [r for r in regions if r.region.region_name == "method2"]
+    method3_regions = [r for r in regions if r.region.region_name == "method3"]
+    assert len(method2_regions) == 2  # One in ClassA, one in ClassB
+    assert len(method3_regions) == 2  # One in ClassA, one in ClassB
+
+    # Should have methods from ClassC
+    assert "different_method" in region_names
+    assert "another_different_method" in region_names
+
+    # Verify all methods are typed as "function" (Python treats methods as function_definition)
+    for method_name in ["method1", "method2", "method3", "method1_renamed", "different_method", "another_different_method"]:
+        assert region_types[method_name] == "function"
+
+    # Total: 3 classes + 3 methods (ClassA) + 3 methods (ClassB) + 2 methods (ClassC) = 11 regions
+    assert len(regions) == 11
+
+    # Verify that method2 from ClassA and method2 from ClassB have different line ranges
+    # but identical code (they would match at high similarity)
+    method2_from_A = next(r for r in method2_regions if r.region.start_line < 30)
+    method2_from_B = next(r for r in method2_regions if r.region.start_line > 30)
+
+    # Get source code for both methods
+    method2_A_source = parsed.source[
+        method2_from_A.node.start_byte : method2_from_A.node.end_byte
+    ].decode("utf-8")
+    method2_B_source = parsed.source[
+        method2_from_B.node.start_byte : method2_from_B.node.end_byte
+    ].decode("utf-8")
+
+    # They should have very similar implementation (docstrings differ slightly)
+    assert "data = [1, 2, 3, 4, 5]" in method2_A_source
+    assert "data = [1, 2, 3, 4, 5]" in method2_B_source
+    assert "for item in data:" in method2_A_source
+    assert "for item in data:" in method2_B_source
+    assert "total += item" in method2_A_source
+    assert "total += item" in method2_B_source
+    # Docstrings differ, but code is identical - these would match at high similarity
