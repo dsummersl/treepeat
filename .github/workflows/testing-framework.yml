@@ -41,9 +41,9 @@ jobs:
           uv run python -m tssim --version || echo "tssim build not required for testing framework"
 
       - name: Run testing framework
-        working-directory: testing-framework/duplication-testing
+        working-directory: testing-framework
         run: |
-          python3 simple_test_runner.py
+          python3 run_tests.py
         continue-on-error: true
 
       - name: Upload benchmark results
@@ -51,7 +51,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: testing-framework/duplication-testing/reports/
+          path: testing-framework/reports/
           retention-days: 90
           if-no-files-found: warn
 
@@ -60,21 +60,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: raw-results
-          path: testing-framework/duplication-testing/results/
+          path: testing-framework/results/
           retention-days: 30
           if-no-files-found: warn
 
       - name: Display results summary
         if: always()
-        working-directory: testing-framework/duplication-testing
+        working-directory: testing-framework
         run: |
           echo "=== Testing Framework Results ==="
           if [ -d "reports" ]; then
             ls -lh reports/
-            if [ -f "reports/comparison_tools.csv" ]; then
+            if [ -f "reports/latest.csv" ]; then
               echo ""
               echo "=== Tool Comparison ==="
-              cat reports/comparison_tools.csv
+              cat reports/latest.csv
             fi
           else
             echo "No reports generated"

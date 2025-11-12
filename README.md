@@ -34,10 +34,10 @@ The testing framework (`testing-framework/`) provides:
 ### Quick Start
 
 ```bash
-cd testing-framework/duplication-testing
+cd testing-framework
 
 # Run all tests
-python3 simple_test_runner.py
+python3 run_tests.py
 
 # Compare tool results
 python3 compare_results.py tools
@@ -49,9 +49,8 @@ python3 add_codebase.py add myproject https://github.com/user/repo.git TypeScrip
 ### Documentation
 
 - [Testing Framework README](testing-framework/README.md) - Complete usage guide
-- [Integration Guide](testing-framework/INTEGRATION.md) - Integration details
-- [Analysis](testing-framework/duplication-testing/ANALYSIS.md) - Detailed benchmark analysis
-- [Summary](testing-framework/duplication-testing/SUMMARY.md) - Results overview
+- [Analysis](testing-framework/ANALYSIS.md) - Detailed benchmark analysis
+- [Summary](testing-framework/SUMMARY.md) - Results overview
 
 ### CI Integration
 
