@@ -115,7 +115,6 @@ def test_extract_nested_functions():
 
     # Extract region names
     region_names = [r.region.region_name for r in regions]
-    region_types = [r.region.region_type for r in regions]
 
     # Should only have top-level regions:
     # - lines_1_3 (module docstring and blanks)

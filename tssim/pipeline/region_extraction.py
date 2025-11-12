@@ -2,6 +2,7 @@
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 from tree_sitter import Node
@@ -214,6 +215,37 @@ def _create_target_region(
     return ExtractedRegion(region=region, node=node)
 
 
+def _flush_pending_sections(
+    pending_nodes: list[Node],
+    parsed_file: ParsedFile,
+    regions: list[ExtractedRegion],
+) -> None:
+    """Flush pending section nodes to regions list."""
+    if pending_nodes:
+        regions.append(_create_section_region(pending_nodes, parsed_file))
+        pending_nodes.clear()
+
+
+def _partition_with_sections(
+    nodes: list[Node],
+    target_types: set[str],
+    parsed_file: ParsedFile,
+) -> list[ExtractedRegion]:
+    """Partition nodes into target regions and sections."""
+    regions: list[ExtractedRegion] = []
+    pending_section_nodes: list[Node] = []
+
+    for node in nodes:
+        if node.type in target_types:
+            _flush_pending_sections(pending_section_nodes, parsed_file, regions)
+            regions.append(_create_target_region(node, parsed_file))
+        else:
+            pending_section_nodes.append(node)
+
+    _flush_pending_sections(pending_section_nodes, parsed_file, regions)
+    return regions
+
+
 def _partition_by_type(
     nodes: list[Node],
     target_types: set[str],
@@ -235,26 +267,9 @@ def _partition_by_type(
         List of extracted regions
     """
     if not include_sections:
-        # Simple case: only extract target regions
         return [_create_target_region(node, parsed_file) for node in nodes if node.type in target_types]
 
-    # Complex case: extract targets and group remaining into sections
-    regions: list[ExtractedRegion] = []
-    pending_section_nodes: list[Node] = []
-
-    for node in nodes:
-        if node.type in target_types:
-            if pending_section_nodes:
-                regions.append(_create_section_region(pending_section_nodes, parsed_file))
-                pending_section_nodes.clear()
-            regions.append(_create_target_region(node, parsed_file))
-        else:
-            pending_section_nodes.append(node)
-
-    if pending_section_nodes:
-        regions.append(_create_section_region(pending_section_nodes, parsed_file))
-
-    return regions
+    return _partition_with_sections(nodes, target_types, parsed_file)
 
 
 def extract_regions(parsed_file: ParsedFile, include_sections: bool = True) -> list[ExtractedRegion]:
@@ -340,7 +355,7 @@ def extract_all_regions(
     return all_regions
 
 
-def get_matched_line_ranges(matched_regions: list[Region]) -> dict:
+def get_matched_line_ranges(matched_regions: list[Region]) -> dict[Path, set[int]]:
     """Get the line ranges that were matched, organized by file path.
 
     Args:
@@ -349,7 +364,7 @@ def get_matched_line_ranges(matched_regions: list[Region]) -> dict:
     Returns:
         Dictionary mapping file paths to sets of matched line numbers
     """
-    matched_lines_by_file: dict = {}
+    matched_lines_by_file: dict[Path, set[int]] = {}
 
     for region in matched_regions:
         if region.path not in matched_lines_by_file:
@@ -362,9 +377,67 @@ def get_matched_line_ranges(matched_regions: list[Region]) -> dict:
     return matched_lines_by_file
 
 
+def _finish_range(
+    range_start: int | None, end_line: int, ranges: list[tuple[int, int]]
+) -> None:
+    """Finish a range and add it to the list."""
+    if range_start is not None:
+        ranges.append((range_start, end_line))
+
+
+def _find_unmatched_ranges(
+    matched_lines: set[int], file_end_line: int
+) -> list[tuple[int, int]]:
+    """Find contiguous ranges of unmatched lines in a file.
+
+    Args:
+        matched_lines: Set of line numbers that are already matched
+        file_end_line: Last line number in the file
+
+    Returns:
+        List of (start_line, end_line) tuples for unmatched ranges
+    """
+    unmatched_ranges: list[tuple[int, int]] = []
+    range_start = None
+
+    for line in range(1, file_end_line + 1):
+        if line in matched_lines:
+            _finish_range(range_start, line - 1, unmatched_ranges)
+            range_start = None
+        elif range_start is None:
+            range_start = line
+
+    _finish_range(range_start, file_end_line, unmatched_ranges)
+    return unmatched_ranges
+
+
+def _create_line_region(
+    parsed_file: ParsedFile, start_line: int, end_line: int
+) -> ExtractedRegion:
+    """Create a line-based region for a range of lines.
+
+    Args:
+        parsed_file: The parsed file
+        start_line: Start line of the region
+        end_line: End line of the region
+
+    Returns:
+        ExtractedRegion for the line range
+    """
+    region = Region(
+        path=parsed_file.path,
+        language=parsed_file.language,
+        region_type="lines",
+        region_name=f"lines_{start_line}_{end_line}",
+        start_line=start_line,
+        end_line=end_line,
+    )
+    return ExtractedRegion(region=region, node=parsed_file.root_node)
+
+
 def create_line_based_regions(
     parsed_files: list[ParsedFile],
-    matched_lines_by_file: dict,
+    matched_lines_by_file: dict[Path, set[int]],
     min_lines: int,
 ) -> list[ExtractedRegion]:
     """Create line-based regions for unmatched sections of files.
@@ -383,43 +456,12 @@ def create_line_based_regions(
         matched_lines = matched_lines_by_file.get(parsed_file.path, set())
         file_end_line = parsed_file.root_node.end_point[0] + 1
 
-        # Find contiguous unmatched line ranges
-        unmatched_ranges: list[tuple[int, int]] = []
-        range_start = None
+        unmatched_ranges = _find_unmatched_ranges(matched_lines, file_end_line)
 
-        for line in range(1, file_end_line + 1):
-            if line not in matched_lines:
-                if range_start is None:
-                    range_start = line
-            else:
-                if range_start is not None:
-                    # End of unmatched range
-                    unmatched_ranges.append((range_start, line - 1))
-                    range_start = None
-
-        # Handle case where file ends with unmatched lines
-        if range_start is not None:
-            unmatched_ranges.append((range_start, file_end_line))
-
-        # Create regions for unmatched ranges that meet min_lines threshold
         for start_line, end_line in unmatched_ranges:
             line_count = end_line - start_line + 1
             if line_count >= min_lines:
-                region = Region(
-                    path=parsed_file.path,
-                    language=parsed_file.language,
-                    region_type="lines",
-                    region_name=f"lines_{start_line}_{end_line}",
-                    start_line=start_line,
-                    end_line=end_line,
-                )
-
-                # Create a dummy node that spans the line range
-                # We'll use the root node as a placeholder
-                extracted_region = ExtractedRegion(
-                    region=region,
-                    node=parsed_file.root_node,
-                )
+                extracted_region = _create_line_region(parsed_file, start_line, end_line)
                 line_regions.append(extracted_region)
 
                 logger.debug(
