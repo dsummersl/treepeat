@@ -27,7 +27,7 @@ make benchmark-compare
 
 The testing framework (`testing-framework/`) provides:
 - **Comparative benchmarking** against industry-standard tools (jscpd, etc.)
-- **Real-world testing** on popular open-source codebases (FastAPI, Django, Flask, React)
+- **Real-world testing** on popular open-source codebases (Flask by default, others available)
 - **Standardized reporting** in CSV and JSON formats
 - **Extensible framework** for adding new codebases and tools
 

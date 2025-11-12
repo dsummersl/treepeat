@@ -137,14 +137,19 @@ The framework generates:
 
 ## 🧪 Codebases Tested
 
-Current configuration includes:
+Current active codebase:
 
-1. **FastAPI** (Python) - Modern Python web framework
-2. **Django** (Python) - Django web framework
-3. **Flask** (Python) - Flask micro-framework
-4. **React** (JavaScript) - React library
+1. **Flask** (Python, ~18K LOC) - Flask micro-framework
 
-You can add more with `add_codebase.py` or by editing `codebases.json`.
+Additional codebases available in `codebases.json` (disabled by default due to size):
+- **FastAPI** (Python, 99K LOC)
+- **Django** (Python, 505K LOC)
+- **React** (JavaScript, 632K LOC)
+
+To enable them, move entries from `codebases_disabled` to `codebases` in `codebases.json`, or add new ones with:
+```bash
+python3 add_codebase.py add myproject https://github.com/user/repo.git Python "Description"
+```
 
 ## 🎓 Prerequisites
 

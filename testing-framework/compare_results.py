@@ -97,12 +97,12 @@ def compare_codebases(report_file: Path):
         print("-"*100)
 
         for codebase_name, result in sorted_codebases:
-            files = result.get('files', 0)
-            loc = result.get('lines_of_code', 0)
+            files = result.get('file_count', result.get('files', 0))
+            loc = result.get('line_count', result.get('lines_of_code', 0))
             duplicates = result.get('duplicates_found', 0)
             duration = result.get('duration', 0)
 
-            print(f"{codebase_name:<25} {files:<10} {loc:<10} {duplicates:<15} {duration:<15.2f}")
+            print(f"{codebase_name:<25} {files:<10} {loc:<10,} {duplicates:<15} {duration:<15.2f}")
 
         # Show percentage if available (for jscpd)
         if tool_name == 'jscpd':
@@ -162,11 +162,12 @@ def compare_reports(report1: Path, report2: Path):
 def main():
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  python3 compare_results.py tools <report.json>          # Compare tools")
-        print("  python3 compare_results.py codebases <report.json>      # Compare codebases")
+        print("  python3 compare_results.py tools [report.json]          # Compare tools (uses latest if not specified)")
+        print("  python3 compare_results.py codebases [report.json]      # Compare codebases")
         print("  python3 compare_results.py reports <report1> <report2>  # Compare two reports")
-        print("\nExample:")
-        print("  python3 compare_results.py tools reports/duplication_report_20251111_234706.json")
+        print("\nExamples:")
+        print("  python3 compare_results.py tools                        # Use latest report")
+        print("  python3 compare_results.py tools reports/results_20251112_143052.json")
         sys.exit(1)
 
     mode = sys.argv[1]
@@ -174,13 +175,19 @@ def main():
 
     if mode == 'tools':
         if len(sys.argv) < 3:
-            # Find latest report
-            reports = sorted(reports_dir.glob('duplication_report_*.json'))
-            if not reports:
-                print("No reports found")
-                sys.exit(1)
-            report_file = reports[-1]
-            print(f"Using latest report: {report_file.name}\n")
+            # Use latest.json symlink if available, otherwise find most recent
+            latest_report = reports_dir / 'latest.json'
+            if latest_report.exists():
+                report_file = latest_report
+                print(f"Using latest report: {report_file.name}\n")
+            else:
+                reports = sorted(reports_dir.glob('results_*.json'))
+                if not reports:
+                    print("No reports found in reports/")
+                    print("Run 'make benchmark' first to generate reports")
+                    sys.exit(1)
+                report_file = reports[-1]
+                print(f"Using latest report: {report_file.name}\n")
         else:
             report_file = Path(sys.argv[2])
 
@@ -188,12 +195,19 @@ def main():
 
     elif mode == 'codebases':
         if len(sys.argv) < 3:
-            reports = sorted(reports_dir.glob('duplication_report_*.json'))
-            if not reports:
-                print("No reports found")
-                sys.exit(1)
-            report_file = reports[-1]
-            print(f"Using latest report: {report_file.name}\n")
+            # Use latest.json symlink if available, otherwise find most recent
+            latest_report = reports_dir / 'latest.json'
+            if latest_report.exists():
+                report_file = latest_report
+                print(f"Using latest report: {report_file.name}\n")
+            else:
+                reports = sorted(reports_dir.glob('results_*.json'))
+                if not reports:
+                    print("No reports found in reports/")
+                    print("Run 'make benchmark' first to generate reports")
+                    sys.exit(1)
+                report_file = reports[-1]
+                print(f"Using latest report: {report_file.name}\n")
         else:
             report_file = Path(sys.argv[2])
 
