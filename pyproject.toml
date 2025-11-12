@@ -40,7 +40,7 @@ package = true
 
 [tool.ruff]
 line-length = 100
-exclude = [".venv", ".git", "build", "dist"]
+exclude = [".venv", ".git", "build", "dist", "tests/fixtures"]
 
 [tool.mypy]
 python_version = "3.11"

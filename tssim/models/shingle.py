@@ -23,7 +23,7 @@ class ShingleList(BaseModel):
         """Return the number of unique shingles."""
         return len(self.shingles)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"ShingleList(size={self.size})"
 
 
