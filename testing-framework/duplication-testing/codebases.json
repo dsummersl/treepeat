@@ -1,0 +1,34 @@
+{
+  "codebases": [
+    {
+      "name": "sample-duplicates",
+      "url": "local",
+      "language": "Mixed",
+      "description": "Sample codebase with intentional duplications for testing"
+    },
+    {
+      "name": "fastapi",
+      "url": "https://github.com/tiangolo/fastapi.git",
+      "language": "Python",
+      "description": "Modern, fast Python web framework"
+    },
+    {
+      "name": "django",
+      "url": "https://github.com/django/django.git",
+      "language": "Python",
+      "description": "Django web framework"
+    },
+    {
+      "name": "flask",
+      "url": "https://github.com/pallets/flask.git",
+      "language": "Python",
+      "description": "Flask web framework"
+    },
+    {
+      "name": "react",
+      "url": "https://github.com/facebook/react.git",
+      "language": "JavaScript",
+      "description": "React JavaScript library"
+    }
+  ]
+}
