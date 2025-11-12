@@ -84,12 +84,16 @@ class DuplicationTester:
     def run_tssim(self, repo_path: Path, codebase_name: str, language: str) -> Dict[str, Any]:
         """Run tssim on a codebase."""
         print(f"    Running tssim on {codebase_name}...")
+        output_dir = self.results_dir / f"{codebase_name}_tssim"
+        output_dir.mkdir(exist_ok=True)
+        json_output_file = output_dir / 'tssim-report.json'
 
         start_time = time.time()
         try:
-            # Run tssim using uv run
+            # Run tssim using uv run with JSON output
             result = subprocess.run(
-                ['uv', 'run', 'tssim', str(repo_path), '--log-level', 'ERROR'],
+                ['uv', 'run', 'tssim', str(repo_path), '--log-level', 'ERROR',
+                 '--format', 'json', '--output', str(json_output_file)],
                 capture_output=True,
                 text=True,
                 timeout=300,
@@ -97,7 +101,33 @@ class DuplicationTester:
             )
             elapsed_time = time.time() - start_time
 
-            # Parse output for similar pairs
+            # Try to read the JSON report
+            if json_output_file.exists():
+                with open(json_output_file, 'r') as f:
+                    data = json.load(f)
+
+                    # Extract metrics from JSON
+                    total_similar_pairs = data.get('total_similar_pairs', 0)
+                    total_regions = data.get('total_regions', 0)
+                    total_files = data.get('total_files', 0)
+                    failed_files = data.get('failed_files', 0)
+                    similar_pairs = data.get('similar_pairs', [])
+
+                    return {
+                        'tool': 'tssim',
+                        'codebase': codebase_name,
+                        'duration': elapsed_time,
+                        'status': 'success',
+                        'duplicates_found': total_similar_pairs,
+                        'total_regions': total_regions,
+                        'total_files': total_files,
+                        'failed_files': failed_files,
+                        'output_file': str(json_output_file),
+                        'stdout': result.stdout[:500] if result.stdout else '',
+                        'stderr': result.stderr[:500] if result.stderr else ''
+                    }
+
+            # No JSON output but command succeeded - fall back to console output parsing
             output = result.stdout
             duplicates_found = 0
 
@@ -110,7 +140,7 @@ class DuplicationTester:
                 'tool': 'tssim',
                 'codebase': codebase_name,
                 'duration': elapsed_time,
-                'status': 'success',
+                'status': 'success_no_json',
                 'duplicates_found': duplicates_found,
                 'stdout': output[:1000] if output else '',
                 'stderr': result.stderr[:500] if result.stderr else ''

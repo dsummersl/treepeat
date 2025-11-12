@@ -16,6 +16,7 @@ from tssim.config import (
     ShingleSettings,
     set_settings,
 )
+from tssim.formatters import format_as_json, format_as_sarif
 from tssim.models.similarity import RegionSignature, SimilarityResult
 from tssim.pipeline.normalizer_factory import get_available_normalizers
 from tssim.pipeline.pipeline import run_pipeline
@@ -169,6 +170,19 @@ def _validate_and_parse_normalizers(disable_normalizers: str) -> list[str]:
     return disabled_list
 
 
+def _write_output(text: str, output_path: Path | None) -> None:
+    """Write output text to file or stdout.
+
+    Args:
+        text: The text to write
+        output_path: Path to output file, or None for stdout
+    """
+    if output_path:
+        output_path.write_text(text)
+    else:
+        print(text)
+
+
 @click.command()
 @click.argument("path", type=click.Path(exists=True, path_type=Path), required=False)
 @click.option(
@@ -219,6 +233,20 @@ def _validate_and_parse_normalizers(disable_normalizers: str) -> list[str]:
     default=5,
     help="Minimum number of lines for a match to be considered valid (default: 5)",
 )
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["console", "json", "sarif"], case_sensitive=False),
+    default="console",
+    help="Output format (default: console)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Output file path (default: stdout)",
+)
 def main(
     path: Path | None,
     log_level: str,
@@ -229,6 +257,8 @@ def main(
     minhash_num_perm: int,
     lsh_threshold: float,
     min_lines: int,
+    output_format: str,
+    output: Path | None,
 ) -> None:
     """
     Analyze code similarity in PATH.
@@ -256,21 +286,35 @@ def main(
     )
     set_settings(settings)
 
-    console.print("\n[bold blue]tssim - Code Similarity Detection[/bold blue]")
-    console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
+    # Only show console status and headers for console output
+    if output_format.lower() == "console":
+        console.print("\n[bold blue]tssim - Code Similarity Detection[/bold blue]")
+        console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
 
-    with console.status("[bold green]Running pipeline..."):
+    # Run the pipeline with or without console status based on format
+    if output_format.lower() == "console":
+        with console.status("[bold green]Running pipeline..."):
+            result = run_pipeline(path)
+    else:
         result = run_pipeline(path)
 
     if result.success_count == 0 and result.failure_count > 0:
-        console.print("[bold red]Error:[/bold red] Failed to parse any files")
-        display_failed_files(result, show_details=True)
+        if output_format.lower() == "console":
+            console.print("[bold red]Error:[/bold red] Failed to parse any files")
+            display_failed_files(result, show_details=True)
         sys.exit(1)
 
-    display_similar_pairs(result)
-    display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
-
-    console.print()
+    # Format and output results
+    if output_format.lower() == "json":
+        output_text = format_as_json(result, pretty=True)
+        _write_output(output_text, output)
+    elif output_format.lower() == "sarif":
+        output_text = format_as_sarif(result, pretty=True)
+        _write_output(output_text, output)
+    else:  # console
+        display_similar_pairs(result)
+        display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
+        console.print()
 
 
 if __name__ == "__main__":
