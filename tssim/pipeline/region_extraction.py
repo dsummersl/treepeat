@@ -189,20 +189,23 @@ def _partition_by_type(
     nodes: list[Node],
     target_types: set[str],
     parsed_file: ParsedFile,
+    include_sections: bool = True,
 ) -> list[ExtractedRegion]:
-    """Partition nodes into regions, ensuring all code is covered.
+    """Partition nodes into regions.
 
     This function groups consecutive nodes into regions based on whether they match
-    target types. Nodes that match target types become their own regions, while
-    consecutive non-matching nodes are grouped into "section" regions.
+    target types. Nodes that match target types become their own regions. When
+    include_sections is True, consecutive non-matching nodes are grouped into
+    "section" regions.
 
     Args:
         nodes: List of top-level nodes to partition
         target_types: Set of node types to extract as named regions
         parsed_file: The parsed file for context
+        include_sections: If True, create section regions for non-target nodes
 
     Returns:
-        List of extracted regions covering all nodes
+        List of extracted regions
     """
     regions: list[ExtractedRegion] = []
     pending_section_nodes: list[Node] = []
@@ -210,32 +213,34 @@ def _partition_by_type(
     for node in nodes:
         if node.type in target_types:
             # Flush any pending section first
-            if pending_section_nodes:
+            if include_sections and pending_section_nodes:
                 regions.append(_create_section_region(pending_section_nodes, parsed_file))
                 pending_section_nodes.clear()
 
             # Create a region for this target node
             regions.append(_create_target_region(node, parsed_file))
-        else:
+        elif include_sections:
             # Accumulate non-target nodes into pending section
             pending_section_nodes.append(node)
 
     # Flush any remaining pending section
-    if pending_section_nodes:
+    if include_sections and pending_section_nodes:
         regions.append(_create_section_region(pending_section_nodes, parsed_file))
 
     return regions
 
 
-def extract_regions(parsed_file: ParsedFile) -> list[ExtractedRegion]:
+def extract_regions(parsed_file: ParsedFile, include_sections: bool = True) -> list[ExtractedRegion]:
     """Extract code regions from a parsed file.
 
-    Uses language-specific mappings to partition the file into regions,
-    ensuring all code is covered (either as named regions like functions/classes
-    or as "section" regions for other code).
+    Uses language-specific mappings to partition the file into regions.
+    When include_sections is True, ensures all code is covered (either as named
+    regions like functions/classes or as "section" regions for other code).
+    When False, only extracts named regions.
 
     Args:
         parsed_file: Parsed source file
+        include_sections: If True, create section regions for non-target code
 
     Returns:
         List of extracted regions with their AST nodes
@@ -269,21 +274,126 @@ def extract_regions(parsed_file: ParsedFile) -> list[ExtractedRegion]:
         top_level_nodes = _collect_top_level_nodes(parsed_file.root_node)
 
         # Partition nodes into regions
-        regions = _partition_by_type(top_level_nodes, target_types, parsed_file)
+        regions = _partition_by_type(top_level_nodes, target_types, parsed_file, include_sections)
 
     logger.info("Extracted %d region(s) from %s", len(regions), parsed_file.path)
     return regions
 
 
-def extract_all_regions(parsed_files: list[ParsedFile]) -> list[ExtractedRegion]:
+def extract_all_regions(
+    parsed_files: list[ParsedFile], include_sections: bool = True
+) -> list[ExtractedRegion]:
+    """Extract regions from all parsed files.
+
+    Args:
+        parsed_files: List of parsed source files
+        include_sections: If True, create section regions for non-target code
+
+    Returns:
+        List of all extracted regions
+    """
     all_regions: list[ExtractedRegion] = []
 
     for parsed_file in parsed_files:
         try:
-            regions = extract_regions(parsed_file)
+            regions = extract_regions(parsed_file, include_sections)
             all_regions.extend(regions)
         except Exception as e:
             logger.error("Failed to extract regions from %s: %s", parsed_file.path, e)
 
     logger.info("Extracted %d total region(s) from %d file(s)", len(all_regions), len(parsed_files))
     return all_regions
+
+
+def get_matched_line_ranges(matched_regions: list[Region]) -> dict:
+    """Get the line ranges that were matched, organized by file path.
+
+    Args:
+        matched_regions: List of regions that were matched
+
+    Returns:
+        Dictionary mapping file paths to sets of matched line numbers
+    """
+    matched_lines_by_file: dict = {}
+
+    for region in matched_regions:
+        if region.path not in matched_lines_by_file:
+            matched_lines_by_file[region.path] = set()
+
+        # Add all lines in this region to the matched set
+        for line in range(region.start_line, region.end_line + 1):
+            matched_lines_by_file[region.path].add(line)
+
+    return matched_lines_by_file
+
+
+def create_line_based_regions(
+    parsed_files: list[ParsedFile],
+    matched_lines_by_file: dict,
+    min_lines: int,
+) -> list[ExtractedRegion]:
+    """Create line-based regions for unmatched sections of files.
+
+    Args:
+        parsed_files: List of parsed source files
+        matched_lines_by_file: Dictionary mapping file paths to sets of matched line numbers
+        min_lines: Minimum number of lines for a region to be created
+
+    Returns:
+        List of line-based regions for unmatched sections
+    """
+    line_regions: list[ExtractedRegion] = []
+
+    for parsed_file in parsed_files:
+        matched_lines = matched_lines_by_file.get(parsed_file.path, set())
+        file_end_line = parsed_file.root_node.end_point[0] + 1
+
+        # Find contiguous unmatched line ranges
+        unmatched_ranges: list[tuple[int, int]] = []
+        range_start = None
+
+        for line in range(1, file_end_line + 1):
+            if line not in matched_lines:
+                if range_start is None:
+                    range_start = line
+            else:
+                if range_start is not None:
+                    # End of unmatched range
+                    unmatched_ranges.append((range_start, line - 1))
+                    range_start = None
+
+        # Handle case where file ends with unmatched lines
+        if range_start is not None:
+            unmatched_ranges.append((range_start, file_end_line))
+
+        # Create regions for unmatched ranges that meet min_lines threshold
+        for start_line, end_line in unmatched_ranges:
+            line_count = end_line - start_line + 1
+            if line_count >= min_lines:
+                region = Region(
+                    path=parsed_file.path,
+                    language=parsed_file.language,
+                    region_type="lines",
+                    region_name=f"lines_{start_line}_{end_line}",
+                    start_line=start_line,
+                    end_line=end_line,
+                )
+
+                # Create a dummy node that spans the line range
+                # We'll use the root node as a placeholder
+                extracted_region = ExtractedRegion(
+                    region=region,
+                    node=parsed_file.root_node,
+                )
+                line_regions.append(extracted_region)
+
+                logger.debug(
+                    "Created line-based region for %s: lines %d-%d (%d lines)",
+                    parsed_file.path,
+                    start_line,
+                    end_line,
+                    line_count,
+                )
+
+    logger.info("Created %d line-based region(s) for unmatched sections", len(line_regions))
+    return line_regions
