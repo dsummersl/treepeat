@@ -52,15 +52,6 @@ python3 add_codebase.py add myproject https://github.com/user/repo.git TypeScrip
 - [Analysis](testing-framework/ANALYSIS.md) - Detailed benchmark analysis
 - [Summary](testing-framework/SUMMARY.md) - Results overview
 
-### CI Integration
-
-The testing framework runs automatically:
-- **Weekly** on Sundays (scheduled)
-- **Manually** via GitHub Actions workflow dispatch
-- **On pull requests** that modify the testing framework
-
-Results are uploaded as artifacts and retained for 90 days.
-
 ## ADRs
 
 Architecture Decision Records live in docs/adr.

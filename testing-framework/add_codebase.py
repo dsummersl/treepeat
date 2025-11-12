@@ -40,8 +40,8 @@ def add_codebase(name: str, url: str, language: str, description: str):
     print(f"  URL: {url}")
     print(f"  Language: {language}")
     print(f"  Description: {description}")
-    print(f"\nTo test this codebase, run:")
-    print(f"  python3 simple_test_runner.py")
+    print("\nTo test this codebase, run:")
+    print("  python3 simple_test_runner.py")
 
     return True
 

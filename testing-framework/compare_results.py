@@ -6,7 +6,6 @@ Script to compare duplication detection results across different runs or tools
 import json
 import sys
 from pathlib import Path
-from datetime import datetime
 
 
 def load_report(report_file: Path):
@@ -20,7 +19,7 @@ def compare_tools(report_file: Path):
     report = load_report(report_file)
 
     print("="*100)
-    print(f"Tool Comparison Report")
+    print("Tool Comparison Report")
     print(f"Report: {report_file.name}")
     print(f"Timestamp: {report['timestamp']}")
     print("="*100)
@@ -69,7 +68,7 @@ def compare_codebases(report_file: Path):
     report = load_report(report_file)
 
     print("="*100)
-    print(f"Codebase Comparison Report")
+    print("Codebase Comparison Report")
     print(f"Report: {report_file.name}")
     print("="*100)
 
@@ -124,7 +123,7 @@ def compare_reports(report1: Path, report2: Path):
     r2 = load_report(report2)
 
     print("="*100)
-    print(f"Report Comparison")
+    print("Report Comparison")
     print(f"Report 1: {report1.name} ({r1['timestamp']})")
     print(f"Report 2: {report2.name} ({r2['timestamp']})")
     print("="*100)

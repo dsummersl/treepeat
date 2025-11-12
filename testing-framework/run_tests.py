@@ -7,7 +7,6 @@ and generates comprehensive comparison reports.
 """
 
 import json
-import os
 import subprocess
 import time
 from pathlib import Path
@@ -16,7 +15,6 @@ import csv
 from datetime import datetime
 import hashlib
 from collections import defaultdict
-import sys
 
 
 class DuplicationTester:
@@ -79,7 +77,7 @@ class DuplicationTester:
                 try:
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                         total_lines += sum(1 for _ in f)
-                except:
+                except Exception:
                     pass
         return total_lines
 
@@ -241,7 +239,7 @@ class DuplicationTester:
                         with open(file_path, 'rb') as f:
                             file_hash = hashlib.md5(f.read()).hexdigest()
                             file_hashes[file_hash].append(file_path)
-                    except:
+                    except Exception:
                         pass
 
             # Count duplicate groups (where hash appears more than once)
@@ -342,7 +340,7 @@ class DuplicationTester:
                 'results': self.results
             }, f, indent=2, default=str)
 
-        print(f"\n✓ Reports generated:")
+        print("\n✓ Reports generated:")
         print(f"  CSV: {csv_file}")
         print(f"  JSON: {json_file}")
 
