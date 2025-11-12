@@ -40,7 +40,7 @@ package = true
 
 [tool.ruff]
 line-length = 100
-exclude = [".venv", ".git", "build", "dist", "tests/fixtures"]
+exclude = [".venv", ".git", "build", "dist", "tests/fixtures", "testing-framework/codebases"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -49,3 +49,4 @@ packages = ["tssim"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=tssim  --cov-report=term-missing"
+norecursedirs = "testing-framework"

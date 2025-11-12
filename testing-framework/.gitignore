@@ -1,0 +1,35 @@
+# Large downloaded codebases
+codebases/
+!codebases/sample-duplicates/
+
+# Test results
+results/
+reports/
+
+# Tool installations
+tools/*/
+!tools/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
