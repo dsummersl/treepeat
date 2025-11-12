@@ -52,7 +52,7 @@ def compute_region_signatures(
     for shingled_region in shingled_regions:
         try:
             minhash = create_minhash_signature(
-                shingled_region.shingles.shingles,
+                set(shingled_region.shingles.shingles),
                 num_perm=num_perm,
             )
 

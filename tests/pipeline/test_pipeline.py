@@ -110,7 +110,7 @@ def test_class_regions_are_actually_different():
 
     # Get just the class regions
     class_regions = [s for s in shingled_regions if "Normalizer" in s.region.region_name]
-    print(f"\nClass regions:")
+    print("\nClass regions:")
     for region in class_regions:
         print(f"  - {region.region.region_name}: {region.shingles.size} shingles")
 
