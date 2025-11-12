@@ -213,6 +213,12 @@ def _validate_and_parse_normalizers(disable_normalizers: str) -> list[str]:
     default=0.8,
     help="LSH similarity threshold 0.0-1.0 (default: 0.5)",
 )
+@click.option(
+    "--min-lines",
+    type=int,
+    default=5,
+    help="Minimum number of lines for a match to be considered valid (default: 5)",
+)
 def main(
     path: Path | None,
     log_level: str,
@@ -222,6 +228,7 @@ def main(
     shingle_include_text: bool,
     minhash_num_perm: int,
     lsh_threshold: float,
+    min_lines: int,
 ) -> None:
     """
     Analyze code similarity in PATH.
@@ -245,7 +252,7 @@ def main(
         normalizer=NormalizerSettings(disabled_normalizers=disabled_list),
         shingle=ShingleSettings(k=shingle_k),
         minhash=MinHashSettings(num_perm=minhash_num_perm),
-        lsh=LSHSettings(threshold=lsh_threshold),
+        lsh=LSHSettings(threshold=lsh_threshold, min_lines=min_lines),
     )
     set_settings(settings)
 

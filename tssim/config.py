@@ -59,6 +59,12 @@ class LSHSettings(BaseSettings):
         description="Jaccard similarity threshold for candidate pairs (0.0 to 1.0)",
     )
 
+    min_lines: int = Field(
+        default=5,
+        ge=1,
+        description="Minimum number of lines for a match to be considered valid",
+    )
+
 
 class PipelineSettings(BaseSettings):
     """Global settings for the entire pipeline."""
