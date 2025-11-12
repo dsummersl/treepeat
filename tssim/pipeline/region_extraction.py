@@ -193,10 +193,8 @@ def _partition_by_type(
 ) -> list[ExtractedRegion]:
     """Partition nodes into regions.
 
-    This function groups consecutive nodes into regions based on whether they match
-    target types. Nodes that match target types become their own regions. When
-    include_sections is True, consecutive non-matching nodes are grouped into
-    "section" regions.
+    When include_sections is False, only extract target regions.
+    When include_sections is True, also group non-target nodes into sections.
 
     Args:
         nodes: List of top-level nodes to partition
@@ -207,24 +205,24 @@ def _partition_by_type(
     Returns:
         List of extracted regions
     """
+    if not include_sections:
+        # Simple case: only extract target regions
+        return [_create_target_region(node, parsed_file) for node in nodes if node.type in target_types]
+
+    # Complex case: extract targets and group remaining into sections
     regions: list[ExtractedRegion] = []
     pending_section_nodes: list[Node] = []
 
     for node in nodes:
         if node.type in target_types:
-            # Flush any pending section first
-            if include_sections and pending_section_nodes:
+            if pending_section_nodes:
                 regions.append(_create_section_region(pending_section_nodes, parsed_file))
                 pending_section_nodes.clear()
-
-            # Create a region for this target node
             regions.append(_create_target_region(node, parsed_file))
-        elif include_sections:
-            # Accumulate non-target nodes into pending section
+        else:
             pending_section_nodes.append(node)
 
-    # Flush any remaining pending section
-    if include_sections and pending_section_nodes:
+    if pending_section_nodes:
         regions.append(_create_section_region(pending_section_nodes, parsed_file))
 
     return regions

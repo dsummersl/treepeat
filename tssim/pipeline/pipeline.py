@@ -168,6 +168,89 @@ def _run_lsh_stage(
     return similarity_result
 
 
+def _run_level1_matching(
+    parsed_files: list[ParsedFile],
+    normalizers: list[Normalizer],
+    settings: PipelineSettings,
+) -> tuple[list[SimilarRegionPair], list[RegionSignature]]:
+    """Run Level 1: Region-Level Matching (functions/classes).
+
+    Args:
+        parsed_files: List of parsed source files
+        normalizers: List of normalizers to apply
+        settings: Pipeline settings
+
+    Returns:
+        Tuple of (filtered pairs, signatures)
+    """
+    logger.info("===== LEVEL 1: Region-Level Matching =====")
+
+    # Extract only functions/classes (no section regions)
+    level1_regions = _run_extract_stage(parsed_files, include_sections=False)
+
+    # Shingle level 1 regions
+    level1_shingled = _run_shingle_stage(level1_regions, parsed_files, normalizers, settings)
+
+    # MinHash level 1
+    level1_signatures = _run_minhash_stage(level1_shingled, settings.minhash.num_perm)
+
+    # LSH level 1
+    level1_result = _run_lsh_stage(level1_signatures, settings.lsh.threshold, {})
+
+    # Filter by min_lines
+    level1_filtered_pairs = _filter_pairs_by_min_lines(level1_result.similar_pairs, settings.lsh.min_lines)
+    logger.info("Level 1 complete: %d pairs after filtering (was %d)", len(level1_filtered_pairs), len(level1_result.similar_pairs))
+
+    return level1_filtered_pairs, level1_signatures
+
+
+def _run_level2_matching(
+    parsed_files: list[ParsedFile],
+    level1_filtered_pairs: list[SimilarRegionPair],
+    normalizers: list[Normalizer],
+    settings: PipelineSettings,
+) -> tuple[list[SimilarRegionPair], list[RegionSignature]]:
+    """Run Level 2: Line-Level Matching (unmatched sections).
+
+    Args:
+        parsed_files: List of parsed source files
+        level1_filtered_pairs: Filtered pairs from Level 1
+        normalizers: List of normalizers to apply
+        settings: Pipeline settings
+
+    Returns:
+        Tuple of (filtered pairs, signatures)
+    """
+    logger.info("===== LEVEL 2: Line-Level Matching =====")
+
+    # Track matched lines from level 1
+    level1_matched_regions = _get_matched_regions_from_pairs(level1_filtered_pairs)
+    matched_lines_by_file = get_matched_line_ranges(level1_matched_regions)
+    logger.info("Tracked %d matched regions from level 1", len(level1_matched_regions))
+
+    # Create line-based regions for unmatched sections
+    level2_regions = create_line_based_regions(
+        parsed_files,
+        matched_lines_by_file,
+        settings.lsh.min_lines,
+    )
+
+    if len(level2_regions) == 0:
+        logger.info("No unmatched sections found for level 2, skipping")
+        return [], []
+
+    # Shingle, MinHash, LSH on level 2 regions
+    level2_shingled = _run_shingle_stage(level2_regions, parsed_files, normalizers, settings)
+    level2_signatures = _run_minhash_stage(level2_shingled, settings.minhash.num_perm)
+    level2_result = _run_lsh_stage(level2_signatures, settings.lsh.threshold, {})
+
+    # Filter by min_lines
+    level2_filtered_pairs = _filter_pairs_by_min_lines(level2_result.similar_pairs, settings.lsh.min_lines)
+    logger.info("Level 2 complete: %d pairs after filtering (was %d)", len(level2_filtered_pairs), len(level2_result.similar_pairs))
+
+    return level2_filtered_pairs, level2_signatures
+
+
 def run_pipeline(target_path: str | Path) -> SimilarityResult:
     """Run the full two-level pipeline on a target path.
 
@@ -195,8 +278,7 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
         SimilarityResult with similar region pairs from both levels
     """
     settings = get_settings()
-    min_lines = settings.lsh.min_lines
-    logger.info("Starting two-level pipeline for: %s (min_lines=%d)", target_path, min_lines)
+    logger.info("Starting two-level pipeline for: %s (min_lines=%d)", target_path, settings.lsh.min_lines)
 
     if isinstance(target_path, str):
         target_path = Path(target_path)
@@ -209,59 +291,19 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
         logger.warning("No files successfully parsed, returning empty result")
         return SimilarityResult(failed_files=parse_result.failed_files)
 
-    # ===== LEVEL 1: Region-Level Matching (functions/classes) =====
-    logger.info("===== LEVEL 1: Region-Level Matching =====")
-
-    # Stage 2a: Extract only functions/classes (no section regions)
-    level1_regions = _run_extract_stage(parse_result.parsed_files, include_sections=False)
-
-    # Stage 3a: Shingle level 1 regions
-    level1_shingled = _run_shingle_stage(level1_regions, parse_result.parsed_files, normalizers, settings)
-
-    # Stage 4a: MinHash level 1
-    level1_signatures = _run_minhash_stage(level1_shingled, settings.minhash.num_perm)
-
-    # Stage 5a: LSH level 1
-    level1_result = _run_lsh_stage(level1_signatures, settings.lsh.threshold, {})
-
-    # Stage 6a: Filter by min_lines
-    level1_filtered_pairs = _filter_pairs_by_min_lines(level1_result.similar_pairs, min_lines)
-    logger.info("Level 1 complete: %d pairs after filtering (was %d)", len(level1_filtered_pairs), len(level1_result.similar_pairs))
-
-    # ===== LEVEL 2: Line-Level Matching (unmatched sections) =====
-    logger.info("===== LEVEL 2: Line-Level Matching =====")
-
-    # Stage 7: Track matched lines from level 1
-    level1_matched_regions = _get_matched_regions_from_pairs(level1_filtered_pairs)
-    matched_lines_by_file = get_matched_line_ranges(level1_matched_regions)
-    logger.info("Tracked %d matched regions from level 1", len(level1_matched_regions))
-
-    # Stage 8: Create line-based regions for unmatched sections
-    level2_regions = create_line_based_regions(
-        parse_result.parsed_files,
-        matched_lines_by_file,
-        min_lines,
+    # Run Level 1: Region-Level Matching (functions/classes)
+    level1_filtered_pairs, level1_signatures = _run_level1_matching(
+        parse_result.parsed_files, normalizers, settings
     )
 
-    if len(level2_regions) == 0:
-        logger.info("No unmatched sections found for level 2, skipping")
-        level2_filtered_pairs = []
-        all_signatures = level1_signatures
-    else:
-        # Stage 9: Shingle, MinHash, LSH on level 2 regions
-        level2_shingled = _run_shingle_stage(level2_regions, parse_result.parsed_files, normalizers, settings)
-        level2_signatures = _run_minhash_stage(level2_shingled, settings.minhash.num_perm)
-        level2_result = _run_lsh_stage(level2_signatures, settings.lsh.threshold, {})
+    # Run Level 2: Line-Level Matching (unmatched sections)
+    level2_filtered_pairs, level2_signatures = _run_level2_matching(
+        parse_result.parsed_files, level1_filtered_pairs, normalizers, settings
+    )
 
-        # Stage 10: Filter by min_lines
-        level2_filtered_pairs = _filter_pairs_by_min_lines(level2_result.similar_pairs, min_lines)
-        logger.info("Level 2 complete: %d pairs after filtering (was %d)", len(level2_filtered_pairs), len(level2_result.similar_pairs))
-
-        # Combine signatures from both levels
-        all_signatures = level1_signatures + level2_signatures
-
-    # ===== COMBINE RESULTS =====
+    # Combine results
     all_pairs = level1_filtered_pairs + level2_filtered_pairs
+    all_signatures = level1_signatures + level2_signatures if level2_signatures else level1_signatures
     logger.info("Combined results: %d total pairs (%d from level 1, %d from level 2)",
                 len(all_pairs), len(level1_filtered_pairs), len(level2_filtered_pairs))
 
