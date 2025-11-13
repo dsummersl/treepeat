@@ -3,7 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from tssim.config import PipelineSettings, set_settings
 from tssim.pipeline.parse import (

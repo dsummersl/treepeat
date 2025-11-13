@@ -59,9 +59,11 @@ def _make_region(path, language, region_type, region_name, start_line, end_line)
 def _assert_has_pair(
     result: SimilarityResult, region1: Region, region2: Region
 ) -> SimilarRegionPair:
-    """Assert that a pair (region1, region2) exists in the pairs iterable."""
+    """Assert that a pair (region1, region2) exists in the pairs iterable (in either order)."""
     for pair in result.similar_pairs:
-        if pair.region1 == region1 and pair.region2 == region2:
+        if (pair.region1 == region1 and pair.region2 == region2) or (
+            pair.region1 == region2 and pair.region2 == region1
+        ):
             return pair
     raise AssertionError(f"Pair ({region1}, {region2}) not found in pairs ({result.similar_pairs})")
 
