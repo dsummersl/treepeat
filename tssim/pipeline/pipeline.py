@@ -252,31 +252,7 @@ def _run_level2_matching(
 
 
 def run_pipeline(target_path: str | Path) -> SimilarityResult:
-    """Run the full two-level pipeline on a target path.
-
-    This orchestrates a two-level matching process:
-
-    Level 1 - Region-Level Matching:
-    1. Parse: Extract ASTs from source files
-    2. Extract Regions: Identify functions, methods, classes (no section regions)
-    3. Shingle Regions: Extract structural features from each region
-    4. MinHash: Create signatures for similarity estimation
-    5. LSH: Find candidate similar pairs
-    6. Filter: Apply min_lines threshold
-
-    Level 2 - Line-Level Matching (for unmatched sections):
-    7. Track matched lines from Level 1
-    8. Create line-based regions for unmatched sections
-    9. Shingle, MinHash, LSH on line-based regions
-    10. Filter: Apply min_lines threshold
-    11. Combine results from both levels
-
-    Args:
-        target_path: Path to a file or directory to analyze
-
-    Returns:
-        SimilarityResult with similar region pairs from both levels
-    """
+    """Run the full two-level pipeline on a target path. """
     settings = get_settings()
     logger.info("Starting two-level pipeline for: %s (min_lines=%d)", target_path, settings.lsh.min_lines)
 

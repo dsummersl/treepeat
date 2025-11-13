@@ -13,8 +13,9 @@ def test_extract_regions_dataclass1():
     regions = extract_all_regions([parsed])
 
     # Should have regions for the python classes
+    # Note: lines_1_3 includes comment and CONSTANT_VALUE_42
     assert [r.region.region_name for r in regions] == [
-        "lines_1_1",
+        "lines_1_3",
         "Model1",
         "Model2",
         "my_adapted_one",
@@ -22,16 +23,17 @@ def test_extract_regions_dataclass1():
 
     assert [r.region.region_type for r in regions] == ["lines", "class", "class", "function"]
 
+    # Note: lines_1_3 node type is comment (the first node in that range)
     assert [r.node.type for r in regions] == [
-        "expression_statement",
+        "comment",
         "class_definition",
         "class_definition",
         "function_definition",
     ]
 
     # Check that nodes are included
-    # First region should be the assignment statement
-    assert regions[0].node.type == "expression_statement"
+    # First region should be a comment
+    assert regions[0].node.type == "comment"
 
     # Second region should be the class definition node
     assert regions[1].node.type == "class_definition"
@@ -55,31 +57,33 @@ def test_extract_regions_dataclass2():
     parsed = parsed_fixture(fixture_path2)
     regions = extract_all_regions([parsed])
 
-    # Should have 2 regions (two functions)
-    assert len(regions) == 2
+    # Should have 3 regions (comment + two functions)
+    assert len(regions) == 3
 
     # Check region names
     region_names = [r.region.region_name for r in regions]
-    assert region_names == ["one", "one_prime"]
+    assert region_names == ["lines_1_1", "one", "one_prime"]
 
     # Check region types
     region_types = [r.region.region_type for r in regions]
-    assert region_types == ["function", "function"]
+    assert region_types == ["lines", "function", "function"]
 
-    # Check line ranges
+    # Check line ranges (comment is line 1, functions start at line 2 and 9)
     assert regions[0].region.start_line == 1
-    assert regions[0].region.end_line == 6
-    assert regions[1].region.start_line == 8
-    assert regions[1].region.end_line == 13
+    assert regions[0].region.end_line == 1
+    assert regions[1].region.start_line == 2
+    assert regions[1].region.end_line == 7
+    assert regions[2].region.start_line == 9
+    assert regions[2].region.end_line == 14
 
-    # Verify nodes are function_definition and include the entire function
-    assert regions[0].node.type == "function_definition"
-    func_text = parsed.source[regions[0].node.start_byte : regions[0].node.end_byte].decode("utf-8")
+    # Verify function nodes are function_definition and include the entire function
+    assert regions[1].node.type == "function_definition"
+    func_text = parsed.source[regions[1].node.start_byte : regions[1].node.end_byte].decode("utf-8")
     assert func_text.startswith("def one()")
     assert "return total" in func_text
 
-    assert regions[1].node.type == "function_definition"
-    func_text = parsed.source[regions[1].node.start_byte : regions[1].node.end_byte].decode("utf-8")
+    assert regions[2].node.type == "function_definition"
+    func_text = parsed.source[regions[2].node.start_byte : regions[2].node.end_byte].decode("utf-8")
     assert func_text.startswith("def one_prime()")
     assert "return sum" in func_text
 
@@ -88,8 +92,11 @@ def test_region_nodes_include_all_children():
     parsed = parsed_fixture(fixture_path2)
     regions = extract_all_regions([parsed])
 
+    # Filter to only function regions (skip the comment region)
+    function_regions = [r for r in regions if r.region.region_type == "function"]
+
     # For each function region, verify it includes the identifier child
-    for region in regions:
+    for region in function_regions:
         assert region.node.type == "function_definition"
 
         # Check that the node has children including identifier

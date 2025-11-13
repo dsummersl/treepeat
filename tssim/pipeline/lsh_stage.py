@@ -14,24 +14,20 @@ def _create_lsh_index(
     signatures: list[RegionSignature],
     threshold: float,
 ) -> MinHashLSH:
-    """Create and populate LSH index.
-
-    Args:
-        signatures: List of region signatures
-        threshold: Jaccard similarity threshold
-
-    Returns:
-        Populated LSH index
-    """
+    """Create and populate LSH index. """
     num_perm = signatures[0].minhash.hashvalues.shape[0]
-    lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
+
+    lsh = MinHashLSH(threshold, num_perm)
 
     for sig in signatures:
         # Create a unique key for each region (path + line range)
         key = f"{sig.region.path}:{sig.region.start_line}-{sig.region.end_line}"
         lsh.insert(key, sig.minhash)
 
-    logger.debug("Inserted %d region signatures into LSH index", len(signatures))
+    logger.debug(
+        "Inserted %d region signatures into LSH index (lsh_threshold=%.2f, filter_threshold=%.2f)",
+        len(signatures), threshold, threshold
+    )
     return lsh
 
 
@@ -171,6 +167,87 @@ def _process_signature_candidates(
     return pairs
 
 
+def _regions_overlap(r1, r2) -> bool:
+    """Check if two regions overlap in the same file.
+
+    Args:
+        r1: First region
+        r2: Second region
+
+    Returns:
+        True if regions are in the same file and have overlapping line ranges
+    """
+    if r1.path != r2.path:
+        return False
+    return not (r1.end_line < r2.start_line or r2.end_line < r1.start_line)
+
+
+def _region_size(region) -> int:
+    """Get the size of a region in lines.
+
+    Args:
+        region: Region to measure
+
+    Returns:
+        Number of lines in the region
+    """
+    return region.end_line - region.start_line + 1
+
+
+def _filter_overlapping_pairs(pairs: list[SimilarRegionPair]) -> list[SimilarRegionPair]:
+    """Filter out overlapping pairs, keeping only the largest regions.
+
+    When multiple pairs have overlapping regions, keeps only the pair(s) with
+    the largest regions (most lines). This implements greedy matching where
+    larger code structures take precedence over nested smaller ones.
+
+    Args:
+        pairs: List of similar pairs
+
+    Returns:
+        Filtered list with overlapping pairs removed
+    """
+    if not pairs:
+        return []
+
+    # Sort by size (largest first) for greedy selection
+    sorted_pairs = sorted(
+        pairs,
+        key=lambda p: (_region_size(p.region1) + _region_size(p.region2)),
+        reverse=True
+    )
+
+    kept_pairs = []
+
+    for candidate in sorted_pairs:
+        # Check if this candidate overlaps with any already kept pair
+        has_overlap = False
+        for kept in kept_pairs:
+            # Check if any regions overlap
+            if (_regions_overlap(candidate.region1, kept.region1) or
+                _regions_overlap(candidate.region1, kept.region2) or
+                _regions_overlap(candidate.region2, kept.region1) or
+                _regions_overlap(candidate.region2, kept.region2)):
+                has_overlap = True
+                logger.debug(
+                    "Filtering out pair %s:%d-%d ↔ %s:%d-%d (overlaps with kept pair)",
+                    candidate.region1.region_name, candidate.region1.start_line, candidate.region1.end_line,
+                    candidate.region2.region_name, candidate.region2.start_line, candidate.region2.end_line,
+                )
+                break
+
+        if not has_overlap:
+            kept_pairs.append(candidate)
+            logger.debug(
+                "Keeping pair %s:%d-%d ↔ %s:%d-%d (size: %d lines)",
+                candidate.region1.region_name, candidate.region1.start_line, candidate.region1.end_line,
+                candidate.region2.region_name, candidate.region2.start_line, candidate.region2.end_line,
+                _region_size(candidate.region1) + _region_size(candidate.region2),
+            )
+
+    return kept_pairs
+
+
 def find_similar_pairs(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
@@ -200,6 +277,12 @@ def find_similar_pairs(
 
     for sig in signatures:
         sig_pairs = _process_signature_candidates(sig, lsh, signatures, seen_pairs, threshold)
+        if sig_pairs:
+            logger.debug(
+                "Query for %s:%d-%d returned %d candidate pair(s)",
+                sig.region.region_name, sig.region.start_line, sig.region.end_line,
+                len(sig_pairs)
+            )
         pairs.extend(sig_pairs)
 
     pairs.sort(key=lambda p: p.similarity, reverse=True)
@@ -208,7 +291,17 @@ def find_similar_pairs(
         len(pairs),
         sum(1 for p in pairs if p.is_self_similarity),
     )
-    return pairs
+
+    # Apply greedy filtering to remove overlapping matches
+    filtered_pairs = _filter_overlapping_pairs(pairs)
+    if len(filtered_pairs) < len(pairs):
+        logger.info(
+            "Filtered %d overlapping pair(s), keeping %d largest region(s)",
+            len(pairs) - len(filtered_pairs),
+            len(filtered_pairs),
+        )
+
+    return filtered_pairs
 
 
 def detect_similarity(

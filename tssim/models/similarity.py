@@ -16,9 +16,9 @@ class Region(BaseModel):
     start_line: int = Field(ge=1, description="Start line number (1-indexed)")
     end_line: int = Field(ge=1, description="End line number (1-indexed)")
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         """Format as human-readable string."""
-        return f"{self.region_name} ({self.region_type}) at {self.path}:{self.start_line}-{self.end_line}"
+        return f"Region({self.region_name} ({self.region_type}) at {str(self.path)[-10:]}:{self.start_line}-{self.end_line})"
 
 
 class RegionSignature(BaseModel):
@@ -45,18 +45,9 @@ class SimilarRegionPair(BaseModel):
         """True if both regions are from the same file."""
         return self.region1.path == self.region2.path
 
-    def __str__(self) -> str:
-        """Format as human-readable string."""
-        if self.is_self_similarity:
-            return (
-                f"{self.region1.region_name} (lines {self.region1.start_line}-{self.region1.end_line}) "
-                f"↔ {self.region2.region_name} (lines {self.region2.start_line}-{self.region2.end_line}) "
-                f"in {self.region1.path} ({self.similarity:.2%} similar)"
-            )
+    def __repr__(self) -> str:
         return (
-            f"{self.region1.region_name} in {self.region1.path}:{self.region1.start_line}-{self.region1.end_line} "
-            f"↔ {self.region2.region_name} in {self.region2.path}:{self.region2.start_line}-{self.region2.end_line} "
-            f"({self.similarity:.2%} similar)"
+            f"SimilarRegionPair({self.region1!r} ↔ {self.region2!r} {self.similarity:.2%} similar)"
         )
 
 

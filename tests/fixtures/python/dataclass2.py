@@ -1,3 +1,4 @@
+# A file with two identical functions, but different names.
 def one():
     """ A funtion that computes the sum of first ten natural numbers """
     total = 0
