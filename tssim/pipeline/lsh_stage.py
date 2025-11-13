@@ -17,7 +17,9 @@ def _create_lsh_index(
     """Create and populate LSH index. """
     num_perm = signatures[0].minhash.hashvalues.shape[0]
 
-    lsh = MinHashLSH(threshold, num_perm)
+    # Adjust threshold for LSH index to allow instantiation (0.99 causes the library to error out)
+    minhash_lsm_threshold = threshold if threshold <= 0.98 else 0.8
+    lsh = MinHashLSH(minhash_lsm_threshold, num_perm)
 
     for sig in signatures:
         # Create a unique key for each region (path + line range)
@@ -26,7 +28,7 @@ def _create_lsh_index(
 
     logger.debug(
         "Inserted %d region signatures into LSH index (lsh_threshold=%.2f, filter_threshold=%.2f)",
-        len(signatures), threshold, threshold
+        len(signatures), minhash_lsm_threshold, threshold
     )
     return lsh
 
@@ -336,15 +338,6 @@ def find_similar_pairs(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
 ) -> list[SimilarRegionPair]:
-    """Find similar region pairs using LSH.
-
-    Args:
-        signatures: List of region signatures
-        threshold: Jaccard similarity threshold
-
-    Returns:
-        List of similar region pairs above the threshold (including self-similarity)
-    """
     if len(signatures) < 2:
         logger.info("Need at least 2 regions to find similar pairs")
         return []
@@ -382,17 +375,6 @@ def detect_similarity(
     threshold: float = 0.5,
     failed_files: dict[Path, str] | None = None,
 ) -> SimilarityResult:
-    """Detect similar regions using LSH.
-
-    Args:
-        signatures: List of region signatures
-        threshold: Jaccard similarity threshold for LSH
-        failed_files: Optional dict of failed files from earlier stages
-
-    Returns:
-        SimilarityResult with similar region pairs
-    """
-    # Find similar pairs using LSH
     similar_pairs = find_similar_pairs(signatures, threshold=threshold)
 
     return SimilarityResult(

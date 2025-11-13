@@ -63,7 +63,7 @@ class LSHSettings(BaseSettings):
         default=0.5,
         ge=0.0,
         le=1.0,
-        description="Jaccard similarity threshold for candidate pairs (0.0 to 1.0)",
+        description="Jaccard similarity threshold to be considered a match",
     )
 
     min_lines: int = Field(

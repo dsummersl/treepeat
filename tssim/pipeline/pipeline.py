@@ -1,9 +1,3 @@
-"""Top-level pipeline orchestration.
-
-This module provides the main pipeline that orchestrates all stages:
-Parse → Extract Regions → Shingle Regions → MinHash → LSH
-"""
-
 import logging
 from pathlib import Path
 
