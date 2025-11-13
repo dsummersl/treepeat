@@ -113,6 +113,10 @@ def _process_candidate_pair(
     if similar_sig is None:
         return None
 
+    # Filter out self-overlapping pairs (regions in the same file with overlapping line ranges)
+    if _regions_overlap(sig.region, similar_sig.region):
+        return None
+
     sorted_keys = sorted([current_key, similar_key])
     pair_key = (sorted_keys[0], sorted_keys[1])
     if pair_key in seen_pairs:
