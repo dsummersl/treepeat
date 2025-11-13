@@ -1,19 +1,26 @@
-"""Configuration for normalizers using pydantic-settings."""
+"""Configuration using pydantic-settings."""
+
+from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class NormalizerSettings(BaseSettings):
-    """Main settings for all normalizers."""
+class RulesSettings(BaseSettings):
+    """Settings for the rules engine."""
 
     model_config = SettingsConfigDict(
-        env_prefix="NORMALIZER_",
+        env_prefix="RULES_",
     )
 
-    disabled_normalizers: list[str] = Field(
-        default_factory=list,
-        description="List of normalizer names to disable",
+    rules: Optional[str] = Field(
+        default=None,
+        description="Comma-separated list of rule specifications",
+    )
+
+    rules_file: Optional[str] = Field(
+        default=None,
+        description="Path to file containing rule specifications (one per line)",
     )
 
 
@@ -73,7 +80,7 @@ class PipelineSettings(BaseSettings):
         env_prefix="TSSIM_",
     )
 
-    normalizer: NormalizerSettings = Field(default_factory=NormalizerSettings)
+    rules: RulesSettings = Field(default_factory=RulesSettings)
     shingle: ShingleSettings = Field(default_factory=ShingleSettings)
     minhash: MinHashSettings = Field(default_factory=MinHashSettings)
     lsh: LSHSettings = Field(default_factory=LSHSettings)

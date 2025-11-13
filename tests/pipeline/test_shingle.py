@@ -1,5 +1,6 @@
 from ..conftest import parsed_fixture, fixture_path1, fixture_path2
 from tssim.pipeline.region_extraction import extract_all_regions
+from tssim.pipeline.rules import RuleEngine
 from tssim.pipeline.shingle import shingle_regions
 
 
@@ -9,7 +10,7 @@ def test_shingle_regions_basic():
     shingled_regions = shingle_regions(
         extracted_regions=extract_all_regions([parsed_dataclass1]),
         parsed_files=[parsed_dataclass1],
-        normalizers=[],
+        rule_engine=RuleEngine([]),
     )
 
     assert len(shingled_regions) == 4
@@ -33,7 +34,7 @@ def test_identical_functions():
     shingled_regions = shingle_regions(
         extracted_regions=extract_all_regions([parsed_dataclass2]),
         parsed_files=[parsed_dataclass2],
-        normalizers=[],
+        rule_engine=RuleEngine([]),
     )
     assert len(shingled_regions) == 3
     assert [r.region.region_name for r in shingled_regions] == ["lines_1_1", "one", "one_prime"]

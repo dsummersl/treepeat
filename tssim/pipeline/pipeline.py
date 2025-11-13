@@ -13,8 +13,6 @@ from tssim.models.shingle import ShingledRegion
 from tssim.models.similarity import Region, RegionSignature, SimilarRegionPair, SimilarityResult
 from tssim.pipeline.lsh_stage import detect_similarity
 from tssim.pipeline.minhash_stage import compute_region_signatures
-from tssim.pipeline.normalizer_factory import build_normalizers
-from tssim.pipeline.normalizers import Normalizer
 from tssim.pipeline.parse import parse_path
 from tssim.pipeline.region_extraction import (
     ExtractedRegion,
@@ -22,6 +20,8 @@ from tssim.pipeline.region_extraction import (
     extract_all_regions,
     get_matched_line_ranges,
 )
+from tssim.pipeline.rules import RuleEngine
+from tssim.pipeline.rules_factory import build_rule_engine
 from tssim.pipeline.shingle import shingle_regions
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ def _get_matched_regions_from_pairs(pairs: list[SimilarRegionPair]) -> list[Regi
 def _run_shingle_stage(
     extracted_regions: list[ExtractedRegion],
     parsed_files: list[ParsedFile],
-    normalizers: list[Normalizer],
+    rule_engine: RuleEngine,
     settings: PipelineSettings,
 ) -> list[ShingledRegion]:
     """Run shingling stage.
@@ -121,11 +121,11 @@ def _run_shingle_stage(
     Returns:
         List of shingled regions
     """
-    logger.info("Stage 3/5: Shingling regions (with normalization)...")
+    logger.info("Stage 3/5: Shingling regions (with rules)...")
     shingled_regions = shingle_regions(
         extracted_regions,
         parsed_files,
-        normalizers=normalizers,
+        rule_engine=rule_engine,
         k=settings.shingle.k,
     )
     logger.info("Shingling complete: %d region(s) shingled", len(shingled_regions))
@@ -170,14 +170,14 @@ def _run_lsh_stage(
 
 def _run_level1_matching(
     parsed_files: list[ParsedFile],
-    normalizers: list[Normalizer],
+    rule_engine: RuleEngine,
     settings: PipelineSettings,
 ) -> tuple[list[SimilarRegionPair], list[RegionSignature]]:
     """Run Level 1: Region-Level Matching (functions/classes).
 
     Args:
         parsed_files: List of parsed source files
-        normalizers: List of normalizers to apply
+        rule_engine: Rule engine for applying transformation rules
         settings: Pipeline settings
 
     Returns:
@@ -189,7 +189,7 @@ def _run_level1_matching(
     level1_regions = _run_extract_stage(parsed_files, include_sections=False)
 
     # Shingle level 1 regions
-    level1_shingled = _run_shingle_stage(level1_regions, parsed_files, normalizers, settings)
+    level1_shingled = _run_shingle_stage(level1_regions, parsed_files, rule_engine, settings)
 
     # MinHash level 1
     level1_signatures = _run_minhash_stage(level1_shingled, settings.minhash.num_perm)
@@ -207,7 +207,7 @@ def _run_level1_matching(
 def _run_level2_matching(
     parsed_files: list[ParsedFile],
     level1_filtered_pairs: list[SimilarRegionPair],
-    normalizers: list[Normalizer],
+    rule_engine: RuleEngine,
     settings: PipelineSettings,
 ) -> tuple[list[SimilarRegionPair], list[RegionSignature]]:
     """Run Level 2: Line-Level Matching (unmatched sections).
@@ -215,7 +215,7 @@ def _run_level2_matching(
     Args:
         parsed_files: List of parsed source files
         level1_filtered_pairs: Filtered pairs from Level 1
-        normalizers: List of normalizers to apply
+        rule_engine: Rule engine for applying transformation rules
         settings: Pipeline settings
 
     Returns:
@@ -240,7 +240,7 @@ def _run_level2_matching(
         return [], []
 
     # Shingle, MinHash, LSH on level 2 regions
-    level2_shingled = _run_shingle_stage(level2_regions, parsed_files, normalizers, settings)
+    level2_shingled = _run_shingle_stage(level2_regions, parsed_files, rule_engine, settings)
     level2_signatures = _run_minhash_stage(level2_shingled, settings.minhash.num_perm)
     level2_result = _run_lsh_stage(level2_signatures, settings.lsh.threshold, {})
 
@@ -259,7 +259,7 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
     if isinstance(target_path, str):
         target_path = Path(target_path)
 
-    normalizers = build_normalizers(settings)
+    rule_engine = build_rule_engine(settings)
 
     # Stage 1: Parse
     parse_result = _run_parse_stage(target_path)
@@ -269,12 +269,12 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
 
     # Run Level 1: Region-Level Matching (functions/classes)
     level1_filtered_pairs, level1_signatures = _run_level1_matching(
-        parse_result.parsed_files, normalizers, settings
+        parse_result.parsed_files, rule_engine, settings
     )
 
     # Run Level 2: Line-Level Matching (unmatched sections)
     level2_filtered_pairs, level2_signatures = _run_level2_matching(
-        parse_result.parsed_files, level1_filtered_pairs, normalizers, settings
+        parse_result.parsed_files, level1_filtered_pairs, rule_engine, settings
     )
 
     # Combine results
