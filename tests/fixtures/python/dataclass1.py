@@ -1,3 +1,5 @@
+# a file with two similar but not identical classes, and a function
+
 CONSTANT_VALUE_42 = 42
 
 class Model1(BaseModel):

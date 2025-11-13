@@ -43,6 +43,9 @@ package = true
 line-length = 100
 exclude = [".venv", ".git", "build", "dist", "tests/fixtures", "testing-framework/codebases"]
 
+[tool.pyright]
+exclude = ["testing-framework"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
