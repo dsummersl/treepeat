@@ -4,7 +4,7 @@ from typing import Optional
 
 from tree_sitter import Node
 
-from .models import Rule, RuleOperation, RuleResult, SkipNodeException
+from .models import Rule, RuleOperation, SkipNodeException
 
 
 class RuleEngine:
@@ -23,6 +23,33 @@ class RuleEngine:
         """
         self.rules = rules
         self._identifier_counters: dict[str, int] = {}
+
+    def _get_anonymized_identifier(self, prefix: str) -> str:
+        """Generate an anonymized identifier."""
+        if prefix not in self._identifier_counters:
+            self._identifier_counters[prefix] = 0
+        self._identifier_counters[prefix] += 1
+        return f"{prefix}_{self._identifier_counters[prefix]}"
+
+    def _apply_single_rule(
+        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Apply a single matching rule and return updated name and value."""
+        match rule.operation:
+            case RuleOperation.SKIP:
+                raise SkipNodeException(
+                    f"Node type '{node_type}' matched skip rule for language '{language}'"
+                )
+            case RuleOperation.REPLACE_NAME:
+                name = rule.params.get("token", "<NODE>")
+            case RuleOperation.REPLACE_VALUE:
+                value = rule.params.get("value", "<LIT>")
+            case RuleOperation.ANONYMIZE_IDENTIFIERS:
+                prefix = rule.params.get("prefix", "VAR")
+                value = self._get_anonymized_identifier(prefix)
+            case RuleOperation.CANONICALIZE_TYPES:
+                name = rule.params.get("token", "<TYPE>")
+        return name, value
 
     def apply_rules(
         self, node: Node, language: str, node_name: Optional[str] = None
@@ -45,45 +72,9 @@ class RuleEngine:
         name = None
         value = None
 
-        # Apply rules in order (last wins)
         for rule in self.rules:
-            if not rule.matches_language(language):
-                continue
-
-            if not rule.matches_node_type(node_type):
-                continue
-
-            # Apply the rule operation
-            if rule.operation == RuleOperation.SKIP:
-                raise SkipNodeException(
-                    f"Node type '{node_type}' matched skip rule for language '{language}'"
-                )
-
-            elif rule.operation == RuleOperation.REPLACE_NAME:
-                token = rule.params.get("token", "<NODE>")
-                name = token
-
-            elif rule.operation == RuleOperation.REPLACE_VALUE:
-                token = rule.params.get("value", "<LIT>")
-                value = token
-
-            elif rule.operation == RuleOperation.ANONYMIZE_IDENTIFIERS:
-                scheme = rule.params.get("scheme", "flat")
-                prefix = rule.params.get("prefix", "VAR")
-
-                if scheme == "flat":
-                    # Simple counter-based anonymization
-                    if prefix not in self._identifier_counters:
-                        self._identifier_counters[prefix] = 0
-                    self._identifier_counters[prefix] += 1
-                    value = f"{prefix}_{self._identifier_counters[prefix]}"
-                else:
-                    # Default to simple prefix if scheme not recognized
-                    value = f"{prefix}_X"
-
-            elif rule.operation == RuleOperation.CANONICALIZE_TYPES:
-                token = rule.params.get("token", "<TYPE>")
-                name = token
+            if rule.matches_language(language) and rule.matches_node_type(node_type):
+                name, value = self._apply_single_rule(rule, node_type, language, name, value)
 
         return name, value
 

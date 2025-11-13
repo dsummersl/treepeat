@@ -5,6 +5,7 @@ from pathlib import Path
 
 from tssim.config import PipelineSettings
 from tssim.pipeline.rules import (
+    Rule,
     RuleEngine,
     RuleParseError,
     build_default_rules,
@@ -13,6 +14,53 @@ from tssim.pipeline.rules import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _load_rules_from_string(rules_string: str) -> list[Rule]:
+    """Load rules from a string with error handling."""
+    logger.info("Loading rules from --rules parameter")
+    try:
+        rules = parse_rules(rules_string)
+        logger.info("Loaded %d rule(s) from --rules", len(rules))
+        return rules
+    except RuleParseError as e:
+        logger.error("Failed to parse rules: %s", e)
+        raise
+
+
+def _load_rules_from_file(rules_file_path: str) -> list[Rule]:
+    """Load rules from a file with error handling."""
+    path = Path(rules_file_path)
+    logger.info("Loading rules from file: %s", path)
+    try:
+        rules = parse_rules_file(str(path))
+        logger.info("Loaded %d rule(s) from %s", len(rules), path)
+        return rules
+    except (FileNotFoundError, RuleParseError) as e:
+        logger.error("Failed to load rules file: %s", e)
+        raise
+
+
+def _log_active_rules(rules: list[Rule]) -> None:
+    """Log the active rules for debugging."""
+    if not rules:
+        logger.warning("No rules configured - no normalization will be applied")
+        return
+
+    logger.debug("Active rules:")
+    for rule in rules:
+        params_str = (
+            f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
+            if rule.params
+            else ""
+        )
+        logger.debug(
+            "  %s:%s:nodes=%s%s",
+            rule.language,
+            rule.operation.value,
+            "|".join(rule.node_patterns),
+            params_str,
+        )
 
 
 def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
@@ -34,44 +82,11 @@ def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
     """
     rules = build_default_rules()
 
-    # If custom rules specified via CLI, use them instead
     if settings.rules.rules:
-        logger.info("Loading rules from --rules parameter")
-        try:
-            rules = parse_rules(settings.rules.rules)
-            logger.info("Loaded %d rule(s) from --rules", len(rules))
-        except RuleParseError as e:
-            logger.error("Failed to parse rules: %s", e)
-            raise
+        rules = _load_rules_from_string(settings.rules.rules)
 
-    # If rules file specified, it overrides everything (last wins)
     if settings.rules.rules_file:
-        rules_file_path = Path(settings.rules.rules_file)
-        logger.info("Loading rules from file: %s", rules_file_path)
-        try:
-            rules = parse_rules_file(str(rules_file_path))
-            logger.info("Loaded %d rule(s) from %s", len(rules), rules_file_path)
-        except FileNotFoundError:
-            logger.error("Rules file not found: %s", rules_file_path)
-            raise
-        except RuleParseError as e:
-            logger.error("Failed to parse rules file: %s", e)
-            raise
+        rules = _load_rules_from_file(settings.rules.rules_file)
 
-    # Log the active rules
-    if not rules:
-        logger.warning("No rules configured - no normalization will be applied")
-    else:
-        logger.debug("Active rules:")
-        for rule in rules:
-            logger.debug(
-                "  %s:%s:nodes=%s%s",
-                rule.language,
-                rule.operation.value,
-                "|".join(rule.node_patterns),
-                f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
-                if rule.params
-                else "",
-            )
-
+    _log_active_rules(rules)
     return RuleEngine(rules)

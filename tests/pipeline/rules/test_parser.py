@@ -3,7 +3,6 @@
 import pytest
 
 from tssim.pipeline.rules import (
-    Rule,
     RuleOperation,
     RuleParseError,
     parse_rule,
