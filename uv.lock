@@ -686,6 +686,18 @@ wheels = [
 ]
 
 [[package]]
+name = "sarif-pydantic"
+version = "0.6.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b6/78/a361e0f8e4758a8cf7aa0f1df7651c317d0eef2528436bc804d1ab5dae8c/sarif_pydantic-0.6.2.tar.gz", hash = "sha256:634df2784533fcac8e86f0c60a0e45ead1d35452dc2331d32596275595906e7f", size = 54675, upload-time = "2025-11-04T21:45:11.009Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ab/1e/0953f9074cf9a7709347d0ce0eab48441621bcf21c7dcef658adfcacef5b/sarif_pydantic-0.6.2-py3-none-any.whl", hash = "sha256:6b22adbed76482f1b649b46c3274d9505c9d4084abbaf851de7ed3e61b8d0527", size = 7407, upload-time = "2025-11-04T21:45:09.896Z" },
+]
+
+[[package]]
 name = "scipy"
 version = "1.16.3"
 source = { registry = "https://pypi.org/simple" }
@@ -946,6 +958,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "rich" },
+    { name = "sarif-pydantic" },
     { name = "tdqm" },
     { name = "tree-sitter" },
     { name = "tree-sitter-language-pack" },
@@ -968,6 +981,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "rich", specifier = ">=14.2.0" },
+    { name = "sarif-pydantic", specifier = ">=0.6.2" },
     { name = "tdqm", specifier = ">=0.0.1" },
     { name = "tree-sitter", specifier = ">=0.25.2" },
     { name = "tree-sitter-language-pack", specifier = ">=0.10.0" },
