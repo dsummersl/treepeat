@@ -77,6 +77,14 @@ class PipelineSettings(BaseSettings):
     shingle: ShingleSettings = Field(default_factory=ShingleSettings)
     minhash: MinHashSettings = Field(default_factory=MinHashSettings)
     lsh: LSHSettings = Field(default_factory=LSHSettings)
+    ignore_patterns: list[str] = Field(
+        default_factory=list,
+        description="List of glob patterns to ignore files",
+    )
+    ignore_file_patterns: list[str] = Field(
+        default_factory=lambda: ["**/.*ignore"],
+        description="List of glob patterns to find ignore files (like .gitignore)",
+    )
 
 
 # Global settings instance that can be accessed throughout the application

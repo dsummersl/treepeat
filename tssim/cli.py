@@ -231,6 +231,8 @@ def _configure_settings(
     minhash_num_perm: int,
     lsh_threshold: float,
     min_lines: int,
+    ignore: str,
+    ignore_files: str,
 ) -> None:
     """Configure pipeline settings.
 
@@ -240,14 +242,22 @@ def _configure_settings(
         minhash_num_perm: Number of MinHash permutations
         lsh_threshold: LSH similarity threshold
         min_lines: Minimum number of lines for a match
+        ignore: Comma-separated list of glob patterns to ignore files
+        ignore_files: Comma-separated list of glob patterns to find ignore files
     """
     disabled_list = _validate_and_parse_normalizers(disable_normalizers)
+
+    # Parse ignore patterns
+    ignore_patterns = [p.strip() for p in ignore.split(",") if p.strip()]
+    ignore_file_patterns = [p.strip() for p in ignore_files.split(",") if p.strip()]
 
     settings = PipelineSettings(
         normalizer=NormalizerSettings(disabled_normalizers=disabled_list),
         shingle=ShingleSettings(k=shingle_k),
         minhash=MinHashSettings(num_perm=minhash_num_perm),
         lsh=LSHSettings(threshold=lsh_threshold, min_lines=min_lines),
+        ignore_patterns=ignore_patterns,
+        ignore_file_patterns=ignore_file_patterns,
     )
     set_settings(settings)
 
@@ -330,6 +340,18 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     default=None,
     help="Output file path (default: stdout)",
 )
+@click.option(
+    "--ignore",
+    type=str,
+    default="",
+    help="Comma-separated list of glob patterns to ignore files (e.g., '*.test.py,**/node_modules/**')",
+)
+@click.option(
+    "--ignore-files",
+    type=str,
+    default="**/.*ignore",
+    help="Comma-separated list of glob patterns to find ignore files (default: '**/.*ignore')",
+)
 def main(
     path: Path | None,
     log_level: str,
@@ -342,6 +364,8 @@ def main(
     min_lines: int,
     output_format: str,
     output: Path | None,
+    ignore: str,
+    ignore_files: str,
 ) -> None:
     """
     Analyze code similarity in PATH.
@@ -359,7 +383,7 @@ def main(
         console.print("Try 'tssim --help' for more information.")
         sys.exit(1)
 
-    _configure_settings(disable_normalizers, shingle_k, minhash_num_perm, lsh_threshold, min_lines)
+    _configure_settings(disable_normalizers, shingle_k, minhash_num_perm, lsh_threshold, min_lines, ignore, ignore_files)
     result = _run_pipeline_with_ui(path, output_format)
     _check_result_errors(result, output_format)
     _handle_output(result, output_format, output, log_level)
