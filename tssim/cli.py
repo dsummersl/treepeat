@@ -11,14 +11,13 @@ from rich.logging import RichHandler
 from tssim.config import (
     LSHSettings,
     MinHashSettings,
-    NormalizerSettings,
     PipelineSettings,
+    RulesSettings,
     ShingleSettings,
     set_settings,
 )
 from tssim.formatters import format_as_json, format_as_sarif
 from tssim.models.similarity import RegionSignature, SimilarityResult
-from tssim.pipeline.normalizer_factory import get_available_normalizers
 from tssim.pipeline.pipeline import run_pipeline
 
 console = Console()
@@ -115,63 +114,6 @@ def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
             console.print(f"    [dim]{error}[/dim]")
 
 
-def _handle_list_normalizers() -> None:
-    """Display available normalizers and exit."""
-    console.print("\n[bold blue]Available Normalizers:[/bold blue]\n")
-    for spec in get_available_normalizers():
-        console.print(f"  [cyan]{spec.name}[/cyan]")
-        console.print(f"    {spec.description}")
-        console.print()
-
-
-def _parse_normalizer_list(disable_normalizers: str) -> list[str]:
-    """Parse comma-separated normalizer list.
-
-    Args:
-        disable_normalizers: Comma-separated list of normalizer names
-
-    Returns:
-        List of normalizer names
-    """
-    return [n.strip() for n in disable_normalizers.split(",") if n.strip()]
-
-
-def _validate_normalizer_names(disabled_list: list[str]) -> None:
-    """Validate normalizer names against available normalizers.
-
-    Args:
-        disabled_list: List of normalizer names to validate
-
-    Raises:
-        SystemExit: If any normalizer name is invalid
-    """
-    available_names = {spec.name for spec in get_available_normalizers()}
-    for name in disabled_list:
-        if name not in available_names:
-            console.print(f"[bold red]Error:[/bold red] Unknown normalizer '{name}'")
-            console.print(f"Available normalizers: {', '.join(sorted(available_names))}")
-            console.print("Use --list-normalizers to see all available normalizers")
-            sys.exit(1)
-
-
-def _validate_and_parse_normalizers(disable_normalizers: str) -> list[str]:
-    """Parse and validate normalizer names.
-
-    Args:
-        disable_normalizers: Comma-separated list of normalizer names
-
-    Returns:
-        List of validated normalizer names
-
-    Raises:
-        SystemExit: If any normalizer name is invalid
-    """
-    disabled_list = _parse_normalizer_list(disable_normalizers)
-    if disabled_list:
-        _validate_normalizer_names(disabled_list)
-    return disabled_list
-
-
 def _write_output(text: str, output_path: Path | None) -> None:
     """Write output text to file or stdout.
 
@@ -226,7 +168,8 @@ def _handle_output(result: SimilarityResult, output_format: str, output_path: Pa
 
 
 def _configure_settings(
-    disable_normalizers: str,
+    rules: str,
+    rules_file: str,
     shingle_k: int,
     minhash_num_perm: int,
     lsh_threshold: float,
@@ -237,7 +180,8 @@ def _configure_settings(
     """Configure pipeline settings.
 
     Args:
-        disable_normalizers: Comma-separated list of normalizers to disable
+        rules: Comma-separated list of rule specifications
+        rules_file: Path to file containing rule specifications (one per line)
         shingle_k: Length of k-grams for shingling
         minhash_num_perm: Number of MinHash permutations
         lsh_threshold: LSH similarity threshold
@@ -245,14 +189,12 @@ def _configure_settings(
         ignore: Comma-separated list of glob patterns to ignore files
         ignore_files: Comma-separated list of glob patterns to find ignore files
     """
-    disabled_list = _validate_and_parse_normalizers(disable_normalizers)
-
     # Parse ignore patterns
     ignore_patterns = [p.strip() for p in ignore.split(",") if p.strip()]
     ignore_file_patterns = [p.strip() for p in ignore_files.split(",") if p.strip()]
 
     settings = PipelineSettings(
-        normalizer=NormalizerSettings(disabled_normalizers=disabled_list),
+        rules=RulesSettings(rules=rules or None, rules_file=rules_file or None),
         shingle=ShingleSettings(k=shingle_k),
         minhash=MinHashSettings(num_perm=minhash_num_perm),
         lsh=LSHSettings(threshold=lsh_threshold, min_lines=min_lines),
@@ -285,16 +227,16 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     help="Set the logging level",
 )
 @click.option(
-    "--list-normalizers",
-    is_flag=True,
-    default=False,
-    help="List all available normalizers and exit",
-)
-@click.option(
-    "--disable-normalizers",
+    "--rules",
     type=str,
     default="",
-    help="Comma-separated list of normalizers to disable (e.g., 'python-imports')",
+    help="Comma-separated list of rule specifications (e.g., 'python:skip:nodes=import_statement')",
+)
+@click.option(
+    "--rules-file",
+    type=str,
+    default="",
+    help="Path to file containing rule specifications (one per line)",
 )
 @click.option(
     "--shingle-k",
@@ -355,8 +297,8 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 def main(
     path: Path | None,
     log_level: str,
-    list_normalizers: bool,
-    disable_normalizers: str,
+    rules: str,
+    rules_file: str,
     shingle_k: int,
     shingle_include_text: bool,
     minhash_num_perm: int,
@@ -374,16 +316,12 @@ def main(
     """
     setup_logging(log_level.upper())
 
-    if list_normalizers:
-        _handle_list_normalizers()
-        return
-
     if path is None:
         console.print("[bold red]Error:[/bold red] PATH is required")
         console.print("Try 'tssim --help' for more information.")
         sys.exit(1)
 
-    _configure_settings(disable_normalizers, shingle_k, minhash_num_perm, lsh_threshold, min_lines, ignore, ignore_files)
+    _configure_settings(rules, rules_file, shingle_k, minhash_num_perm, lsh_threshold, min_lines, ignore, ignore_files)
     result = _run_pipeline_with_ui(path, output_format)
     _check_result_errors(result, output_format)
     _handle_output(result, output_format, output, log_level)

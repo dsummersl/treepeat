@@ -7,8 +7,8 @@ from tree_sitter import Node
 from tssim.models.ast import ParsedFile, ParseResult
 from tssim.models.normalization import NodeRepresentation, SkipNode
 from tssim.models.shingle import ShingledRegion, ShingleResult, ShingleList, ShingledFile
-from tssim.pipeline.normalizers import Normalizer
 from tssim.pipeline.region_extraction import ExtractedRegion
+from tssim.pipeline.rules import RuleEngine, SkipNodeException
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +19,12 @@ MAX_NODE_VALUE_LENGTH = 50
 class ASTShingler:
     def __init__(
         self,
-        normalizers: list[Normalizer],
+        rule_engine: RuleEngine,
         k: int = 3,
     ):
         if k < 1:
             raise ValueError("k must be at least 1")
-        self.normalizers = normalizers
+        self.rule_engine = rule_engine
         self.k = k
 
     def shingle_file(self, parsed_file: ParsedFile) -> ShingledFile:
@@ -95,7 +95,7 @@ class ASTShingler:
 
         return text
 
-    def _apply_normalizers(
+    def _apply_rules(
         self,
         node: Node,
         name: str,
@@ -103,13 +103,16 @@ class ASTShingler:
         language: str,
         source: bytes,
     ) -> tuple[str, str | None]:
-        for normalizer in self.normalizers:
-            result = normalizer.normalize_node(node, name, value, language, source)
-            if result is not None:
-                if result.name is not None:
-                    name = result.name
-                if result.value is not None:
-                    value = result.value
+        """Apply rules to a node and return the modified name and value.
+
+        Raises:
+            SkipNodeException: If a skip rule matches this node
+        """
+        rule_name, rule_value = self.rule_engine.apply_rules(node, language, name)
+        if rule_name is not None:
+            name = rule_name
+        if rule_value is not None:
+            value = rule_value
         return name, value
 
     def _get_node_representation(
@@ -118,9 +121,18 @@ class ASTShingler:
         language: str,
         source: bytes,
     ) -> NodeRepresentation:
+        """Get the representation of a node with rules applied.
+
+        Raises:
+            SkipNodeException: If a skip rule matches this node (converted to SkipNode for compatibility)
+        """
         name = node.type
         value = self._extract_node_value(node, source)
-        name, value = self._apply_normalizers(node, name, value, language, source)
+        try:
+            name, value = self._apply_rules(node, name, value, language, source)
+        except SkipNodeException:
+            # Convert to SkipNode for compatibility with existing code
+            raise SkipNode(f"Node type '{name}' skipped by rule")
         return NodeRepresentation(name=name, value=value)
 
     def _extract_shingles(
@@ -171,12 +183,12 @@ class ASTShingler:
 
 def shingle_files(
     parse_result: ParseResult,
-    normalizers: list[Normalizer],
+    rule_engine: RuleEngine,
     k: int = 3,
 ) -> ShingleResult:
     logger.info("Shingling %d file(s) with k=%d", len(parse_result.parsed_files), k)
 
-    shingler = ASTShingler(normalizers=normalizers, k=k)
+    shingler = ASTShingler(rule_engine=rule_engine, k=k)
     shingled_files = []
     failed_files = dict(parse_result.failed_files)  # Start with parse failures
 
@@ -220,7 +232,7 @@ def _shingle_single_region(
 def shingle_regions(
     extracted_regions: list[ExtractedRegion],
     parsed_files: list[ParsedFile],
-    normalizers: list[Normalizer],
+    rule_engine: RuleEngine,
     k: int = 3,
 ) -> list[ShingledRegion]:
     logger.info(
@@ -231,7 +243,7 @@ def shingle_regions(
     )
 
     path_to_source = {pf.path: pf.source for pf in parsed_files}
-    shingler = ASTShingler(normalizers=normalizers, k=k)
+    shingler = ASTShingler(rule_engine=rule_engine, k=k)
     shingled_regions = []
     filtered_count = 0
 

@@ -7,8 +7,8 @@ import pytest
 from tssim.config import (
     LSHSettings,
     MinHashSettings,
-    NormalizerSettings,
     PipelineSettings,
+    RulesSettings,
     ShingleSettings,
     set_settings,
 )
@@ -16,8 +16,8 @@ from tssim.pipeline.lsh_stage import detect_similarity
 from tssim.pipeline.minhash_stage import compute_region_signatures
 from tssim.pipeline.pipeline import run_pipeline
 from tssim.pipeline.region_extraction import extract_all_regions
+from tssim.pipeline.rules import RuleEngine, parse_rule
 from tssim.pipeline.shingle import shingle_regions
-from tssim.pipeline.normalizers.python import PythonImportNormalizer
 
 
 fixture_class_with_methods = (
@@ -27,8 +27,14 @@ fixture_path4 = Path(__file__).parent.parent / "fixtures" / "python" / "dataclas
 fixture_path5 = Path(__file__).parent.parent / "fixtures" / "python" / "dataclass5.py"
 
 
-@pytest.mark.parametrize("normalizers", [[], [PythonImportNormalizer()]])
-def test_dissimilar_files(normalizers):
+@pytest.mark.parametrize(
+    "rules",
+    [
+        [],
+        [parse_rule("python:skip:nodes=import_statement|import_from_statement")],
+    ],
+)
+def test_dissimilar_files(rules):
     parsed_dataclass4 = parsed_fixture(fixture_path4)
     parsed_dataclass5 = parsed_fixture(fixture_path5)
 
@@ -37,7 +43,7 @@ def test_dissimilar_files(normalizers):
     shingled_regions = shingle_regions(
         extracted_regions=extracted_regions,
         parsed_files=[parsed_dataclass4, parsed_dataclass5],
-        normalizers=normalizers,
+        rule_engine=RuleEngine(rules),
     )
 
     signatures = compute_region_signatures(shingled_regions)
@@ -195,7 +201,7 @@ def test_match_counts(path, threshold, similar_pairs, expected_regions):
     """Testing with an lowest LSH threshold, the"""
     set_settings(
         PipelineSettings(
-            normalizer=NormalizerSettings(),
+            rules=RulesSettings(),
             shingle=ShingleSettings(),
             minhash=MinHashSettings(),
             lsh=LSHSettings(threshold=threshold),
