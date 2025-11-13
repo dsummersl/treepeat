@@ -66,44 +66,26 @@ def _assert_has_pair(
     raise AssertionError(f"Pair ({region1}, {region2}) not found in pairs ({result.similar_pairs})")
 
 
-def test_class_with_methods_has_similarities():
-    fixture_dir = Path(__file__).parent.parent / "fixtures" / "python"
-    test_file = fixture_dir / "class_with_methods.py"
+classA_region = _make_region(fixture_class_with_methods, "python", "class", "ClassA", 4, 27)
+classB_region = _make_region(fixture_class_with_methods, "python", "class", "ClassB", 30, 54)
 
-    result = run_pipeline(test_file)
-
-    assert len(result.similar_pairs) == 3
-
-    assert (
-        _assert_has_pair(
-            result,
-            _make_region(fixture_class_with_methods, "python", "function", "method2", 13, 19),
-            _make_region(fixture_class_with_methods, "python", "function", "method2", 40, 46),
-        ).similarity
-        > 0.9
-    )
-
-    assert (
-        _assert_has_pair(
-            result,
-            _make_region(fixture_class_with_methods, "python", "function", "method3", 21, 27),
-            _make_region(fixture_class_with_methods, "python", "function", "method3", 48, 54),
-        ).similarity
-        > 0.9
-    )
-
-    assert (
-        _assert_has_pair(
-            result,
-            _make_region(fixture_class_with_methods, "python", "class", "ClassA", 4, 27),
-            _make_region(fixture_class_with_methods, "python", "class", "ClassB", 30, 54),
-        ).similarity
-        > 0.7
-    )
-
-
-def test_higher_threshold():
-    """Testing with an increased LSH threshold filters out less probable matches."""
+@pytest.mark.parametrize(
+    "threshold, similar_pairs, expected_regions",
+    [(0.1, 1, [(classA_region, classB_region)]),
+     (0.3, 1, [(classA_region, classB_region)]),
+     (0.5, 1, [(classA_region, classB_region)]),
+     (0.7, 1, [(classA_region, classB_region)]),
+     (0.9, 3, [(
+        _make_region(fixture_class_with_methods, "python", "function", "method2", 13, 19),
+        _make_region(fixture_class_with_methods, "python", "function", "method2", 40, 46),
+     ), (
+        _make_region(fixture_class_with_methods, "python", "function", "method3", 21, 27),
+        _make_region(fixture_class_with_methods, "python", "function", "method3", 48, 54),
+               )
+     ])],
+)
+def test_match_counts(threshold, similar_pairs, expected_regions):
+    """Testing with an lowest LSH threshold, the"""
     fixture_dir = Path(__file__).parent.parent / "fixtures" / "python"
     test_file = fixture_dir / "class_with_methods.py"
 
@@ -112,27 +94,11 @@ def test_higher_threshold():
             normalizer=NormalizerSettings(),
             shingle=ShingleSettings(),
             minhash=MinHashSettings(),
-            lsh=LSHSettings(threshold=0.8),
+            lsh=LSHSettings(threshold=threshold),
         )
     )
     result = run_pipeline(test_file)
 
-    assert len(result.similar_pairs) == 2
-
-    assert (
-        _assert_has_pair(
-            result,
-            _make_region(fixture_class_with_methods, "python", "function", "method2", 13, 19),
-            _make_region(fixture_class_with_methods, "python", "function", "method2", 40, 46),
-        ).similarity
-        > 0.9
-    )
-
-    assert (
-        _assert_has_pair(
-            result,
-            _make_region(fixture_class_with_methods, "python", "function", "method3", 21, 27),
-            _make_region(fixture_class_with_methods, "python", "function", "method3", 48, 54),
-        ).similarity
-        > 0.9
-    )
+    assert len(result.similar_pairs) == similar_pairs
+    for region1, region2 in expected_regions:
+        _assert_has_pair(result, region1, region2).similarity > threshold
