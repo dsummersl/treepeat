@@ -146,6 +146,7 @@ def _run_minhash_stage(shingled_regions: list[ShingledRegion], num_perm: int) ->
 
 def _run_lsh_stage(
     signatures: list[RegionSignature],
+    shingled_regions: list[ShingledRegion],
     threshold: float,
     failed_files: dict[Path, str],
 ) -> SimilarityResult:
@@ -159,6 +160,8 @@ def _run_lsh_stage(
         signatures,
         threshold=threshold,
         failed_files=failed_files,
+        shingled_regions=shingled_regions,
+        verify_candidates=True,
     )
     logger.info(
         "Similarity detection complete: found %d similar pair(s) (%d self-similar)",
@@ -195,7 +198,7 @@ def _run_level1_matching(
     level1_signatures = _run_minhash_stage(level1_shingled, settings.minhash.num_perm)
 
     # LSH level 1
-    level1_result = _run_lsh_stage(level1_signatures, settings.lsh.threshold, {})
+    level1_result = _run_lsh_stage(level1_signatures, level1_shingled, settings.lsh.threshold, {})
 
     # Filter by min_lines
     level1_filtered_pairs = _filter_pairs_by_min_lines(level1_result.similar_pairs, settings.lsh.min_lines)
@@ -242,7 +245,7 @@ def _run_level2_matching(
     # Shingle, MinHash, LSH on level 2 regions
     level2_shingled = _run_shingle_stage(level2_regions, parsed_files, rule_engine, settings)
     level2_signatures = _run_minhash_stage(level2_shingled, settings.minhash.num_perm)
-    level2_result = _run_lsh_stage(level2_signatures, settings.lsh.threshold, {})
+    level2_result = _run_lsh_stage(level2_signatures, level2_shingled, settings.lsh.threshold, {})
 
     # Filter by min_lines
     level2_filtered_pairs = _filter_pairs_by_min_lines(level2_result.similar_pairs, settings.lsh.min_lines)
