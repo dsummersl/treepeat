@@ -432,6 +432,10 @@ def _create_line_region(
         start_line=start_line,
         end_line=end_line,
     )
+
+    # Find all nodes that fall within this line range
+    # We use the root node and filter its children during shingling
+    # by checking line ranges, rather than trying to create a sub-tree
     return ExtractedRegion(region=region, node=parsed_file.root_node)
 
 

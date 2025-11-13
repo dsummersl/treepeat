@@ -58,11 +58,16 @@ class ASTShingler:
                 all_shingles.extend(node_shingles)
             shingles = all_shingles
         else:
-            # Single node region (target regions like functions/classes)
+            # Single node region (target regions like functions/classes or line-based regions)
+            # For line-based regions, we need to filter nodes by line range
+            start_line = region.start_line if region.region_type == "lines" else None
+            end_line = region.end_line if region.region_type == "lines" else None
             shingles = self._extract_shingles(
                 extracted_region.node,
                 region.language,
                 source,
+                start_line=start_line,
+                end_line=end_line,
             )
 
         logger.debug(
@@ -118,11 +123,26 @@ class ASTShingler:
         name, value = self._apply_normalizers(node, name, value, language, source)
         return NodeRepresentation(name=name, value=value)
 
-    def _extract_shingles(self, root: Node, language: str, source: bytes) -> list[str]:
+    def _extract_shingles(
+        self,
+        root: Node,
+        language: str,
+        source: bytes,
+        start_line: int | None = None,
+        end_line: int | None = None,
+    ) -> list[str]:
         shingles: list[str] = []
 
         # Pre-order traversal to extract all paths
         def traverse(node: Node, path: deque[NodeRepresentation]) -> None:
+            # Filter nodes by line range if specified (for line-based regions)
+            if start_line is not None and end_line is not None:
+                node_start = node.start_point[0] + 1  # Convert 0-indexed to 1-indexed
+                node_end = node.end_point[0] + 1
+                # Skip nodes that are completely outside the line range
+                if node_end < start_line or node_start > end_line:
+                    return
+
             # Get normalized representation (may raise SkipNode)
             try:
                 node_repr = self._get_node_representation(node, language, source)
