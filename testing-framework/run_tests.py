@@ -111,7 +111,6 @@ class DuplicationTester:
                     total_regions = data.get('total_regions', 0)
                     total_files = data.get('total_files', 0)
                     failed_files = data.get('failed_files', 0)
-                    similar_pairs = data.get('similar_pairs', [])
 
                     return {
                         'tool': 'tssim',

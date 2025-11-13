@@ -6,9 +6,8 @@ Specification: https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html
 
 import json
 from typing import Any, Dict, List
-from pathlib import Path
 
-from tssim.models.similarity import SimilarityResult
+from tssim.models.similarity import Region, SimilarityResult
 
 
 def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:
@@ -149,14 +148,14 @@ def _get_level(similarity: float) -> str:
         return "note"  # Moderate similarity
 
 
-def _create_location(region) -> Dict[str, Any]:
+def _create_location(region: Region) -> Dict[str, Any]:
     """Create a SARIF location object from a region."""
     return {
         "physicalLocation": _create_physical_location(region)
     }
 
 
-def _create_physical_location(region) -> Dict[str, Any]:
+def _create_physical_location(region: Region) -> Dict[str, Any]:
     """Create a SARIF physical location object."""
     # Convert path to relative if possible, otherwise use absolute
     file_path = str(region.path)

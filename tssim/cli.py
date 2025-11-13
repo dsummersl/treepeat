@@ -183,6 +183,87 @@ def _write_output(text: str, output_path: Path | None) -> None:
         print(text)
 
 
+def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
+    """Run the pipeline with appropriate UI feedback based on output format.
+
+    Args:
+        path: Path to analyze
+        output_format: Output format (console, json, sarif)
+
+    Returns:
+        The similarity result
+    """
+    if output_format.lower() == "console":
+        console.print("\n[bold blue]tssim - Code Similarity Detection[/bold blue]")
+        console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
+        with console.status("[bold green]Running pipeline..."):
+            return run_pipeline(path)
+    else:
+        return run_pipeline(path)
+
+
+def _handle_output(result: SimilarityResult, output_format: str, output_path: Path | None, log_level: str) -> None:
+    """Handle formatting and outputting results.
+
+    Args:
+        result: The similarity result
+        output_format: Output format (console, json, sarif)
+        output_path: Path to output file, or None for stdout
+        log_level: Logging level for debug output
+    """
+    if output_format.lower() == "json":
+        output_text = format_as_json(result, pretty=True)
+        _write_output(output_text, output_path)
+    elif output_format.lower() == "sarif":
+        output_text = format_as_sarif(result, pretty=True)
+        _write_output(output_text, output_path)
+    else:  # console
+        display_similar_pairs(result)
+        display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
+        console.print()
+
+
+def _configure_settings(
+    disable_normalizers: str,
+    shingle_k: int,
+    minhash_num_perm: int,
+    lsh_threshold: float,
+    min_lines: int,
+) -> None:
+    """Configure pipeline settings.
+
+    Args:
+        disable_normalizers: Comma-separated list of normalizers to disable
+        shingle_k: Length of k-grams for shingling
+        minhash_num_perm: Number of MinHash permutations
+        lsh_threshold: LSH similarity threshold
+        min_lines: Minimum number of lines for a match
+    """
+    disabled_list = _validate_and_parse_normalizers(disable_normalizers)
+
+    settings = PipelineSettings(
+        normalizer=NormalizerSettings(disabled_normalizers=disabled_list),
+        shingle=ShingleSettings(k=shingle_k),
+        minhash=MinHashSettings(num_perm=minhash_num_perm),
+        lsh=LSHSettings(threshold=lsh_threshold, min_lines=min_lines),
+    )
+    set_settings(settings)
+
+
+def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
+    """Check for errors in the result and exit if necessary.
+
+    Args:
+        result: The similarity result
+        output_format: Output format (console, json, sarif)
+    """
+    if result.success_count == 0 and result.failure_count > 0:
+        if output_format.lower() == "console":
+            console.print("[bold red]Error:[/bold red] Failed to parse any files")
+            display_failed_files(result, show_details=True)
+        sys.exit(1)
+
+
 @click.command()
 @click.argument("path", type=click.Path(exists=True, path_type=Path), required=False)
 @click.option(
@@ -276,45 +357,10 @@ def main(
         console.print("Try 'tssim --help' for more information.")
         sys.exit(1)
 
-    disabled_list = _validate_and_parse_normalizers(disable_normalizers)
-
-    settings = PipelineSettings(
-        normalizer=NormalizerSettings(disabled_normalizers=disabled_list),
-        shingle=ShingleSettings(k=shingle_k),
-        minhash=MinHashSettings(num_perm=minhash_num_perm),
-        lsh=LSHSettings(threshold=lsh_threshold, min_lines=min_lines),
-    )
-    set_settings(settings)
-
-    # Only show console status and headers for console output
-    if output_format.lower() == "console":
-        console.print("\n[bold blue]tssim - Code Similarity Detection[/bold blue]")
-        console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
-
-    # Run the pipeline with or without console status based on format
-    if output_format.lower() == "console":
-        with console.status("[bold green]Running pipeline..."):
-            result = run_pipeline(path)
-    else:
-        result = run_pipeline(path)
-
-    if result.success_count == 0 and result.failure_count > 0:
-        if output_format.lower() == "console":
-            console.print("[bold red]Error:[/bold red] Failed to parse any files")
-            display_failed_files(result, show_details=True)
-        sys.exit(1)
-
-    # Format and output results
-    if output_format.lower() == "json":
-        output_text = format_as_json(result, pretty=True)
-        _write_output(output_text, output)
-    elif output_format.lower() == "sarif":
-        output_text = format_as_sarif(result, pretty=True)
-        _write_output(output_text, output)
-    else:  # console
-        display_similar_pairs(result)
-        display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
-        console.print()
+    _configure_settings(disable_normalizers, shingle_k, minhash_num_perm, lsh_threshold, min_lines)
+    result = _run_pipeline_with_ui(path, output_format)
+    _check_result_errors(result, output_format)
+    _handle_output(result, output_format, output, log_level)
 
 
 if __name__ == "__main__":

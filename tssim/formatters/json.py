@@ -1,8 +1,6 @@
 """JSON formatter for tssim results."""
 
 import json
-from typing import Any, Dict
-from pathlib import Path
 
 from tssim.models.similarity import SimilarityResult
 
