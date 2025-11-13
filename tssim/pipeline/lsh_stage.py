@@ -5,7 +5,7 @@ from pathlib import Path
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
 
-from tssim.models.similarity import RegionSignature, SimilarRegionPair, SimilarityResult
+from tssim.models.similarity import Region, RegionSignature, SimilarRegionPair, SimilarityResult
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +85,35 @@ def _create_similar_pair(
     )
 
 
+def _is_valid_pair_candidate(
+    sig: RegionSignature,
+    similar_sig: RegionSignature,
+    current_key: str,
+    similar_key: str,
+    seen_pairs: set[tuple[str, str]],
+) -> bool:
+    """Check if a pair is a valid candidate for similarity comparison.
+
+    Args:
+        sig: Current signature
+        similar_sig: Similar signature
+        current_key: Key of current region
+        similar_key: Key of similar region
+        seen_pairs: Set of already processed pair keys
+
+    Returns:
+        True if pair is valid for comparison
+    """
+    # Skip self-overlapping pairs
+    if _regions_overlap(sig.region, similar_sig.region):
+        return False
+
+    # Check if already processed
+    sorted_keys = sorted([current_key, similar_key])
+    pair_key = (sorted_keys[0], sorted_keys[1])
+    return pair_key not in seen_pairs
+
+
 def _process_candidate_pair(
     sig: RegionSignature,
     similar_key: str,
@@ -113,18 +142,14 @@ def _process_candidate_pair(
     if similar_sig is None:
         return None
 
-    # Filter out self-overlapping pairs (regions in the same file with overlapping line ranges)
-    if _regions_overlap(sig.region, similar_sig.region):
+    if not _is_valid_pair_candidate(sig, similar_sig, current_key, similar_key, seen_pairs):
         return None
 
     sorted_keys = sorted([current_key, similar_key])
     pair_key = (sorted_keys[0], sorted_keys[1])
-    if pair_key in seen_pairs:
-        return None
-
     seen_pairs.add(pair_key)
-    pair = _create_similar_pair(sig, similar_sig)
 
+    pair = _create_similar_pair(sig, similar_sig)
     if pair.similarity < threshold:
         return None
 
@@ -171,7 +196,7 @@ def _process_signature_candidates(
     return pairs
 
 
-def _regions_overlap(r1, r2) -> bool:
+def _regions_overlap(r1: Region, r2: Region) -> bool:
     """Check if two regions overlap in the same file.
 
     Args:
@@ -186,7 +211,7 @@ def _regions_overlap(r1, r2) -> bool:
     return not (r1.end_line < r2.start_line or r2.end_line < r1.start_line)
 
 
-def _region_size(region) -> int:
+def _region_size(region: Region) -> int:
     """Get the size of a region in lines.
 
     Args:
@@ -196,6 +221,39 @@ def _region_size(region) -> int:
         Number of lines in the region
     """
     return region.end_line - region.start_line + 1
+
+
+def _pairs_have_overlap(pair1: SimilarRegionPair, pair2: SimilarRegionPair) -> bool:
+    """Check if two pairs have any overlapping regions.
+
+    Args:
+        pair1: First pair
+        pair2: Second pair
+
+    Returns:
+        True if any regions overlap
+    """
+    return any([
+        _regions_overlap(pair1.region1, pair2.region1),
+        _regions_overlap(pair1.region1, pair2.region2),
+        _regions_overlap(pair1.region2, pair2.region1),
+        _regions_overlap(pair1.region2, pair2.region2),
+    ])
+
+
+def _pair_overlaps_with_any(
+    candidate: SimilarRegionPair, kept_pairs: list[SimilarRegionPair]
+) -> bool:
+    """Check if a candidate pair overlaps with any kept pairs.
+
+    Args:
+        candidate: Candidate pair to check
+        kept_pairs: List of already kept pairs
+
+    Returns:
+        True if candidate overlaps with any kept pair
+    """
+    return any(_pairs_have_overlap(candidate, kept) for kept in kept_pairs)
 
 
 def _filter_overlapping_pairs(pairs: list[SimilarRegionPair]) -> list[SimilarRegionPair]:
@@ -221,35 +279,57 @@ def _filter_overlapping_pairs(pairs: list[SimilarRegionPair]) -> list[SimilarReg
         reverse=True
     )
 
-    kept_pairs = []
+    kept_pairs: list[SimilarRegionPair] = []
 
     for candidate in sorted_pairs:
-        # Check if this candidate overlaps with any already kept pair
-        has_overlap = False
-        for kept in kept_pairs:
-            # Check if any regions overlap
-            if (_regions_overlap(candidate.region1, kept.region1) or
-                _regions_overlap(candidate.region1, kept.region2) or
-                _regions_overlap(candidate.region2, kept.region1) or
-                _regions_overlap(candidate.region2, kept.region2)):
-                has_overlap = True
-                logger.debug(
-                    "Filtering out pair %s:%d-%d ↔ %s:%d-%d (overlaps with kept pair)",
-                    candidate.region1.region_name, candidate.region1.start_line, candidate.region1.end_line,
-                    candidate.region2.region_name, candidate.region2.start_line, candidate.region2.end_line,
-                )
-                break
-
-        if not has_overlap:
-            kept_pairs.append(candidate)
+        if _pair_overlaps_with_any(candidate, kept_pairs):
             logger.debug(
-                "Keeping pair %s:%d-%d ↔ %s:%d-%d (size: %d lines)",
+                "Filtering out pair %s:%d-%d ↔ %s:%d-%d (overlaps with kept pair)",
                 candidate.region1.region_name, candidate.region1.start_line, candidate.region1.end_line,
                 candidate.region2.region_name, candidate.region2.start_line, candidate.region2.end_line,
-                _region_size(candidate.region1) + _region_size(candidate.region2),
             )
+            continue
+
+        kept_pairs.append(candidate)
+        logger.debug(
+            "Keeping pair %s:%d-%d ↔ %s:%d-%d (size: %d lines)",
+            candidate.region1.region_name, candidate.region1.start_line, candidate.region1.end_line,
+            candidate.region2.region_name, candidate.region2.start_line, candidate.region2.end_line,
+            _region_size(candidate.region1) + _region_size(candidate.region2),
+        )
 
     return kept_pairs
+
+
+def _collect_candidate_pairs(
+    signatures: list[RegionSignature],
+    lsh: MinHashLSH,
+    threshold: float,
+) -> list[SimilarRegionPair]:
+    """Collect all candidate pairs from LSH queries.
+
+    Args:
+        signatures: List of region signatures
+        lsh: LSH index
+        threshold: Similarity threshold
+
+    Returns:
+        List of similar pairs above threshold
+    """
+    seen_pairs: set[tuple[str, str]] = set()
+    pairs: list[SimilarRegionPair] = []
+
+    for sig in signatures:
+        sig_pairs = _process_signature_candidates(sig, lsh, signatures, seen_pairs, threshold)
+        if sig_pairs:
+            logger.debug(
+                "Query for %s:%d-%d returned %d candidate pair(s)",
+                sig.region.region_name, sig.region.start_line, sig.region.end_line,
+                len(sig_pairs)
+            )
+        pairs.extend(sig_pairs)
+
+    return pairs
 
 
 def find_similar_pairs(
@@ -276,18 +356,7 @@ def find_similar_pairs(
     )
 
     lsh = _create_lsh_index(signatures, threshold)
-    seen_pairs: set[tuple[str, str]] = set()
-    pairs: list[SimilarRegionPair] = []
-
-    for sig in signatures:
-        sig_pairs = _process_signature_candidates(sig, lsh, signatures, seen_pairs, threshold)
-        if sig_pairs:
-            logger.debug(
-                "Query for %s:%d-%d returned %d candidate pair(s)",
-                sig.region.region_name, sig.region.start_line, sig.region.end_line,
-                len(sig_pairs)
-            )
-        pairs.extend(sig_pairs)
+    pairs = _collect_candidate_pairs(signatures, lsh, threshold)
 
     pairs.sort(key=lambda p: p.similarity, reverse=True)
     logger.info(
