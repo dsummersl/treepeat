@@ -86,17 +86,19 @@ def display_similar_pairs(result: SimilarityResult) -> None:
         lines1 = pair.region1.end_line - pair.region1.start_line + 1
         lines2 = pair.region2.end_line - pair.region2.start_line + 1
 
-        # Display similarity group header
+        # Display similarity group header (jscpd-style)
+        console.print(f"Clone found ([bold]{pair.similarity:.1%}[/bold] similar):")
+
+        # Display first region with leading dash (jscpd-style)
         console.print(
-            f"  2 regions, [bold]{pair.similarity:.1%}[/bold] similar, {lines1}-{lines2} lines:"
+            f"  - {pair.region1.path} [{pair.region1.start_line} - {pair.region1.end_line}] "
+            f"({lines1} lines) {pair.region1.region_name}"
         )
 
-        # Display each region in the group
+        # Display second region with indentation only (jscpd-style)
         console.print(
-            f"    • {pair.region1.path}:{pair.region1.start_line}-{pair.region1.end_line} ({pair.region1.region_name})"
-        )
-        console.print(
-            f"    • {pair.region2.path}:{pair.region2.start_line}-{pair.region2.end_line} ({pair.region2.region_name})"
+            f"    {pair.region2.path} [{pair.region2.start_line} - {pair.region2.end_line}] "
+            f"({lines2} lines) {pair.region2.region_name}"
         )
         console.print()  # Blank line between groups
 
