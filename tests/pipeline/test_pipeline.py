@@ -75,7 +75,7 @@ classB_region = _make_region(fixture_class_with_methods, "python", "class", "Cla
      (0.3, 1, [(classA_region, classB_region)]),
      (0.5, 1, [(classA_region, classB_region)]),
      (0.7, 1, [(classA_region, classB_region)]),
-     (0.9, 3, [(
+     (0.8, 2, [(
         _make_region(fixture_class_with_methods, "python", "function", "method2", 13, 19),
         _make_region(fixture_class_with_methods, "python", "function", "method2", 40, 46),
      ), (
