@@ -259,8 +259,8 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 @click.option(
     "--lsh-threshold",
     type=float,
-    default=0.8,
-    help="LSH similarity threshold 0.0-1.0 (default: 0.5)",
+    default=0.9,
+    help="LSH similarity threshold 0.0-1.0 (default: 0.9)",
 )
 @click.option(
     "--min-lines",
