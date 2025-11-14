@@ -9,6 +9,8 @@ as a pragmatic alternative to full PQ-Gram/TED verification.
 """
 
 import logging
+from pathlib import Path
+
 from tssim.models.shingle import ShingledRegion
 from tssim.models.similarity import SimilarRegionPair
 
@@ -71,7 +73,7 @@ def verify_similar_pairs(
     logger.info("Verifying %d candidate pair(s) with order-sensitive similarity", len(pairs))
 
     # Create lookup map from region to shingled region
-    region_to_shingled: dict = {}
+    region_to_shingled: dict[Path, dict[int, ShingledRegion]] = {}
     for sr in shingled_regions:
         if sr.region.path not in region_to_shingled:
             region_to_shingled[sr.region.path] = {}
