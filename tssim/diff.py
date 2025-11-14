@@ -6,8 +6,12 @@ from collections.abc import Sequence
 from rich.console import Console
 
 from tssim.models.similarity import Region
+from tssim.terminal_detect import get_diff_colors
 
 console = Console()
+
+# Get colors based on terminal background
+_colors = get_diff_colors()
 
 
 def _truncate_line(line: str, max_width: int) -> str:
@@ -79,18 +83,13 @@ def _highlight_char_diff(text1: str, text2: str, col_width: int) -> tuple[str, s
 
     Returns (left_highlighted, right_highlighted) with full-width backgrounds.
     """
-    soft_left_bg = "on rgb(255,235,235)"
-    soft_right_bg = "on rgb(235,255,235)"
-    bright_left_style = "bold rgb(220,0,0)"
-    bright_right_style = "bold rgb(0,180,0)"
-
     matcher = difflib.SequenceMatcher(None, text1, text2)
     result_left = []
     result_right = []
 
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         left_styled, right_styled = _process_diff_opcode(
-            tag, text1[i1:i2], text2[j1:j2], bright_left_style, bright_right_style
+            tag, text1[i1:i2], text2[j1:j2], _colors.left_fg, _colors.right_fg
         )
         if left_styled:
             result_left.append(left_styled)
@@ -103,8 +102,8 @@ def _highlight_char_diff(text1: str, text2: str, col_width: int) -> tuple[str, s
     right_padding = col_width - len(text2)
 
     return (
-        f"[{soft_left_bg}]{left_text}{' ' * left_padding}[/{soft_left_bg}]",
-        f"[{soft_right_bg}]{right_text}{' ' * right_padding}[/{soft_right_bg}]"
+        f"[{_colors.left_bg}]{left_text}{' ' * left_padding}[/{_colors.left_bg}]",
+        f"[{_colors.right_bg}]{right_text}{' ' * right_padding}[/{_colors.right_bg}]"
     )
 
 
@@ -122,14 +121,14 @@ def _print_replaced_lines(lines1: list[str], lines2: list[str], i1: int, i2: int
             else:
                 # No corresponding right line - just soft background full width
                 padding = col_width - len(left_line)
-                left = f"[on rgb(255,235,235)]{left_line}{' ' * padding}[/on rgb(255,235,235)]"
-                right = f"[on rgb(235,255,235)]{' ' * col_width}[/on rgb(235,255,235)]"
+                left = f"[{_colors.left_bg}]{left_line}{' ' * padding}[/{_colors.left_bg}]"
+                right = f"[{_colors.right_bg}]{' ' * col_width}[/{_colors.right_bg}]"
         else:
             # No left line, only right
             right_line = _truncate_line(lines2[j1 + idx], col_width)
             padding = col_width - len(right_line)
-            left = f"[on rgb(255,235,235)]{' ' * col_width}[/on rgb(255,235,235)]"
-            right = f"[on rgb(235,255,235)]{right_line}{' ' * padding}[/on rgb(235,255,235)]"
+            left = f"[{_colors.left_bg}]{' ' * col_width}[/{_colors.left_bg}]"
+            right = f"[{_colors.right_bg}]{right_line}{' ' * padding}[/{_colors.right_bg}]"
 
         console.print(f"  {left} │ {right}")
 
@@ -140,7 +139,7 @@ def _print_deleted_lines(lines1: list[str], i1: int, i2: int, col_width: int) ->
         left_line = _truncate_line(lines1[i], col_width)
         # Use soft red background for full width
         padding = col_width - len(left_line)
-        left = f"[on rgb(255,235,235)]{left_line}{' ' * padding}[/on rgb(255,235,235)]"
+        left = f"[{_colors.left_bg}]{left_line}{' ' * padding}[/{_colors.left_bg}]"
         console.print(f"  {left} │ {' ' * col_width}")
 
 
@@ -150,7 +149,7 @@ def _print_inserted_lines(lines2: list[str], j1: int, j2: int, col_width: int) -
         right_line = _truncate_line(lines2[j], col_width)
         # Use soft green background for full width
         padding = col_width - len(right_line)
-        right = f"[on rgb(235,255,235)]{right_line}{' ' * padding}[/on rgb(235,255,235)]"
+        right = f"[{_colors.right_bg}]{right_line}{' ' * padding}[/{_colors.right_bg}]"
         console.print(f"  {' ' * col_width} │ {right}")
 
 
