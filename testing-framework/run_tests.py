@@ -15,15 +15,17 @@ import csv
 from datetime import datetime
 import hashlib
 from collections import defaultdict
+import argparse
 
 
 class DuplicationTester:
-    def __init__(self, base_dir: Path):
+    def __init__(self, base_dir: Path, ruleset: str = 'default'):
         self.base_dir = base_dir
         self.codebases_dir = base_dir / "codebases"
         self.results_dir = base_dir / "results"
         self.reports_dir = base_dir / "reports"
         self.tssim_root = base_dir.parent  # tssim is one level up
+        self.ruleset = ruleset  # Store the ruleset to use for tssim
 
         for directory in [self.codebases_dir, self.results_dir, self.reports_dir]:
             directory.mkdir(parents=True, exist_ok=True)
@@ -91,11 +93,11 @@ class DuplicationTester:
         start_time = time.time()
         try:
             # Run tssim using uv run with JSON output
-            # Use --ruleset none to match jscpd behavior (no normalization)
+            # Use configured ruleset (default or none)
             result = subprocess.run(
                 ['uv', 'run', 'tssim', str(repo_path), '--log-level', 'ERROR',
                  '--format', 'json', '--output', str(json_output_file),
-                 '--ruleset', 'none'],
+                 '--ruleset', self.ruleset],
                 capture_output=True,
                 text=True,
                 timeout=300,
@@ -442,8 +444,13 @@ class DuplicationTester:
 
 def main():
     """Main entry point."""
+    parser = argparse.ArgumentParser(description='Run duplication detection tests')
+    parser.add_argument('--ruleset', choices=['none', 'default'], default='default',
+                       help='Ruleset profile to use for tssim (default: default)')
+    args = parser.parse_args()
+
     base_dir = Path(__file__).parent
-    tester = DuplicationTester(base_dir)
+    tester = DuplicationTester(base_dir, ruleset=args.ruleset)
     tester.run()
 
 

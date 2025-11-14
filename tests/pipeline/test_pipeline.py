@@ -114,33 +114,11 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             ],
         ),
         # Tests with ruleset=default (with normalization)
-        # With normalization, similarity is lower due to comment/docstring removal
+        # With normalization and identifier reset per region, classes become more similar
         ("default", class_with_methods_file, 0.1, 1, [(classA_region, classB_region)]),
         ("default", class_with_methods_file, 0.3, 1, [(classA_region, classB_region)]),
-        (
-            "default",
-            class_with_methods_file,
-            0.5,
-            2,
-            [
-                (
-                    _make_region(
-                        fixture_class_with_methods, "python", "function", "method2", 13, 19
-                    ),
-                    _make_region(
-                        fixture_class_with_methods, "python", "function", "method2", 40, 46
-                    ),
-                ),
-                (
-                    _make_region(
-                        fixture_class_with_methods, "python", "function", "method3", 21, 27
-                    ),
-                    _make_region(
-                        fixture_class_with_methods, "python", "function", "method3", 48, 54
-                    ),
-                ),
-            ],
-        ),
+        # With threshold 0.5, ClassA and ClassB match at ~82% (2 of 3 methods identical)
+        ("default", class_with_methods_file, 0.5, 1, [(classA_region, classB_region)]),
         # Tests with entire fixture directory (ruleset=none) - verifies no self-overlapping false positives
         (
             "none",
