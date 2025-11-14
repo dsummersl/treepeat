@@ -35,7 +35,7 @@ make benchmark
 
 Or directly:
 ```bash
-cd testing-framework
+cd benchmark-tests
 python3 run_tests.py
 ```
 
@@ -53,7 +53,7 @@ This will:
 make benchmark-compare
 
 # Or directly
-cd testing-framework
+cd benchmark-tests
 python3 compare_results.py tools
 ```
 
@@ -81,7 +81,7 @@ Or edit `codebases.json` manually:
 ## 📁 Structure
 
 ```
-testing-framework/
+benchmark-tests/
 ├── codebases/          # Cloned repositories (git-ignored)
 ├── results/            # Raw tool outputs (git-ignored)
 ├── reports/            # CSV/JSON comparison reports (git-ignored)

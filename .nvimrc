@@ -2,7 +2,7 @@
 " require('lazy-loader')()
 " EOF
 
-let g:gutentags_ctags_exclude += ['*/.venv/*', '*/testing-framework/*']
+let g:gutentags_ctags_exclude += ['*/.venv/*', '*/benchmark-tests/*']
 let g:projectionist_heuristics = {
       \ 'pyproject.toml': {
       \   'tssim/*.py': {

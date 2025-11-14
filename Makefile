@@ -33,12 +33,12 @@ radon:
 
 benchmark:
 	@echo "Running testing framework benchmarks..."
-	@cd testing-framework && python3 run_tests.py $(ARGS)
-	@echo "Results available in testing-framework/reports/"
+	@cd benchmark-tests && python3 run_tests.py $(ARGS)
+	@echo "Results available in benchmark-tests/reports/"
 
 benchmark-compare:
 	@echo "Comparing tool results..."
-	@cd testing-framework && python3 compare_results.py tools
+	@cd benchmark-tests && python3 compare_results.py tools
 	@echo "Comparison complete!"
 
 ci: lint type test radon
