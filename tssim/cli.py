@@ -19,7 +19,7 @@ from tssim.config import (
     set_settings,
 )
 from tssim.formatters import format_as_json, format_as_sarif
-from tssim.models.similarity import RegionSignature, SimilarRegionGroup, SimilarityResult
+from tssim.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
 from tssim.pipeline.pipeline import run_pipeline
 
 console = Console()
@@ -92,7 +92,7 @@ def _get_group_sort_key(group: SimilarRegionGroup) -> tuple[float, float]:
     return (group.similarity, avg_lines)
 
 
-def _read_region_lines(region: "Region") -> list[str]:  # type: ignore[name-defined]
+def _read_region_lines(region: Region) -> list[str]:
     """Read lines from a file for a specific region.
 
     Args:
@@ -111,7 +111,7 @@ def _read_region_lines(region: "Region") -> list[str]:  # type: ignore[name-defi
         return []
 
 
-def _display_diff(region1: "Region", region2: "Region") -> None:  # type: ignore[name-defined]
+def _display_diff(region1: Region, region2: Region) -> None:
     """Display a unified diff between two regions.
 
     Args:
