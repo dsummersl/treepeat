@@ -19,7 +19,7 @@ from tssim.config import (
 )
 from tssim.diff import display_diff
 from tssim.formatters import format_as_sarif
-from tssim.models.similarity import RegionSignature, SimilarRegionGroup, SimilarityResult
+from tssim.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
 from tssim.pipeline.pipeline import run_pipeline
 
 console = Console()
@@ -73,6 +73,13 @@ def _get_group_sort_key(group: SimilarRegionGroup) -> tuple[float, float]:
     return (group.similarity, avg_lines)
 
 
+def _format_region_name(region: Region) -> str:
+    """Format region name with type if not lines."""
+    if region.region_type == "lines":
+        return region.region_name
+    return f"{region.region_name}({region.region_type})"
+
+
 def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
     """Display a single similarity group with optional diff."""
     # Display similarity group header
@@ -82,10 +89,7 @@ def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
     for i, region in enumerate(group.regions):
         lines = region.end_line - region.start_line + 1
         prefix = "  - " if i == 0 else "    "
-        # Format region name with type if not "lines"
-        region_display = region.region_name
-        if region.region_type != "lines":
-            region_display = f"{region.region_name}({region.region_type})"
+        region_display = _format_region_name(region)
         console.print(
             f"{prefix}{region.path} [{region.start_line}:{region.end_line}] "
             f"({lines} lines) {region_display}"
@@ -124,31 +128,34 @@ def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
             console.print(f"    [dim]{error}[/dim]")
 
 
-def display_summary_table(result: SimilarityResult) -> None:
-    """Display summary table with statistics by format."""
-    if not result.similar_groups:
-        return
-
-    # Collect statistics by language/format
+def _collect_format_statistics(similar_groups: list[SimilarRegionGroup]) -> dict[str, dict[str, int | set[Path]]]:
+    """Collect statistics by language/format from similar groups."""
     stats_by_format: dict[str, dict[str, int | set[Path]]] = {}
 
-    for group in result.similar_groups:
+    for group in similar_groups:
         for region in group.regions:
             language = region.language
             if language not in stats_by_format:
-                stats_by_format[language] = {
-                    "files": set(),
-                    "groups": 0,
-                    "lines": 0,
-                }
+                stats_by_format[language] = {"files": set(), "groups": 0, "lines": 0}
 
-            stats_by_format[language]["files"].add(region.path)  # type: ignore[arg-type]
-            stats_by_format[language]["lines"] += region.end_line - region.start_line + 1  # type: ignore[operator]
+            stats = stats_by_format[language]
+            stats["files"].add(region.path)  # type: ignore[union-attr]
+            stats["lines"] += region.end_line - region.start_line + 1  # type: ignore[operator]
 
         # Count group once per language (use first region's language)
         if group.regions:
             first_language = group.regions[0].language
             stats_by_format[first_language]["groups"] += 1  # type: ignore[operator]
+
+    return stats_by_format
+
+
+def display_summary_table(result: SimilarityResult) -> None:
+    """Display summary table with statistics by format."""
+    if not result.similar_groups:
+        return
+
+    stats_by_format = _collect_format_statistics(result.similar_groups)
 
     # Create summary table
     table = Table(title="\n[bold cyan]Summary[/bold cyan]", show_header=True, header_style="bold")
