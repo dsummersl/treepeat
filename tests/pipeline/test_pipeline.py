@@ -82,13 +82,15 @@ fixture_dir = Path(__file__).parent.parent / "fixtures" / "python"
 class_with_methods_file = fixture_dir / "class_with_methods.py"
 
 @pytest.mark.parametrize(
-    "path, threshold, similar_pairs, expected_regions",
+    "ruleset, path, threshold, similar_pairs, expected_regions",
     [
-        (class_with_methods_file, 0.1, 1, [(classA_region, classB_region)]),
-        (class_with_methods_file, 0.3, 1, [(classA_region, classB_region)]),
-        (class_with_methods_file, 0.5, 1, [(classA_region, classB_region)]),
-        (class_with_methods_file, 0.7, 1, [(classA_region, classB_region)]),
+        # Tests with ruleset=none (no normalization)
+        ("none", class_with_methods_file, 0.1, 1, [(classA_region, classB_region)]),
+        ("none", class_with_methods_file, 0.3, 1, [(classA_region, classB_region)]),
+        ("none", class_with_methods_file, 0.5, 1, [(classA_region, classB_region)]),
+        ("none", class_with_methods_file, 0.7, 1, [(classA_region, classB_region)]),
         (
+            "none",
             class_with_methods_file,
             0.8,
             2,
@@ -111,8 +113,37 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
                 ),
             ],
         ),
-        # Tests with entire fixture directory - verifies no self-overlapping false positives
+        # Tests with ruleset=default (with normalization)
+        # With normalization, similarity is lower due to comment/docstring removal
+        ("default", class_with_methods_file, 0.1, 1, [(classA_region, classB_region)]),
+        ("default", class_with_methods_file, 0.3, 1, [(classA_region, classB_region)]),
         (
+            "default",
+            class_with_methods_file,
+            0.5,
+            2,
+            [
+                (
+                    _make_region(
+                        fixture_class_with_methods, "python", "function", "method2", 13, 19
+                    ),
+                    _make_region(
+                        fixture_class_with_methods, "python", "function", "method2", 40, 46
+                    ),
+                ),
+                (
+                    _make_region(
+                        fixture_class_with_methods, "python", "function", "method3", 21, 27
+                    ),
+                    _make_region(
+                        fixture_class_with_methods, "python", "function", "method3", 48, 54
+                    ),
+                ),
+            ],
+        ),
+        # Tests with entire fixture directory (ruleset=none) - verifies no self-overlapping false positives
+        (
+            "none",
             fixture_dir,
             0.7,
             4,
@@ -138,6 +169,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             ],
         ),
         (
+            "none",
             fixture_dir,
             0.8,
             4,
@@ -171,6 +203,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             ],
         ),
         (
+            "none",
             fixture_dir,
             0.9,
             2,
@@ -197,11 +230,11 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
         ),
     ],
 )
-def test_match_counts(path, threshold, similar_pairs, expected_regions):
-    """Testing with an lowest LSH threshold, the"""
+def test_match_counts(ruleset, path, threshold, similar_pairs, expected_regions):
+    """Testing with different rulesets and LSH thresholds."""
     set_settings(
         PipelineSettings(
-            rules=RulesSettings(),
+            rules=RulesSettings(ruleset=ruleset),
             shingle=ShingleSettings(),
             minhash=MinHashSettings(),
             lsh=LSHSettings(threshold=threshold),

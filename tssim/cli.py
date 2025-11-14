@@ -179,17 +179,19 @@ def _parse_patterns(pattern_string: str) -> list[str]:
     return [p.strip() for p in pattern_string.split(",") if p.strip()]
 
 
-def _create_rules_settings(rules: str, rules_file: str) -> RulesSettings:
+def _create_rules_settings(rules: str, rules_file: str, ruleset: str) -> RulesSettings:
     """Create RulesSettings with proper None handling.
 
     Args:
         rules: Comma-separated list of rule specifications
         rules_file: Path to file containing rule specifications
+        ruleset: Ruleset profile to use (none, default)
 
     Returns:
         RulesSettings object
     """
     return RulesSettings(
+        ruleset=ruleset,
         rules=rules or None,
         rules_file=rules_file or None,
     )
@@ -198,6 +200,7 @@ def _create_rules_settings(rules: str, rules_file: str) -> RulesSettings:
 def _configure_settings(
     rules: str,
     rules_file: str,
+    ruleset: str,
     shingle_k: int,
     minhash_num_perm: int,
     threshold: float,
@@ -210,6 +213,7 @@ def _configure_settings(
     Args:
         rules: Comma-separated list of rule specifications
         rules_file: Path to file containing rule specifications (one per line)
+        ruleset: Ruleset profile to use (none, default)
         shingle_k: Length of k-grams for shingling
         minhash_num_perm: Number of MinHash permutations
         threshold: LSH similarity threshold
@@ -218,7 +222,7 @@ def _configure_settings(
         ignore_files: Comma-separated list of glob patterns to find ignore files
     """
     settings = PipelineSettings(
-        rules=_create_rules_settings(rules, rules_file),
+        rules=_create_rules_settings(rules, rules_file, ruleset),
         shingle=ShingleSettings(k=shingle_k),
         minhash=MinHashSettings(num_perm=minhash_num_perm),
         lsh=LSHSettings(threshold=threshold, min_lines=min_lines),
@@ -261,6 +265,12 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     type=str,
     default="",
     help="Path to file containing rule specifications (one per line)",
+)
+@click.option(
+    "--ruleset",
+    type=click.Choice(["none", "default"], case_sensitive=False),
+    default="default",
+    help="Ruleset profile to use (default: default)",
 )
 @click.option(
     "--shingle-k",
@@ -323,6 +333,7 @@ def main(
     log_level: str,
     rules: str,
     rules_file: str,
+    ruleset: str,
     shingle_k: int,
     shingle_include_text: bool,
     minhash_num_perm: int,
@@ -345,7 +356,7 @@ def main(
         console.print("Try 'tssim --help' for more information.")
         sys.exit(1)
 
-    _configure_settings(rules, rules_file, shingle_k, minhash_num_perm, threshold, min_lines, ignore, ignore_files)
+    _configure_settings(rules, rules_file, ruleset, shingle_k, minhash_num_perm, threshold, min_lines, ignore, ignore_files)
     result = _run_pipeline_with_ui(path, output_format)
     _check_result_errors(result, output_format)
     _handle_output(result, output_format, output, log_level)

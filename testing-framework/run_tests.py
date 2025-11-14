@@ -91,9 +91,11 @@ class DuplicationTester:
         start_time = time.time()
         try:
             # Run tssim using uv run with JSON output
+            # Use --ruleset none to match jscpd behavior (no normalization)
             result = subprocess.run(
                 ['uv', 'run', 'tssim', str(repo_path), '--log-level', 'ERROR',
-                 '--format', 'json', '--output', str(json_output_file)],
+                 '--format', 'json', '--output', str(json_output_file),
+                 '--ruleset', 'none'],
                 capture_output=True,
                 text=True,
                 timeout=300,

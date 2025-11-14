@@ -67,8 +67,10 @@ def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
     """
     Build a rule engine from pipeline settings.
 
-    If rules or rules_file are specified, they override defaults.
-    Last one wins (rules_file takes precedence over rules).
+    Rule precedence (last wins):
+    1. ruleset (none or default)
+    2. --rules parameter (overrides ruleset)
+    3. --rules-file parameter (overrides both)
 
     Args:
         settings: Pipeline settings with rules configuration
@@ -80,11 +82,23 @@ def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
         RuleParseError: If rules cannot be parsed
         FileNotFoundError: If rules_file doesn't exist
     """
-    rules = build_default_rules()
+    # Start with ruleset-based defaults
+    ruleset = settings.rules.ruleset.lower()
+    if ruleset == "none":
+        logger.info("Using 'none' ruleset - no rules will be applied")
+        rules = []
+    elif ruleset == "default":
+        logger.info("Using 'default' ruleset")
+        rules = build_default_rules()
+    else:
+        logger.warning("Unknown ruleset '%s', falling back to 'default'", ruleset)
+        rules = build_default_rules()
 
+    # Override with --rules parameter if provided
     if settings.rules.rules:
         rules = _load_rules_from_string(settings.rules.rules)
 
+    # Override with --rules-file parameter if provided (takes precedence)
     if settings.rules.rules_file:
         rules = _load_rules_from_file(settings.rules.rules_file)
 

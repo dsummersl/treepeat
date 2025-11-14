@@ -128,14 +128,35 @@ def build_default_rules() -> list[Rule]:
 
     This replaces the default normalizers (e.g., PythonImportNormalizer).
 
+    Default rules normalize code for similarity detection by:
+    - Skipping language-specific imports
+    - Skipping comments and docstrings
+    - Normalizing literal values to <LIT> tokens
+    - Anonymizing identifiers to VAR_N tokens
+
     Returns:
         List of default Rule objects
     """
     from .parser import parse_rule
 
-    # Convert PythonImportNormalizer to a rule
     default_rules = [
+        # Python-specific rules
         parse_rule("python:skip:nodes=import_statement|import_from_statement"),
+        parse_rule("python:skip:nodes=comment"),
+        parse_rule("python:skip:nodes=string_content"),  # Docstrings and string literals
+        parse_rule("python:replace_value:nodes=string|integer|float,value=<LIT>"),
+        parse_rule("python:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"),
+
+        # JavaScript/TypeScript rules
+        parse_rule("javascript:skip:nodes=import_statement|export_statement"),
+        parse_rule("javascript:skip:nodes=comment"),
+        parse_rule("javascript:replace_value:nodes=string|number|template_string,value=<LIT>"),
+        parse_rule("javascript:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"),
+
+        parse_rule("typescript:skip:nodes=import_statement|export_statement"),
+        parse_rule("typescript:skip:nodes=comment"),
+        parse_rule("typescript:replace_value:nodes=string|number|template_string,value=<LIT>"),
+        parse_rule("typescript:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"),
     ]
 
     return default_rules
