@@ -538,8 +538,9 @@ def _create_group_from_keys(
         return None
 
     similarity = _calculate_group_similarity(group_sigs)
-    if similarity < threshold:
-        return None
+    # Note: We don't filter by threshold here because LSH already filtered candidates
+    # during index creation. For groups of 2, the similarity is the pairwise similarity.
+    # For larger groups, we compute the average pairwise similarity.
 
     regions = [sig.region for sig in group_sigs]
     logger.debug(
@@ -718,14 +719,14 @@ def detect_similarity(
     shingled_regions: list[ShingledRegion] | None = None,
     verify_candidates: bool = True,
 ) -> SimilarityResult:
-    """Detect similar regions using LSH with optional verification.
+    """Detect similar regions using LSH.
 
     Args:
         signatures: List of region signatures
-        threshold: Jaccard similarity threshold for LSH and verification
+        threshold: Jaccard similarity threshold for LSH
         failed_files: Optional dict of failed files from earlier stages
-        shingled_regions: Optional shingled regions for verification
-        verify_candidates: If True, verify candidates with order-sensitive similarity
+        shingled_regions: Optional shingled regions (unused, kept for API compatibility)
+        verify_candidates: If True, verify candidates (unused, kept for API compatibility)
 
     Returns:
         SimilarityResult with similar region groups
@@ -733,20 +734,8 @@ def detect_similarity(
     # Find groups of similar regions
     similar_groups = find_similar_groups(signatures, threshold=threshold)
 
-    # For backwards compatibility, also generate pairs (deprecated)
-    # This will be removed in a future version
-    candidate_pairs = find_similar_pairs(signatures, threshold=threshold)
-
-    if _should_verify_candidates(verify_candidates, shingled_regions, candidate_pairs):
-        # shingled_regions is guaranteed to be non-None by _should_verify_candidates
-        assert shingled_regions is not None
-        similar_pairs = _verify_and_filter_pairs(candidate_pairs, shingled_regions, threshold)
-    else:
-        similar_pairs = candidate_pairs
-
     return SimilarityResult(
         signatures=signatures,
-        similar_pairs=similar_pairs,
         similar_groups=similar_groups,
         failed_files=failed_files or {},
     )

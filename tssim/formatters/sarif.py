@@ -19,7 +19,7 @@ from sarif_pydantic import (  # type: ignore[import-untyped]
     ToolDriver,
 )
 
-from tssim.models.similarity import SimilarRegionGroup, SimilarRegionPair, SimilarityResult
+from tssim.models.similarity import SimilarRegionGroup, SimilarityResult
 
 
 def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:
@@ -172,90 +172,9 @@ def _create_result_from_group(group: SimilarRegionGroup) -> Result:
     )
 
 
-def _create_result_from_pair(pair: SimilarRegionPair) -> Result:
-    """Create a SARIF result from a similarity pair.
-
-    Args:
-        pair: SimilarRegionPair to convert
-
-    Returns:
-        SARIF Result object
-    """
-    similarity_percent = pair.similarity * 100
-    level = _get_level(pair.similarity)
-
-    # Create message
-    message_text = (
-        f"Code similarity detected ({similarity_percent:.1f}% similar). "
-        f"Region 1: {pair.region1.path}:{pair.region1.start_line}-{pair.region1.end_line} "
-        f"({pair.region1.end_line - pair.region1.start_line + 1} lines). "
-        f"Region 2: {pair.region2.path}:{pair.region2.start_line}-{pair.region2.end_line} "
-        f"({pair.region2.end_line - pair.region2.start_line + 1} lines)."
-    )
-
-    return Result(
-        ruleId="similar-code",
-        level=level,
-        message=Message(text=message_text),
-        locations=[
-            Location(
-                physicalLocation=PhysicalLocation(
-                    artifactLocation=ArtifactLocation(
-                        uri=str(pair.region1.path),
-                        uriBaseId="%SRCROOT%",
-                    ),
-                    region=Region(
-                        startLine=pair.region1.start_line,
-                        endLine=pair.region1.end_line,
-                        startColumn=1,
-                    ),
-                )
-            )
-        ],
-        relatedLocations=[
-            {
-                "id": 1,
-                "physicalLocation": {
-                    "artifactLocation": {
-                        "uri": str(pair.region2.path),
-                        "uriBaseId": "%SRCROOT%",
-                    },
-                    "region": {
-                        "startLine": pair.region2.start_line,
-                        "endLine": pair.region2.end_line,
-                        "startColumn": 1,
-                    },
-                },
-                "message": {"text": f"Similar code block ({similarity_percent:.1f}% match)"},
-            }
-        ],
-        properties={
-            "similarity": pair.similarity,
-            "similarityPercent": similarity_percent,
-            "region1Lines": pair.region1.end_line - pair.region1.start_line + 1,
-            "region2Lines": pair.region2.end_line - pair.region2.start_line + 1,
-            "region1Type": pair.region1.region_type,
-            "region2Type": pair.region2.region_type,
-            "region1Name": pair.region1.region_name,
-            "region2Name": pair.region2.region_name,
-        },
-    )
-
-
 def _create_results(similarity_result: SimilarityResult) -> list[Result]:
     """Create SARIF result objects from similar region groups."""
-    results = []
-
-    # Use groups if available, otherwise fall back to pairs
-    if similarity_result.similar_groups:
-        for group in similarity_result.similar_groups:
-            results.append(_create_result_from_group(group))
-    else:
-        # Fall back to pairs for backwards compatibility
-        for pair in similarity_result.similar_pairs:
-            results.append(_create_result_from_pair(pair))
-
-    return results
+    return [_create_result_from_group(group) for group in similarity_result.similar_groups]
 
 
 def _get_level(similarity: float) -> Level:

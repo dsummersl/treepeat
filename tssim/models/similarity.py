@@ -83,9 +83,6 @@ class SimilarityResult(BaseModel):
     signatures: list[RegionSignature] = Field(
         default_factory=list, description="MinHash signatures for all regions"
     )
-    similar_pairs: list[SimilarRegionPair] = Field(
-        default_factory=list, description="Pairs of similar regions above threshold (deprecated, use similar_groups)"
-    )
     similar_groups: list[SimilarRegionGroup] = Field(
         default_factory=list, description="Groups of similar regions above threshold"
     )
@@ -115,16 +112,11 @@ class SimilarityResult(BaseModel):
         return len(self.failed_files)
 
     @property
-    def pair_count(self) -> int:
-        """Number of similar pairs found."""
-        return len(self.similar_pairs)
-
-    @property
     def group_count(self) -> int:
         """Number of similar groups found."""
         return len(self.similar_groups)
 
     @property
     def self_similarity_count(self) -> int:
-        """Number of similar pairs within the same file."""
-        return sum(1 for pair in self.similar_pairs if pair.is_self_similarity)
+        """Number of similar groups within the same file."""
+        return sum(1 for group in self.similar_groups if group.is_self_similarity)

@@ -3,7 +3,7 @@
 import json
 from typing import Any
 
-from tssim.models.similarity import Region, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
+from tssim.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 
 
 def _region_to_dict(region: Region) -> dict[str, Any]:
@@ -24,15 +24,6 @@ def _group_to_dict(group: SimilarRegionGroup) -> dict[str, Any]:
         "regions": [_region_to_dict(region) for region in group.regions],
         "similarity": group.similarity,
         "size": group.size,
-    }
-
-
-def _pair_to_dict(pair: SimilarRegionPair) -> dict[str, Any]:
-    """Convert a SimilarRegionPair to a dictionary."""
-    return {
-        "region1": _region_to_dict(pair.region1),
-        "region2": _region_to_dict(pair.region2),
-        "similarity": pair.similarity,
     }
 
 
@@ -57,7 +48,6 @@ def format_as_json(result: SimilarityResult, *, pretty: bool = True) -> str:
         "total_similar_groups": len(result.similar_groups),
         "failed_files": len(result.failed_files),
         "similar_groups": [_group_to_dict(group) for group in result.similar_groups],
-        "similar_pairs": [_pair_to_dict(pair) for pair in result.similar_pairs],
         "parse_errors": [
             {"file_path": str(path), "error": error}
             for path, error in result.failed_files.items()

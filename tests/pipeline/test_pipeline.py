@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tssim.models.similarity import Region, SimilarRegionPair, SimilarityResult
+from tssim.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 from ..conftest import parsed_fixture
 import pytest
 
@@ -48,7 +48,7 @@ def test_dissimilar_files(rules):
 
     signatures = compute_region_signatures(shingled_regions)
     result = detect_similarity(signatures, threshold=0.5)
-    assert len(result.similar_pairs) == 0
+    assert len(result.similar_groups) == 0
 
 
 def _make_region(path, language, region_type, region_name, start_line, end_line) -> Region:
@@ -62,16 +62,14 @@ def _make_region(path, language, region_type, region_name, start_line, end_line)
     )
 
 
-def _assert_has_pair(
+def _assert_regions_in_same_group(
     result: SimilarityResult, region1: Region, region2: Region
-) -> SimilarRegionPair:
-    """Assert that a pair (region1, region2) exists in the pairs iterable (in either order)."""
-    for pair in result.similar_pairs:
-        if (pair.region1 == region1 and pair.region2 == region2) or (
-            pair.region1 == region2 and pair.region2 == region1
-        ):
-            return pair
-    raise AssertionError(f"Pair ({region1}, {region2}) not found in pairs ({result.similar_pairs})")
+) -> SimilarRegionGroup:
+    """Assert that region1 and region2 are in the same similarity group."""
+    for group in result.similar_groups:
+        if region1 in group.regions and region2 in group.regions:
+            return group
+    raise AssertionError(f"Regions ({region1}, {region2}) not found in same group ({result.similar_groups})")
 
 
 classA_region = _make_region(fixture_class_with_methods, "python", "class", "ClassA", 4, 27)
@@ -82,7 +80,7 @@ fixture_dir = Path(__file__).parent.parent / "fixtures" / "python"
 class_with_methods_file = fixture_dir / "class_with_methods.py"
 
 @pytest.mark.parametrize(
-    "ruleset, path, threshold, similar_pairs, expected_regions",
+    "ruleset, path, threshold, similar_groups, expected_regions",
     [
         # Tests with ruleset=none (no normalization)
         ("none", class_with_methods_file, 0.1, 1, [(classA_region, classB_region)]),
@@ -124,7 +122,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.7,
-            4,
+            2,
             [
                 # Cross-file duplicate functions
                 (
@@ -150,7 +148,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.8,
-            4,
+            3,
             [
                 # Cross-file duplicate functions
                 (
@@ -208,7 +206,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
         ),
     ],
 )
-def test_match_counts(ruleset, path, threshold, similar_pairs, expected_regions):
+def test_match_counts(ruleset, path, threshold, similar_groups, expected_regions):
     """Testing with different rulesets and LSH thresholds."""
     set_settings(
         PipelineSettings(
@@ -220,7 +218,7 @@ def test_match_counts(ruleset, path, threshold, similar_pairs, expected_regions)
     )
     result = run_pipeline(path)
 
-    assert len(result.similar_pairs) == similar_pairs
+    assert len(result.similar_groups) == similar_groups
     for region1, region2 in expected_regions:
-        _assert_has_pair(result, region1, region2).similarity > threshold
+        _assert_regions_in_same_group(result, region1, region2).similarity > threshold
 

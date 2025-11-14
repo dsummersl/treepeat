@@ -18,8 +18,8 @@ def test_detect_similarity_1():
     signatures = compute_region_signatures(shingled_regions)
     result = detect_similarity(signatures, threshold=0.1)
 
-    assert len(result.similar_pairs) == 1
-    assert result.similar_pairs[0].similarity > 0.4
+    assert len(result.similar_groups) == 1
+    assert result.similar_groups[0].similarity > 0.4
 
 
 def test_detect_similarity_2():
@@ -33,5 +33,5 @@ def test_detect_similarity_2():
     signatures = compute_region_signatures(shingled_regions)
     result = detect_similarity(signatures, threshold=0.7)
 
-    assert len(result.similar_pairs) == 1
-    assert result.similar_pairs[0].similarity > 0.7
+    assert len(result.similar_groups) == 1
+    assert result.similar_groups[0].similarity > 0.7

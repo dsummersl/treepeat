@@ -124,48 +124,6 @@ def display_similar_groups(result: SimilarityResult) -> None:
         _display_group(group)
 
 
-def display_similar_pairs(result: SimilarityResult) -> None:
-    """Display similar region pairs (deprecated, use display_similar_groups)."""
-    if not result.similar_pairs:
-        console.print("\n[yellow]No similar regions found above threshold.[/yellow]")
-        return
-
-    console.print("\n[bold cyan]Similar Regions:[/bold cyan]")
-    # Sort similar_pairs by similarity, then by average line count (ascending)
-    sorted_pairs = sorted(
-        result.similar_pairs,
-        key=lambda pair: (
-            pair.similarity,  # similarity ascending
-            (
-                (pair.region1.end_line - pair.region1.start_line + 1)
-                + (pair.region2.end_line - pair.region2.start_line + 1)
-            )
-            / 2,  # average line count ascending
-        ),
-    )
-
-    for pair in sorted_pairs:
-        # Calculate line counts for each region
-        lines1 = pair.region1.end_line - pair.region1.start_line + 1
-        lines2 = pair.region2.end_line - pair.region2.start_line + 1
-
-        # Display similarity group header (jscpd-style)
-        console.print(f"Clone found ([bold]{pair.similarity:.1%}[/bold] similar):")
-
-        # Display first region with leading dash (jscpd-style)
-        console.print(
-            f"  - {pair.region1.path} [{pair.region1.start_line}:{pair.region1.end_line}] "
-            f"({lines1} lines) {pair.region1.region_name}"
-        )
-
-        # Display second region with indentation only (jscpd-style)
-        console.print(
-            f"    {pair.region2.path} [{pair.region2.start_line}:{pair.region2.end_line}] "
-            f"({lines2} lines) {pair.region2.region_name}"
-        )
-        console.print()  # Blank line between groups
-
-
 def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
     """Display failed files with optional error details."""
     if not result.failed_files:
