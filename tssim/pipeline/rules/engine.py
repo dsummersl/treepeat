@@ -5,6 +5,8 @@ from typing import Callable, Optional
 from tree_sitter import Node
 
 from .models import Rule, RuleOperation, SkipNodeException
+from .parser import parse_rule
+
 
 
 class RuleEngine:
@@ -123,40 +125,33 @@ class RuleEngine:
 
 
 def build_default_rules() -> list[Rule]:
-    """
-    Build the default set of rules.
-
-    This replaces the default normalizers (e.g., PythonImportNormalizer).
-
-    Default rules normalize code for similarity detection by:
-    - Skipping language-specific imports
-    - Skipping comments and docstrings
-    - Normalizing literal values to <LIT> tokens
-    - Anonymizing identifiers to VAR_N tokens
-
-    Returns:
-        List of default Rule objects
-    """
-    from .parser import parse_rule
-
-    default_rules = [
+    return [
         # Python-specific rules
         parse_rule("python:skip:nodes=import_statement|import_from_statement"),
         parse_rule("python:skip:nodes=comment"),
         parse_rule("python:skip:nodes=string_content"),  # Docstrings and string literals
-        parse_rule("python:replace_value:nodes=string|integer|float,value=<LIT>"),
+        parse_rule("python:replace_value:nodes=string|integer|float|number|template_string|true|false|none|null|undefined,value=<LIT>"),
         parse_rule("python:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"),
 
         # JavaScript/TypeScript rules
-        parse_rule("javascript:skip:nodes=import_statement|export_statement"),
-        parse_rule("javascript:skip:nodes=comment"),
-        parse_rule("javascript:replace_value:nodes=string|number|template_string,value=<LIT>"),
-        parse_rule("javascript:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"),
-
-        parse_rule("typescript:skip:nodes=import_statement|export_statement"),
-        parse_rule("typescript:skip:nodes=comment"),
-        parse_rule("typescript:replace_value:nodes=string|number|template_string,value=<LIT>"),
-        parse_rule("typescript:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"),
+        parse_rule("javascript|typescript:skip:nodes=import_statement|export_statement"),
+        parse_rule("javascript|typescript:skip:nodes=comment"),
+        parse_rule("javascript|typescript:replace_value:nodes=string|number|template_string,value=<LIT>"),
+        parse_rule("javascript|typescript:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"),
     ]
 
-    return default_rules
+
+def build_loose_rules() -> list[Rule]:
+    return [
+        *build_default_rules(),
+
+        # Python
+        parse_rule("python:replace_name:nodes=binary_operator|boolean_operator|comparison_operator|unary_operator,token=<OP>"),
+        parse_rule("python:canonicalize_types:nodes=type"),
+        parse_rule("python:replace_name:nodes=list|dictionary|tuple|set,token=<COLL>"),
+
+        # JS/TS:
+        parse_rule("typescript:canonicalize_types:nodes=type_annotation|predefined_type|type_identifier"),
+        parse_rule("javascript|typescript:replace_name:nodes=array|object,token=<COLL>"),
+        parse_rule("javascript|typescript:replace_name:nodes=binary_expression|unary_expression|update_expression|assignment_expression|ternary_expression,token=<EXP>")
+    ]

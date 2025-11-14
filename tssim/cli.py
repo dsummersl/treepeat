@@ -204,7 +204,7 @@ def _create_rules_settings(rules: str, rules_file: str, ruleset: str) -> RulesSe
     Args:
         rules: Comma-separated list of rule specifications
         rules_file: Path to file containing rule specifications
-        ruleset: Ruleset profile to use (none, default)
+        ruleset: Ruleset profile to use (none, default, loose)
 
     Returns:
         RulesSettings object
@@ -232,7 +232,7 @@ def _configure_settings(
     Args:
         rules: Comma-separated list of rule specifications
         rules_file: Path to file containing rule specifications (one per line)
-        ruleset: Ruleset profile to use (none, default)
+        ruleset: Ruleset profile to use (none, default, loose)
         shingle_k: Length of k-grams for shingling
         minhash_num_perm: Number of MinHash permutations
         threshold: LSH similarity threshold
@@ -287,7 +287,7 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 )
 @click.option(
     "--ruleset",
-    type=click.Choice(["none", "default"], case_sensitive=False),
+    type=click.Choice(["none", "default", "loose"], case_sensitive=False),
     default="default",
     help="Ruleset profile to use (default: default)",
 )
