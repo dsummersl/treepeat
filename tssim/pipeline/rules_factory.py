@@ -82,26 +82,37 @@ def get_ruleset_with_descriptions(ruleset: str) -> list[tuple[Rule, str]]:
         return []
 
 
+def _load_ruleset_rules(ruleset: str) -> list[Rule]:
+    """Load rules from a predefined ruleset.
+
+    Args:
+        ruleset: Name of the ruleset (default, loose, none)
+
+    Returns:
+        List of rules (without descriptions)
+    """
+    rules_with_descriptions = get_ruleset_with_descriptions(ruleset)
+    if rules_with_descriptions:
+        logger.info("Using '%s' ruleset", ruleset)
+    return [rule for rule, _ in rules_with_descriptions]
+
+
 def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
-    # Start with ruleset-based defaults
-    ruleset = settings.rules.ruleset.lower()
-    rules = []
+    """Build a rule engine from settings.
 
-    if ruleset == "default":
-        logger.info("Using 'default' ruleset")
-        # Extract just the rules from the tuples
-        rules = [rule for rule, _ in build_default_rules()]
-    elif ruleset == "loose":
-        logger.info("Using 'loose' ruleset")
-        # Extract just the rules from the tuples
-        rules = [rule for rule, _ in build_loose_rules()]
+    Args:
+        settings: Pipeline settings containing rule configuration
 
-    if settings.rules.rules:
-        rules = _load_rules_from_string(settings.rules.rules)
-
-    # Override with --rules-file parameter if provided (takes precedence)
+    Returns:
+        Configured RuleEngine instance
+    """
+    # Load rules based on priority: rules-file > rules > ruleset
     if settings.rules.rules_file:
         rules = _load_rules_from_file(settings.rules.rules_file)
+    elif settings.rules.rules:
+        rules = _load_rules_from_string(settings.rules.rules)
+    else:
+        rules = _load_ruleset_rules(settings.rules.ruleset.lower())
 
     _log_active_rules(rules)
     return RuleEngine(rules)
