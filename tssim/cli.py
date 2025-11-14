@@ -95,7 +95,7 @@ def _print_equal_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j
     for i, j in zip(range(i1, i2), range(j1, j2)):
         left = _truncate_line(lines1[i], col_width)
         right = _truncate_line(lines2[j], col_width)
-        console.print(f"  {left:<{col_width}} | {right:<{col_width}}")
+        console.print(f"  {left:<{col_width}} │ {right:<{col_width}}")
 
 
 def _print_replaced_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int) -> None:
@@ -106,36 +106,36 @@ def _print_replaced_lines(lines1: list[str], lines2: list[str], i1: int, i2: int
         left_display = ""
 
         if idx < (i2 - i1):
-            left_line = _truncate_line(lines1[i1 + idx], col_width - 2)
-            left = f"[red]- {left_line}[/red]"
-            left_display = f"- {left_line}"
+            left_line = _truncate_line(lines1[i1 + idx], col_width)
+            left = f"[black on red]{left_line}[/black on red]"
+            left_display = left_line
 
         right = ""
         if idx < (j2 - j1):
-            right_line = _truncate_line(lines2[j1 + idx], col_width - 2)
-            right = f"[green]+ {right_line}[/green]"
+            right_line = _truncate_line(lines2[j1 + idx], col_width)
+            right = f"[black on green]{right_line}[/black on green]"
 
         # Calculate padding for left side
         padding = col_width - len(left_display)
-        console.print(f"  {left}{' ' * padding} | {right}")
+        console.print(f"  {left}{' ' * padding} │ {right}")
 
 
 def _print_deleted_lines(lines1: list[str], i1: int, i2: int, col_width: int) -> None:
     """Print deleted lines (only on left side)."""
     for i in range(i1, i2):
-        left_line = _truncate_line(lines1[i], col_width - 2)
-        left = f"[red]- {left_line}[/red]"
-        left_display = f"- {left_line}"
+        left_line = _truncate_line(lines1[i], col_width)
+        left = f"[black on red]{left_line}[/black on red]"
+        left_display = left_line
         padding = col_width - len(left_display)
-        console.print(f"  {left}{' ' * padding} | {' ' * col_width}")
+        console.print(f"  {left}{' ' * padding} │ {' ' * col_width}")
 
 
 def _print_inserted_lines(lines2: list[str], j1: int, j2: int, col_width: int) -> None:
     """Print inserted lines (only on right side)."""
     for j in range(j1, j2):
-        right_line = _truncate_line(lines2[j], col_width - 2)
-        right = f"[green]+ {right_line}[/green]"
-        console.print(f"  {' ' * col_width} | {right}")
+        right_line = _truncate_line(lines2[j], col_width)
+        right = f"[black on green]{right_line}[/black on green]"
+        console.print(f"  {' ' * col_width} │ {right}")
 
 
 def _prepare_diff_lines(region1: Region, region2: Region) -> tuple[list[str], list[str]] | None:
@@ -167,8 +167,8 @@ def _print_diff_header(region1: Region, region2: Region, col_width: int) -> None
     console.print("  [bold]Side-by-side diff:[/bold]")
     header1 = f"{region1.path}:{region1.start_line}-{region1.end_line}"
     header2 = f"{region2.path}:{region2.start_line}-{region2.end_line}"
-    console.print(f"  [dim]{header1:<{col_width}}[/dim] | [dim]{header2:<{col_width}}[/dim]")
-    console.print(f"  {'-' * col_width} | {'-' * col_width}")
+    console.print(f"  [dim]{header1:<{col_width}}[/dim] │ [dim]{header2:<{col_width}}[/dim]")
+    console.print(f"  {'-' * col_width} │ {'-' * col_width}")
 
 
 def _process_diff_opcodes(
