@@ -18,7 +18,7 @@ from tssim.config import (
     ShingleSettings,
     set_settings,
 )
-from tssim.formatters import format_as_json, format_as_sarif
+from tssim.formatters import format_as_sarif
 from tssim.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
 from tssim.pipeline.pipeline import run_pipeline
 
@@ -222,7 +222,7 @@ def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
 
     Args:
         path: Path to analyze
-        output_format: Output format (console, json, sarif)
+        output_format: Output format (console, sarif)
 
     Returns:
         The similarity result
@@ -249,15 +249,12 @@ def _handle_output(
 
     Args:
         result: The similarity result
-        output_format: Output format (console, json, sarif)
+        output_format: Output format (console, sarif)
         output_path: Path to output file, or None for stdout
         log_level: Logging level for debug output
         show_diff: If True, show diff between first two regions in each group
     """
-    if output_format.lower() == "json":
-        output_text = format_as_json(result, pretty=True)
-        _write_output(output_text, output_path)
-    elif output_format.lower() == "sarif":
+    if output_format.lower() == "sarif":
         output_text = format_as_sarif(result, pretty=True)
         _write_output(output_text, output_path)
     else:  # console
@@ -276,6 +273,30 @@ def _parse_patterns(pattern_string: str) -> list[str]:
         List of stripped non-empty patterns
     """
     return [p.strip() for p in pattern_string.split(",") if p.strip()]
+
+
+def _print_rulesets(listing_type: str) -> None:
+    """Print available rulesets based on listing type.
+
+    Args:
+        listing_type: Type of listing ('non' for non-default, 'default' for default)
+    """
+    rulesets = {
+        "none": "No normalization rules applied - raw AST comparison",
+        "default": "Standard normalization (skip imports/comments, anonymize identifiers, replace literals)",
+        "loose": "Aggressive normalization (includes default + operator/type/collection canonicalization)",
+    }
+
+    console.print("\n[bold blue]Available Rulesets:[/bold blue]\n")
+
+    if listing_type == "default":
+        console.print("[green]default[/green] (default)")
+        console.print(f"  {rulesets['default']}\n")
+    else:  # listing_type == "non"
+        console.print("[yellow]none[/yellow]")
+        console.print(f"  {rulesets['none']}\n")
+        console.print("[cyan]loose[/cyan]")
+        console.print(f"  {rulesets['loose']}\n")
 
 
 def _create_rules_settings(rules: str, rules_file: str, ruleset: str) -> RulesSettings:
@@ -300,8 +321,6 @@ def _configure_settings(
     rules: str,
     rules_file: str,
     ruleset: str,
-    shingle_k: int,
-    minhash_num_perm: int,
     threshold: float,
     min_lines: int,
     ignore: str,
@@ -313,8 +332,6 @@ def _configure_settings(
         rules: Comma-separated list of rule specifications
         rules_file: Path to file containing rule specifications (one per line)
         ruleset: Ruleset profile to use (none, default, loose)
-        shingle_k: Length of k-grams for shingling
-        minhash_num_perm: Number of MinHash permutations
         threshold: LSH similarity threshold
         min_lines: Minimum number of lines for a match
         ignore: Comma-separated list of glob patterns to ignore files
@@ -322,8 +339,8 @@ def _configure_settings(
     """
     settings = PipelineSettings(
         rules=_create_rules_settings(rules, rules_file, ruleset),
-        shingle=ShingleSettings(k=shingle_k),
-        minhash=MinHashSettings(num_perm=minhash_num_perm),
+        shingle=ShingleSettings(),  # Uses default k=3
+        minhash=MinHashSettings(),  # Uses default num_perm=128
         lsh=LSHSettings(threshold=threshold, min_lines=min_lines),
         ignore_patterns=_parse_patterns(ignore),
         ignore_file_patterns=_parse_patterns(ignore_files),
@@ -336,7 +353,7 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 
     Args:
         result: The similarity result
-        output_format: Output format (console, json, sarif)
+        output_format: Output format (console, sarif)
     """
     if result.success_count == 0 and result.failure_count > 0:
         if output_format.lower() == "console":
@@ -372,22 +389,10 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     help="Ruleset profile to use (default: default)",
 )
 @click.option(
-    "--shingle-k",
-    type=int,
-    default=3,
-    help="Length of k-grams for shingling (default: 3)",
-)
-@click.option(
-    "--shingle-include-text",
-    is_flag=True,
-    default=False,
-    help="Include node text in shingles for more specificity",
-)
-@click.option(
-    "--minhash-num-perm",
-    type=int,
-    default=128,
-    help="Number of MinHash permutations (default: 128, higher = more accurate)",
+    "--list-ruleset",
+    type=click.Choice(["non", "default"], case_sensitive=False),
+    default=None,
+    help="List available rulesets (non: list non-default rulesets, default: list default ruleset)",
 )
 @click.option(
     "--threshold",
@@ -404,7 +409,7 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 @click.option(
     "--format",
     "output_format",
-    type=click.Choice(["console", "json", "sarif"], case_sensitive=False),
+    type=click.Choice(["console", "sarif"], case_sensitive=False),
     default="console",
     help="Output format (default: console)",
 )
@@ -439,9 +444,7 @@ def main(
     rules: str,
     rules_file: str,
     ruleset: str,
-    shingle_k: int,
-    shingle_include_text: bool,
-    minhash_num_perm: int,
+    list_ruleset: str | None,
     threshold: float,
     min_lines: int,
     output_format: str,
@@ -457,6 +460,11 @@ def main(
     """
     setup_logging(log_level.upper())
 
+    # Handle --list-ruleset option
+    if list_ruleset is not None:
+        _print_rulesets(list_ruleset)
+        sys.exit(0)
+
     if path is None:
         console.print("[bold red]Error:[/bold red] PATH is required")
         console.print("Try 'tssim --help' for more information.")
@@ -466,8 +474,6 @@ def main(
         rules,
         rules_file,
         ruleset,
-        shingle_k,
-        minhash_num_perm,
         threshold,
         min_lines,
         ignore,
