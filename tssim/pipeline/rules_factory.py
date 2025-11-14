@@ -12,6 +12,7 @@ from tssim.pipeline.rules import (
     parse_rules,
     parse_rules_file,
 )
+from tssim.pipeline.rules.engine import build_loose_rules
 
 logger = logging.getLogger(__name__)
 
@@ -64,37 +65,17 @@ def _log_active_rules(rules: list[Rule]) -> None:
 
 
 def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
-    """
-    Build a rule engine from pipeline settings.
-
-    Rule precedence (last wins):
-    1. ruleset (none or default)
-    2. --rules parameter (overrides ruleset)
-    3. --rules-file parameter (overrides both)
-
-    Args:
-        settings: Pipeline settings with rules configuration
-
-    Returns:
-        RuleEngine configured with the specified rules
-
-    Raises:
-        RuleParseError: If rules cannot be parsed
-        FileNotFoundError: If rules_file doesn't exist
-    """
     # Start with ruleset-based defaults
     ruleset = settings.rules.ruleset.lower()
-    if ruleset == "none":
-        logger.info("Using 'none' ruleset - no rules will be applied")
-        rules = []
-    elif ruleset == "default":
+    rules = []
+
+    if ruleset == "default":
         logger.info("Using 'default' ruleset")
         rules = build_default_rules()
-    else:
-        logger.warning("Unknown ruleset '%s', falling back to 'default'", ruleset)
-        rules = build_default_rules()
+    elif ruleset == "loose":
+        logger.info("Using 'loose' ruleset")
+        rules = build_loose_rules()
 
-    # Override with --rules parameter if provided
     if settings.rules.rules:
         rules = _load_rules_from_string(settings.rules.rules)
 
