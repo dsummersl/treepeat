@@ -8,7 +8,7 @@ from tssim.models.similarity import SimilarityResult
 def format_as_json(result: SimilarityResult, *, pretty: bool = True) -> str:
     """Format similarity detection results as JSON.
 
-    This formatter outputs the complete similarity result including similar pairs
+    This formatter outputs the complete similarity result including similar groups
     and metadata in a structured JSON format. Note: MinHash signatures are excluded
     as they are not JSON-serializable.
 
@@ -23,8 +23,27 @@ def format_as_json(result: SimilarityResult, *, pretty: bool = True) -> str:
     data = {
         "total_files": result.total_files,
         "total_regions": result.total_regions,
-        "total_similar_pairs": len(result.similar_pairs),
+        "total_similar_groups": len(result.similar_groups),
         "failed_files": len(result.failed_files),
+        "similar_groups": [
+            {
+                "regions": [
+                    {
+                        "file_path": str(region.path),
+                        "language": region.language,
+                        "region_type": region.region_type,
+                        "name": region.region_name,
+                        "start_line": region.start_line,
+                        "end_line": region.end_line,
+                    }
+                    for region in group.regions
+                ],
+                "similarity": group.similarity,
+                "size": group.size,
+            }
+            for group in result.similar_groups
+        ],
+        # Keep pairs for backwards compatibility (deprecated)
         "similar_pairs": [
             {
                 "region1": {

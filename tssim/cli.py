@@ -77,8 +77,40 @@ def display_processed_regions(result: SimilarityResult) -> None:
             )
 
 
+def display_similar_groups(result: SimilarityResult) -> None:
+    """Display similar region groups."""
+    if not result.similar_groups:
+        console.print("\n[yellow]No similar regions found above threshold.[/yellow]")
+        return
+
+    console.print("\n[bold cyan]Similar Regions:[/bold cyan]")
+    # Sort groups by similarity, then by average line count (ascending)
+    sorted_groups = sorted(
+        result.similar_groups,
+        key=lambda group: (
+            group.similarity,  # similarity ascending
+            sum(r.end_line - r.start_line + 1 for r in group.regions) / len(group.regions),  # average line count
+        ),
+    )
+
+    for group in sorted_groups:
+        # Display similarity group header
+        console.print(f"Similar group found ([bold]{group.similarity:.1%}[/bold] similar, {group.size} regions):")
+
+        # Display all regions in the group
+        for i, region in enumerate(group.regions):
+            lines = region.end_line - region.start_line + 1
+            prefix = "  - " if i == 0 else "    "
+            console.print(
+                f"{prefix}{region.path} [{region.start_line}:{region.end_line}] "
+                f"({lines} lines) {region.region_name}"
+            )
+
+        console.print()  # Blank line between groups
+
+
 def display_similar_pairs(result: SimilarityResult) -> None:
-    """Display similar region pairs."""
+    """Display similar region pairs (deprecated, use display_similar_groups)."""
     if not result.similar_pairs:
         console.print("\n[yellow]No similar regions found above threshold.[/yellow]")
         return
@@ -155,7 +187,9 @@ def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
         The similarity result
     """
     if output_format.lower() == "console":
-        console.print("\n[bold blue]tssim - Code Similarity Detection[/bold blue]")
+        from tssim.config import get_settings
+        settings = get_settings()
+        console.print(f"\nRuleset: [cyan]{settings.rules.ruleset}[/cyan]")
         console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
         with console.status("[bold green]Running pipeline..."):
             return run_pipeline(path)
@@ -181,7 +215,7 @@ def _handle_output(
         output_text = format_as_sarif(result, pretty=True)
         _write_output(output_text, output_path)
     else:  # console
-        display_similar_pairs(result)
+        display_similar_groups(result)
         display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
         console.print()
 

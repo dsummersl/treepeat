@@ -89,74 +89,157 @@ def _create_tool() -> Tool:
 
 
 def _create_results(similarity_result: SimilarityResult) -> list[Result]:
-    """Create SARIF result objects from similar region pairs."""
+    """Create SARIF result objects from similar region groups."""
     results = []
 
-    for pair in similarity_result.similar_pairs:
-        # Calculate similarity percentage
-        similarity_percent = pair.similarity * 100
+    # Use groups if available, otherwise fall back to pairs
+    if similarity_result.similar_groups:
+        for group in similarity_result.similar_groups:
+            # Calculate similarity percentage
+            similarity_percent = group.similarity * 100
 
-        # Determine severity based on similarity
-        level = _get_level(pair.similarity)
+            # Determine severity based on similarity
+            level = _get_level(group.similarity)
 
-        # Create message
-        message_text = (
-            f"Code similarity detected ({similarity_percent:.1f}% similar). "
-            f"Region 1: {pair.region1.path}:{pair.region1.start_line}-{pair.region1.end_line} "
-            f"({pair.region1.end_line - pair.region1.start_line + 1} lines). "
-            f"Region 2: {pair.region2.path}:{pair.region2.start_line}-{pair.region2.end_line} "
-            f"({pair.region2.end_line - pair.region2.start_line + 1} lines)."
-        )
+            # Create message describing the group
+            region_descriptions = [
+                f"{region.path}:{region.start_line}-{region.end_line} ({region.end_line - region.start_line + 1} lines)"
+                for region in group.regions
+            ]
+            message_text = (
+                f"Code similarity detected ({similarity_percent:.1f}% similar, {group.size} regions). "
+                + ". ".join(region_descriptions)
+            )
 
-        result_obj = Result(
-            ruleId="similar-code",
-            level=level,
-            message=Message(text=message_text),
-            locations=[
-                Location(
-                    physicalLocation=PhysicalLocation(
-                        artifactLocation=ArtifactLocation(
-                            uri=str(pair.region1.path),
-                            uriBaseId="%SRCROOT%",
-                        ),
-                        region=Region(
-                            startLine=pair.region1.start_line,
-                            endLine=pair.region1.end_line,
-                            startColumn=1,
-                        ),
-                    )
-                )
-            ],
-            relatedLocations=[
+            # Use first region as primary location
+            primary_region = group.regions[0]
+
+            # All other regions are related locations
+            related_locations = [
                 {
-                    "id": 1,
+                    "id": i,
                     "physicalLocation": {
                         "artifactLocation": {
-                            "uri": str(pair.region2.path),
+                            "uri": str(region.path),
                             "uriBaseId": "%SRCROOT%",
                         },
                         "region": {
-                            "startLine": pair.region2.start_line,
-                            "endLine": pair.region2.end_line,
+                            "startLine": region.start_line,
+                            "endLine": region.end_line,
                             "startColumn": 1,
                         },
                     },
                     "message": {"text": f"Similar code block ({similarity_percent:.1f}% match)"},
                 }
-            ],
-            properties={
-                "similarity": pair.similarity,
-                "similarityPercent": similarity_percent,
-                "region1Lines": pair.region1.end_line - pair.region1.start_line + 1,
-                "region2Lines": pair.region2.end_line - pair.region2.start_line + 1,
-                "region1Type": pair.region1.region_type,
-                "region2Type": pair.region2.region_type,
-                "region1Name": pair.region1.region_name,
-                "region2Name": pair.region2.region_name,
-            },
-        )
+                for i, region in enumerate(group.regions[1:], start=1)
+            ]
 
-        results.append(result_obj)
+            result_obj = Result(
+                ruleId="similar-code",
+                level=level,
+                message=Message(text=message_text),
+                locations=[
+                    Location(
+                        physicalLocation=PhysicalLocation(
+                            artifactLocation=ArtifactLocation(
+                                uri=str(primary_region.path),
+                                uriBaseId="%SRCROOT%",
+                            ),
+                            region=Region(
+                                startLine=primary_region.start_line,
+                                endLine=primary_region.end_line,
+                                startColumn=1,
+                            ),
+                        )
+                    )
+                ],
+                relatedLocations=related_locations if related_locations else None,
+                properties={
+                    "similarity": group.similarity,
+                    "similarityPercent": similarity_percent,
+                    "groupSize": group.size,
+                    "regions": [
+                        {
+                            "path": str(region.path),
+                            "startLine": region.start_line,
+                            "endLine": region.end_line,
+                            "lines": region.end_line - region.start_line + 1,
+                            "type": region.region_type,
+                            "name": region.region_name,
+                        }
+                        for region in group.regions
+                    ],
+                },
+            )
+
+            results.append(result_obj)
+    else:
+        # Fall back to pairs for backwards compatibility
+        for pair in similarity_result.similar_pairs:
+            # Calculate similarity percentage
+            similarity_percent = pair.similarity * 100
+
+            # Determine severity based on similarity
+            level = _get_level(pair.similarity)
+
+            # Create message
+            message_text = (
+                f"Code similarity detected ({similarity_percent:.1f}% similar). "
+                f"Region 1: {pair.region1.path}:{pair.region1.start_line}-{pair.region1.end_line} "
+                f"({pair.region1.end_line - pair.region1.start_line + 1} lines). "
+                f"Region 2: {pair.region2.path}:{pair.region2.start_line}-{pair.region2.end_line} "
+                f"({pair.region2.end_line - pair.region2.start_line + 1} lines)."
+            )
+
+            result_obj = Result(
+                ruleId="similar-code",
+                level=level,
+                message=Message(text=message_text),
+                locations=[
+                    Location(
+                        physicalLocation=PhysicalLocation(
+                            artifactLocation=ArtifactLocation(
+                                uri=str(pair.region1.path),
+                                uriBaseId="%SRCROOT%",
+                            ),
+                            region=Region(
+                                startLine=pair.region1.start_line,
+                                endLine=pair.region1.end_line,
+                                startColumn=1,
+                            ),
+                        )
+                    )
+                ],
+                relatedLocations=[
+                    {
+                        "id": 1,
+                        "physicalLocation": {
+                            "artifactLocation": {
+                                "uri": str(pair.region2.path),
+                                "uriBaseId": "%SRCROOT%",
+                            },
+                            "region": {
+                                "startLine": pair.region2.start_line,
+                                "endLine": pair.region2.end_line,
+                                "startColumn": 1,
+                            },
+                        },
+                        "message": {"text": f"Similar code block ({similarity_percent:.1f}% match)"},
+                    }
+                ],
+                properties={
+                    "similarity": pair.similarity,
+                    "similarityPercent": similarity_percent,
+                    "region1Lines": pair.region1.end_line - pair.region1.start_line + 1,
+                    "region2Lines": pair.region2.end_line - pair.region2.start_line + 1,
+                    "region1Type": pair.region1.region_type,
+                    "region2Type": pair.region2.region_type,
+                    "region1Name": pair.region1.region_name,
+                    "region2Name": pair.region2.region_name,
+                },
+            )
+
+            results.append(result_obj)
 
     return results
 

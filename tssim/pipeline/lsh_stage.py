@@ -6,7 +6,7 @@ from pathlib import Path
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
 
 from tssim.models.shingle import ShingledRegion
-from tssim.models.similarity import Region, RegionSignature, SimilarRegionPair, SimilarityResult
+from tssim.models.similarity import Region, RegionSignature, SimilarRegionPair, SimilarRegionGroup, SimilarityResult
 from tssim.pipeline.verification import verify_similar_pairs
 
 logger = logging.getLogger(__name__)
@@ -335,6 +335,217 @@ def _collect_candidate_pairs(
     return pairs
 
 
+class UnionFind:
+    """Union-Find data structure for grouping similar regions."""
+
+    def __init__(self) -> None:
+        """Initialize union-find structure."""
+        self.parent: dict[str, str] = {}
+        self.rank: dict[str, int] = {}
+
+    def find(self, key: str) -> str:
+        """Find the root of the set containing key.
+
+        Args:
+            key: Key to find
+
+        Returns:
+            Root key of the set
+        """
+        if key not in self.parent:
+            self.parent[key] = key
+            self.rank[key] = 0
+            return key
+
+        # Path compression
+        if self.parent[key] != key:
+            self.parent[key] = self.find(self.parent[key])
+        return self.parent[key]
+
+    def union(self, key1: str, key2: str) -> None:
+        """Union the sets containing key1 and key2.
+
+        Args:
+            key1: First key
+            key2: Second key
+        """
+        root1 = self.find(key1)
+        root2 = self.find(key2)
+
+        if root1 == root2:
+            return
+
+        # Union by rank
+        if self.rank[root1] < self.rank[root2]:
+            self.parent[root1] = root2
+        elif self.rank[root1] > self.rank[root2]:
+            self.parent[root2] = root1
+        else:
+            self.parent[root2] = root1
+            self.rank[root1] += 1
+
+    def get_groups(self) -> dict[str, list[str]]:
+        """Get all groups as a dictionary mapping root to members.
+
+        Returns:
+            Dictionary mapping root keys to lists of member keys
+        """
+        groups: dict[str, list[str]] = {}
+        for key in self.parent:
+            root = self.find(key)
+            if root not in groups:
+                groups[root] = []
+            groups[root].append(key)
+        return groups
+
+
+def _calculate_group_similarity(
+    group_sigs: list[RegionSignature],
+) -> float:
+    """Calculate average pairwise similarity for a group.
+
+    Args:
+        group_sigs: List of signatures in the group
+
+    Returns:
+        Average Jaccard similarity across all pairs
+    """
+    if len(group_sigs) < 2:
+        return 1.0
+
+    total_similarity = 0.0
+    pair_count = 0
+
+    for i, sig1 in enumerate(group_sigs):
+        for sig2 in group_sigs[i + 1:]:
+            # Handle empty shingle case
+            if sig1.shingle_count == 0 and sig2.shingle_count == 0:
+                similarity = 0.0
+            else:
+                similarity = sig1.minhash.jaccard(sig2.minhash)
+            total_similarity += similarity
+            pair_count += 1
+
+    return total_similarity / pair_count if pair_count > 0 else 1.0
+
+
+def _collect_candidate_groups(
+    signatures: list[RegionSignature],
+    lsh: MinHashLSH,
+    threshold: float,
+) -> list[SimilarRegionGroup]:
+    """Collect similar region groups from LSH queries.
+
+    Args:
+        signatures: List of region signatures
+        lsh: LSH index
+        threshold: Similarity threshold
+
+    Returns:
+        List of similar region groups above threshold
+    """
+    uf = UnionFind()
+    key_to_sig: dict[str, RegionSignature] = {}
+
+    # Build union-find structure by querying LSH for each signature
+    for sig in signatures:
+        current_key = f"{sig.region.path}:{sig.region.start_line}-{sig.region.end_line}"
+        key_to_sig[current_key] = sig
+
+        similar_keys = lsh.query(sig.minhash)
+        logger.debug(
+            "Query for %s:%d-%d returned %d similar key(s)",
+            sig.region.region_name, sig.region.start_line, sig.region.end_line,
+            len(similar_keys)
+        )
+
+        # Union current signature with all similar ones
+        for similar_key in similar_keys:
+            if similar_key == current_key:
+                continue
+
+            similar_sig = _find_signature_by_key(signatures, similar_key)
+            if similar_sig is None:
+                continue
+
+            # Skip overlapping regions
+            if _regions_overlap(sig.region, similar_sig.region):
+                continue
+
+            # Union them into the same group
+            uf.union(current_key, similar_key)
+
+    # Extract groups from union-find
+    groups_dict = uf.get_groups()
+    groups: list[SimilarRegionGroup] = []
+
+    for root, member_keys in groups_dict.items():
+        # Skip single-region "groups"
+        if len(member_keys) < 2:
+            continue
+
+        # Get signatures for all members
+        group_sigs = [key_to_sig[key] for key in member_keys if key in key_to_sig]
+        if len(group_sigs) < 2:
+            continue
+
+        # Calculate group similarity
+        similarity = _calculate_group_similarity(group_sigs)
+
+        # Filter by threshold
+        if similarity < threshold:
+            continue
+
+        # Create group
+        regions = [sig.region for sig in group_sigs]
+        group = SimilarRegionGroup(regions=regions, similarity=similarity)
+
+        logger.debug(
+            "Found similar group of %d region(s) with %.1f%% similarity",
+            len(regions),
+            similarity * 100,
+        )
+
+        groups.append(group)
+
+    return groups
+
+
+def find_similar_groups(
+    signatures: list[RegionSignature],
+    threshold: float = 0.5,
+) -> list[SimilarRegionGroup]:
+    """Find similar region groups using LSH.
+
+    Args:
+        signatures: List of region signatures
+        threshold: Jaccard similarity threshold
+
+    Returns:
+        List of similar region groups above the threshold
+    """
+    if len(signatures) < 2:
+        logger.info("Need at least 2 regions to find similar groups")
+        return []
+
+    logger.info(
+        "Finding similar groups using LSH (threshold=%.2f) for %d region(s)",
+        threshold,
+        len(signatures),
+    )
+
+    lsh = _create_lsh_index(signatures, threshold)
+    groups = _collect_candidate_groups(signatures, lsh, threshold)
+
+    groups.sort(key=lambda g: g.similarity, reverse=True)
+    logger.info(
+        "Found %d similar group(s) above threshold",
+        len(groups),
+    )
+
+    return groups
+
+
 def find_similar_pairs(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
@@ -442,8 +653,13 @@ def detect_similarity(
         verify_candidates: If True, verify candidates with order-sensitive similarity
 
     Returns:
-        SimilarityResult with similar region pairs
+        SimilarityResult with similar region groups
     """
+    # Find groups of similar regions
+    similar_groups = find_similar_groups(signatures, threshold=threshold)
+
+    # For backwards compatibility, also generate pairs (deprecated)
+    # This will be removed in a future version
     candidate_pairs = find_similar_pairs(signatures, threshold=threshold)
 
     if _should_verify_candidates(verify_candidates, shingled_regions, candidate_pairs):
@@ -456,5 +672,6 @@ def detect_similarity(
     return SimilarityResult(
         signatures=signatures,
         similar_pairs=similar_pairs,
+        similar_groups=similar_groups,
         failed_files=failed_files or {},
     )
