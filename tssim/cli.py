@@ -167,6 +167,34 @@ def _handle_output(result: SimilarityResult, output_format: str, output_path: Pa
         console.print()
 
 
+def _parse_patterns(pattern_string: str) -> list[str]:
+    """Parse comma-separated pattern string into list.
+
+    Args:
+        pattern_string: Comma-separated patterns
+
+    Returns:
+        List of stripped non-empty patterns
+    """
+    return [p.strip() for p in pattern_string.split(",") if p.strip()]
+
+
+def _create_rules_settings(rules: str, rules_file: str) -> RulesSettings:
+    """Create RulesSettings with proper None handling.
+
+    Args:
+        rules: Comma-separated list of rule specifications
+        rules_file: Path to file containing rule specifications
+
+    Returns:
+        RulesSettings object
+    """
+    return RulesSettings(
+        rules=rules or None,
+        rules_file=rules_file or None,
+    )
+
+
 def _configure_settings(
     rules: str,
     rules_file: str,
@@ -189,17 +217,13 @@ def _configure_settings(
         ignore: Comma-separated list of glob patterns to ignore files
         ignore_files: Comma-separated list of glob patterns to find ignore files
     """
-    # Parse ignore patterns
-    ignore_patterns = [p.strip() for p in ignore.split(",") if p.strip()]
-    ignore_file_patterns = [p.strip() for p in ignore_files.split(",") if p.strip()]
-
     settings = PipelineSettings(
-        rules=RulesSettings(rules=rules or None, rules_file=rules_file or None),
+        rules=_create_rules_settings(rules, rules_file),
         shingle=ShingleSettings(k=shingle_k),
         minhash=MinHashSettings(num_perm=minhash_num_perm),
         lsh=LSHSettings(threshold=threshold, min_lines=min_lines),
-        ignore_patterns=ignore_patterns,
-        ignore_file_patterns=ignore_file_patterns,
+        ignore_patterns=_parse_patterns(ignore),
+        ignore_file_patterns=_parse_patterns(ignore_files),
     )
     set_settings(settings)
 

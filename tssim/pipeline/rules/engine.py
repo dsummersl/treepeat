@@ -1,6 +1,6 @@
 """Rule engine for applying rules to syntax tree nodes."""
 
-from typing import Optional
+from typing import Callable, Optional
 
 from tree_sitter import Node
 
@@ -23,6 +23,25 @@ class RuleEngine:
         """
         self.rules = rules
         self._identifier_counters: dict[str, int] = {}
+        self._operation_handlers = self._build_operation_handlers()
+
+    def _build_operation_handlers(
+        self,
+    ) -> dict[
+        RuleOperation,
+        Callable[
+            [Rule, str, str, Optional[str], Optional[str]],
+            tuple[Optional[str], Optional[str]],
+        ],
+    ]:
+        """Build mapping of operations to handler functions."""
+        return {
+            RuleOperation.SKIP: self._handle_skip,
+            RuleOperation.REPLACE_NAME: self._handle_replace_name,
+            RuleOperation.REPLACE_VALUE: self._handle_replace_value,
+            RuleOperation.ANONYMIZE_IDENTIFIERS: self._handle_anonymize,
+            RuleOperation.CANONICALIZE_TYPES: self._handle_canonicalize,
+        }
 
     def _get_anonymized_identifier(self, prefix: str) -> str:
         """Generate an anonymized identifier."""
@@ -31,25 +50,45 @@ class RuleEngine:
         self._identifier_counters[prefix] += 1
         return f"{prefix}_{self._identifier_counters[prefix]}"
 
+    def _handle_skip(
+        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Handle SKIP operation."""
+        raise SkipNodeException(
+            f"Node type '{node_type}' matched skip rule for language '{language}'"
+        )
+
+    def _handle_replace_name(
+        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Handle REPLACE_NAME operation."""
+        return rule.params.get("token", "<NODE>"), value
+
+    def _handle_replace_value(
+        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Handle REPLACE_VALUE operation."""
+        return name, rule.params.get("value", "<LIT>")
+
+    def _handle_anonymize(
+        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Handle ANONYMIZE_IDENTIFIERS operation."""
+        prefix = rule.params.get("prefix", "VAR")
+        return name, self._get_anonymized_identifier(prefix)
+
+    def _handle_canonicalize(
+        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Handle CANONICALIZE_TYPES operation."""
+        return rule.params.get("token", "<TYPE>"), value
+
     def _apply_single_rule(
         self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
         """Apply a single matching rule and return updated name and value."""
-        match rule.operation:
-            case RuleOperation.SKIP:
-                raise SkipNodeException(
-                    f"Node type '{node_type}' matched skip rule for language '{language}'"
-                )
-            case RuleOperation.REPLACE_NAME:
-                name = rule.params.get("token", "<NODE>")
-            case RuleOperation.REPLACE_VALUE:
-                value = rule.params.get("value", "<LIT>")
-            case RuleOperation.ANONYMIZE_IDENTIFIERS:
-                prefix = rule.params.get("prefix", "VAR")
-                value = self._get_anonymized_identifier(prefix)
-            case RuleOperation.CANONICALIZE_TYPES:
-                name = rule.params.get("token", "<TYPE>")
-        return name, value
+        handler = self._operation_handlers[rule.operation]
+        return handler(rule, node_type, language, name, value)
 
     def apply_rules(
         self, node: Node, language: str, node_name: Optional[str] = None
