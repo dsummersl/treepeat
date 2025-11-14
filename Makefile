@@ -33,7 +33,7 @@ radon:
 
 benchmark:
 	@echo "Running testing framework benchmarks..."
-	@cd testing-framework && python3 run_tests.py
+	@cd testing-framework && python3 run_tests.py $(ARGS)
 	@echo "Results available in testing-framework/reports/"
 
 benchmark-compare:
