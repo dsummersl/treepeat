@@ -229,6 +229,12 @@ def _run_level1_matching(
     level1_result = _run_lsh_stage(level1_signatures, level1_shingled, settings.lsh.threshold, {})
 
     # Filter by min_lines
+    logger.debug("Level 1: Filtering %d groups by min_lines=%d", len(level1_result.similar_groups), settings.lsh.min_lines)
+    for group in level1_result.similar_groups:
+        logger.debug("  Group: %d regions, similarity=%.2f%%", len(group.regions), group.similarity * 100)
+        for region in group.regions:
+            lines = region.end_line - region.start_line + 1
+            logger.debug("    - %s [%d:%d] (%d lines)", region.region_name, region.start_line, region.end_line, lines)
     level1_filtered_groups = _filter_groups_by_min_lines(level1_result.similar_groups, settings.lsh.min_lines)
     logger.info("Level 1 complete: %d groups after filtering (was %d)",
                 len(level1_filtered_groups), len(level1_result.similar_groups))

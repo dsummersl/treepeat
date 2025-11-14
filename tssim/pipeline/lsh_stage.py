@@ -445,8 +445,9 @@ def _union_similar_keys(
     similar_keys: list[str],
     sig: RegionSignature,
     signatures: list[RegionSignature],
+    threshold: float,
 ) -> None:
-    """Union a signature with its similar keys.
+    """Union a signature with its similar keys that meet the threshold.
 
     Args:
         uf: Union-find structure
@@ -454,6 +455,7 @@ def _union_similar_keys(
         similar_keys: Keys of similar signatures
         sig: Current signature
         signatures: All signatures
+        threshold: Minimum similarity threshold for unioning
     """
     for similar_key in similar_keys:
         if similar_key == current_key:
@@ -466,18 +468,25 @@ def _union_similar_keys(
         if _regions_overlap(sig.region, similar_sig.region):
             continue
 
+        # Check actual pairwise similarity before unioning
+        similarity = _compute_pair_similarity(sig, similar_sig)
+        if similarity < threshold:
+            continue
+
         uf.union(current_key, similar_key)
 
 
 def _build_union_find_from_lsh(
     signatures: list[RegionSignature],
     lsh: MinHashLSH,
+    threshold: float,
 ) -> tuple[UnionFind, dict[str, RegionSignature]]:
     """Build union-find structure from LSH queries.
 
     Args:
         signatures: List of region signatures
         lsh: LSH index
+        threshold: Minimum similarity threshold
 
     Returns:
         Tuple of (union-find structure, key-to-signature mapping)
@@ -496,7 +505,7 @@ def _build_union_find_from_lsh(
             len(similar_keys)
         )
 
-        _union_similar_keys(uf, current_key, similar_keys, sig, signatures)
+        _union_similar_keys(uf, current_key, similar_keys, sig, signatures, threshold)
 
     return uf, key_to_sig
 
@@ -538,9 +547,16 @@ def _create_group_from_keys(
         return None
 
     similarity = _calculate_group_similarity(group_sigs)
-    # Note: We don't filter by threshold here because LSH already filtered candidates
-    # during index creation. For groups of 2, the similarity is the pairwise similarity.
-    # For larger groups, we compute the average pairwise similarity.
+    # Filter by threshold to avoid large groups with low average similarity
+    # This can happen when union-find transitively connects many regions
+    if similarity < threshold:
+        logger.debug(
+            "Filtered out group of %d regions with %.1f%% similarity (below threshold %.1f%%)",
+            len(member_keys),
+            similarity * 100,
+            threshold * 100,
+        )
+        return None
 
     regions = [sig.region for sig in group_sigs]
     logger.debug(
@@ -568,7 +584,7 @@ def _collect_candidate_groups(
         List of similar region groups above threshold
     """
     # Build union-find structure
-    uf, key_to_sig = _build_union_find_from_lsh(signatures, lsh)
+    uf, key_to_sig = _build_union_find_from_lsh(signatures, lsh, threshold)
 
     # Extract groups from union-find
     groups_dict = uf.get_groups()

@@ -182,7 +182,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.9,
-            2,
+            3,  # Updated: also finds test_template_filter functions
             [
                 # Cross-file duplicate functions
                 (
