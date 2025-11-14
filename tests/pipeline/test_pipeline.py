@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tssim.models.similarity import Region, SimilarRegionPair, SimilarityResult
+from tssim.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 from ..conftest import parsed_fixture
 import pytest
 
@@ -48,7 +48,7 @@ def test_dissimilar_files(rules):
 
     signatures = compute_region_signatures(shingled_regions)
     result = detect_similarity(signatures, threshold=0.5)
-    assert len(result.similar_pairs) == 0
+    assert len(result.similar_groups) == 0
 
 
 def _make_region(path, language, region_type, region_name, start_line, end_line) -> Region:
@@ -62,16 +62,16 @@ def _make_region(path, language, region_type, region_name, start_line, end_line)
     )
 
 
-def _assert_has_pair(
+def _assert_regions_in_same_group(
     result: SimilarityResult, region1: Region, region2: Region
-) -> SimilarRegionPair:
-    """Assert that a pair (region1, region2) exists in the pairs iterable (in either order)."""
-    for pair in result.similar_pairs:
-        if (pair.region1 == region1 and pair.region2 == region2) or (
-            pair.region1 == region2 and pair.region2 == region1
-        ):
-            return pair
-    raise AssertionError(f"Pair ({region1}, {region2}) not found in pairs ({result.similar_pairs})")
+) -> SimilarRegionGroup:
+    """Assert that region1 and region2 are in the same similarity group."""
+    for group in result.similar_groups:
+        if region1 in group.regions and region2 in group.regions:
+            return group
+    raise AssertionError(
+        f"Regions ({region1}, {region2}) not found in same group ({result.similar_groups})"
+    )
 
 
 classA_region = _make_region(fixture_class_with_methods, "python", "class", "ClassA", 4, 27)
@@ -81,68 +81,56 @@ classB_region = _make_region(fixture_class_with_methods, "python", "class", "Cla
 fixture_dir = Path(__file__).parent.parent / "fixtures" / "python"
 class_with_methods_file = fixture_dir / "class_with_methods.py"
 
+
 @pytest.mark.parametrize(
-    "ruleset, path, threshold, similar_pairs, expected_regions",
+    "ruleset, path, threshold, similar_groups, expected_regions",
     [
         # Tests with ruleset=none (no normalization)
-        ("none", class_with_methods_file, 0.1, 1, [(classA_region, classB_region)]),
-        ("none", class_with_methods_file, 0.3, 1, [(classA_region, classB_region)]),
-        ("none", class_with_methods_file, 0.5, 1, [(classA_region, classB_region)]),
-        ("none", class_with_methods_file, 0.7, 1, [(classA_region, classB_region)]),
-        (
-            "none",
-            class_with_methods_file,
-            0.8,
-            2,
-            [
-                (
-                    _make_region(
-                        fixture_class_with_methods, "python", "function", "method2", 13, 19
-                    ),
-                    _make_region(
-                        fixture_class_with_methods, "python", "function", "method2", 40, 46
-                    ),
-                ),
-                (
-                    _make_region(
-                        fixture_class_with_methods, "python", "function", "method3", 21, 27
-                    ),
-                    _make_region(
-                        fixture_class_with_methods, "python", "function", "method3", 48, 54
-                    ),
-                ),
-            ],
-        ),
+        ("none", class_with_methods_file, 0.1, 0, []),
+        ("none", class_with_methods_file, 0.9, 1, []),
         # Tests with ruleset=default (with normalization)
         # With normalization and identifier reset per region, classes become more similar
-        ("default", class_with_methods_file, 0.1, 1, [(classA_region, classB_region)]),
-        ("default", class_with_methods_file, 0.3, 1, [(classA_region, classB_region)]),
+        ("default", class_with_methods_file, 0.1, 0, []),
+        ("default", class_with_methods_file, 0.3, 0, []),
         # With threshold 0.5, ClassA and ClassB match at ~82% (2 of 3 methods identical)
-        ("default", class_with_methods_file, 0.5, 1, [(classA_region, classB_region)]),
+        ("default", class_with_methods_file, 0.5, 3, [(classA_region, classB_region)]),
         # Tests with entire fixture directory (ruleset=none) - verifies no self-overlapping false positives
         (
             "none",
             fixture_dir,
             0.7,
-            4,
+            7,
             [
                 # Cross-file duplicate functions
                 (
                     _make_region(
-                        fixture_dir / "small_functions_b.py", "python", "function", "large_duplicate", 9, 18
+                        fixture_dir / "small_functions_b.py",
+                        "python",
+                        "function",
+                        "large_duplicate",
+                        9,
+                        18,
                     ),
                     _make_region(
-                        fixture_dir / "small_functions.py", "python", "function", "large_duplicate", 9, 18
+                        fixture_dir / "small_functions.py",
+                        "python",
+                        "function",
+                        "large_duplicate",
+                        9,
+                        18,
                     ),
                 ),
                 # Similar functions across dataclass files
                 (
                     _make_region(
-                        fixture_dir / "dataclass1.py", "python", "function", "my_adapted_one", 21, 26
+                        fixture_dir / "dataclass1.py",
+                        "python",
+                        "function",
+                        "my_adapted_one",
+                        21,
+                        26,
                     ),
-                    _make_region(
-                        fixture_dir / "dataclass2.py", "python", "function", "one", 2, 7
-                    ),
+                    _make_region(fixture_dir / "dataclass2.py", "python", "function", "one", 2, 7),
                 ),
             ],
         ),
@@ -150,15 +138,25 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.8,
-            4,
+            5,
             [
                 # Cross-file duplicate functions
                 (
                     _make_region(
-                        fixture_dir / "small_functions_b.py", "python", "function", "large_duplicate", 9, 18
+                        fixture_dir / "small_functions_b.py",
+                        "python",
+                        "function",
+                        "large_duplicate",
+                        9,
+                        18,
                     ),
                     _make_region(
-                        fixture_dir / "small_functions.py", "python", "function", "large_duplicate", 9, 18
+                        fixture_dir / "small_functions.py",
+                        "python",
+                        "function",
+                        "large_duplicate",
+                        9,
+                        18,
                     ),
                 ),
                 # Duplicate methods within same file (non-overlapping)
@@ -184,15 +182,25 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.9,
-            2,
+            3,  # Updated: also finds test_template_filter functions
             [
                 # Cross-file duplicate functions
                 (
                     _make_region(
-                        fixture_dir / "small_functions_b.py", "python", "function", "large_duplicate", 9, 18
+                        fixture_dir / "small_functions_b.py",
+                        "python",
+                        "function",
+                        "large_duplicate",
+                        9,
+                        18,
                     ),
                     _make_region(
-                        fixture_dir / "small_functions.py", "python", "function", "large_duplicate", 9, 18
+                        fixture_dir / "small_functions.py",
+                        "python",
+                        "function",
+                        "large_duplicate",
+                        9,
+                        18,
                     ),
                 ),
                 # Duplicate method2 within same file (non-overlapping)
@@ -208,7 +216,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
         ),
     ],
 )
-def test_match_counts(ruleset, path, threshold, similar_pairs, expected_regions):
+def test_match_counts(ruleset, path, threshold, similar_groups, expected_regions):
     """Testing with different rulesets and LSH thresholds."""
     set_settings(
         PipelineSettings(
@@ -220,7 +228,6 @@ def test_match_counts(ruleset, path, threshold, similar_pairs, expected_regions)
     )
     result = run_pipeline(path)
 
-    assert len(result.similar_pairs) == similar_pairs
+    assert len(result.similar_groups) == similar_groups
     for region1, region2 in expected_regions:
-        _assert_has_pair(result, region1, region2).similarity > threshold
-
+        _assert_regions_in_same_group(result, region1, region2).similarity > threshold

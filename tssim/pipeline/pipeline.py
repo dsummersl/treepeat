@@ -10,7 +10,7 @@ from pathlib import Path
 from tssim.config import PipelineSettings, get_settings
 from tssim.models.ast import ParsedFile, ParseResult
 from tssim.models.shingle import ShingledRegion
-from tssim.models.similarity import Region, RegionSignature, SimilarRegionPair, SimilarityResult
+from tssim.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
 from tssim.pipeline.lsh_stage import detect_similarity
 from tssim.pipeline.minhash_stage import compute_region_signatures
 from tssim.pipeline.parse import parse_path
@@ -61,6 +61,35 @@ def _run_extract_stage(
     return extracted_regions
 
 
+def _filter_groups_by_min_lines(
+    groups: list[SimilarRegionGroup], min_lines: int
+) -> list[SimilarRegionGroup]:
+    """Filter similar groups to only include those with at least min_lines in all regions.
+
+    Args:
+        groups: List of similar region groups
+        min_lines: Minimum number of lines for a match
+
+    Returns:
+        Filtered list of groups
+    """
+    filtered = []
+    for group in groups:
+        # Check if all regions meet the min_lines threshold
+        all_meet_threshold = all(
+            region.end_line - region.start_line + 1 >= min_lines
+            for region in group.regions
+        )
+        if all_meet_threshold:
+            filtered.append(group)
+        else:
+            logger.debug(
+                "Filtered out group with %d regions - at least one region below min_lines threshold",
+                len(group.regions),
+            )
+    return filtered
+
+
 def _filter_pairs_by_min_lines(
     pairs: list[SimilarRegionPair], min_lines: int
 ) -> list[SimilarRegionPair]:
@@ -94,19 +123,18 @@ def _filter_pairs_by_min_lines(
     return filtered
 
 
-def _get_matched_regions_from_pairs(pairs: list[SimilarRegionPair]) -> list[Region]:
-    """Extract all matched regions from similar pairs.
+def _get_matched_regions_from_groups(groups: list[SimilarRegionGroup]) -> list[Region]:
+    """Extract all matched regions from similar groups.
 
     Args:
-        pairs: List of similar region pairs
+        groups: List of similar region groups
 
     Returns:
         List of all regions that were matched
     """
     matched_regions: list[Region] = []
-    for pair in pairs:
-        matched_regions.append(pair.region1)
-        matched_regions.append(pair.region2)
+    for group in groups:
+        matched_regions.extend(group.regions)
     return matched_regions
 
 
@@ -164,8 +192,8 @@ def _run_lsh_stage(
         verify_candidates=True,
     )
     logger.info(
-        "Similarity detection complete: found %d similar pair(s) (%d self-similar)",
-        similarity_result.pair_count,
+        "Similarity detection complete: found %d similar group(s) (%d self-similar)",
+        len(similarity_result.similar_groups),
         similarity_result.self_similarity_count,
     )
     return similarity_result
@@ -175,7 +203,7 @@ def _run_level1_matching(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
     settings: PipelineSettings,
-) -> tuple[list[SimilarRegionPair], list[RegionSignature]]:
+) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
     """Run Level 1: Region-Level Matching (functions/classes).
 
     Args:
@@ -184,7 +212,7 @@ def _run_level1_matching(
         settings: Pipeline settings
 
     Returns:
-        Tuple of (filtered pairs, signatures)
+        Tuple of (filtered groups, signatures)
     """
     logger.info("===== LEVEL 1: Region-Level Matching =====")
 
@@ -201,33 +229,40 @@ def _run_level1_matching(
     level1_result = _run_lsh_stage(level1_signatures, level1_shingled, settings.lsh.threshold, {})
 
     # Filter by min_lines
-    level1_filtered_pairs = _filter_pairs_by_min_lines(level1_result.similar_pairs, settings.lsh.min_lines)
-    logger.info("Level 1 complete: %d pairs after filtering (was %d)", len(level1_filtered_pairs), len(level1_result.similar_pairs))
+    logger.debug("Level 1: Filtering %d groups by min_lines=%d", len(level1_result.similar_groups), settings.lsh.min_lines)
+    for group in level1_result.similar_groups:
+        logger.debug("  Group: %d regions, similarity=%.2f%%", len(group.regions), group.similarity * 100)
+        for region in group.regions:
+            lines = region.end_line - region.start_line + 1
+            logger.debug("    - %s [%d:%d] (%d lines)", region.region_name, region.start_line, region.end_line, lines)
+    level1_filtered_groups = _filter_groups_by_min_lines(level1_result.similar_groups, settings.lsh.min_lines)
+    logger.info("Level 1 complete: %d groups after filtering (was %d)",
+                len(level1_filtered_groups), len(level1_result.similar_groups))
 
-    return level1_filtered_pairs, level1_signatures
+    return level1_filtered_groups, level1_signatures
 
 
 def _run_level2_matching(
     parsed_files: list[ParsedFile],
-    level1_filtered_pairs: list[SimilarRegionPair],
+    level1_filtered_groups: list[SimilarRegionGroup],
     rule_engine: RuleEngine,
     settings: PipelineSettings,
-) -> tuple[list[SimilarRegionPair], list[RegionSignature]]:
+) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
     """Run Level 2: Line-Level Matching (unmatched sections).
 
     Args:
         parsed_files: List of parsed source files
-        level1_filtered_pairs: Filtered pairs from Level 1
+        level1_filtered_groups: Filtered groups from Level 1
         rule_engine: Rule engine for applying transformation rules
         settings: Pipeline settings
 
     Returns:
-        Tuple of (filtered pairs, signatures)
+        Tuple of (filtered groups, signatures)
     """
     logger.info("===== LEVEL 2: Line-Level Matching =====")
 
     # Track matched lines from level 1
-    level1_matched_regions = _get_matched_regions_from_pairs(level1_filtered_pairs)
+    level1_matched_regions = _get_matched_regions_from_groups(level1_filtered_groups)
     matched_lines_by_file = get_matched_line_ranges(level1_matched_regions)
     logger.info("Tracked %d matched regions from level 1", len(level1_matched_regions))
 
@@ -248,10 +283,11 @@ def _run_level2_matching(
     level2_result = _run_lsh_stage(level2_signatures, level2_shingled, settings.lsh.threshold, {})
 
     # Filter by min_lines
-    level2_filtered_pairs = _filter_pairs_by_min_lines(level2_result.similar_pairs, settings.lsh.min_lines)
-    logger.info("Level 2 complete: %d pairs after filtering (was %d)", len(level2_filtered_pairs), len(level2_result.similar_pairs))
+    level2_filtered_groups = _filter_groups_by_min_lines(level2_result.similar_groups, settings.lsh.min_lines)
+    logger.info("Level 2 complete: %d groups after filtering (was %d)",
+                len(level2_filtered_groups), len(level2_result.similar_groups))
 
-    return level2_filtered_pairs, level2_signatures
+    return level2_filtered_groups, level2_signatures
 
 
 def run_pipeline(target_path: str | Path) -> SimilarityResult:
@@ -271,25 +307,25 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
         return SimilarityResult(failed_files=parse_result.failed_files)
 
     # Run Level 1: Region-Level Matching (functions/classes)
-    level1_filtered_pairs, level1_signatures = _run_level1_matching(
+    level1_filtered_groups, level1_signatures = _run_level1_matching(
         parse_result.parsed_files, rule_engine, settings
     )
 
     # Run Level 2: Line-Level Matching (unmatched sections)
-    level2_filtered_pairs, level2_signatures = _run_level2_matching(
-        parse_result.parsed_files, level1_filtered_pairs, rule_engine, settings
+    level2_filtered_groups, level2_signatures = _run_level2_matching(
+        parse_result.parsed_files, level1_filtered_groups, rule_engine, settings
     )
 
     # Combine results
-    all_pairs = level1_filtered_pairs + level2_filtered_pairs
+    all_groups = level1_filtered_groups + level2_filtered_groups
     all_signatures = level1_signatures + level2_signatures if level2_signatures else level1_signatures
-    logger.info("Combined results: %d total pairs (%d from level 1, %d from level 2)",
-                len(all_pairs), len(level1_filtered_pairs), len(level2_filtered_pairs))
+    logger.info("Combined results: %d total groups (%d from level 1, %d from level 2)",
+                len(all_groups), len(level1_filtered_groups), len(level2_filtered_groups))
 
     # Create final result
     final_result = SimilarityResult(
         signatures=all_signatures,
-        similar_pairs=all_pairs,
+        similar_groups=all_groups,
         failed_files=parse_result.failed_files,
     )
 

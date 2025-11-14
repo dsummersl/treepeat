@@ -17,7 +17,7 @@ from tssim.config import (
     set_settings,
 )
 from tssim.formatters import format_as_json, format_as_sarif
-from tssim.models.similarity import RegionSignature, SimilarityResult
+from tssim.models.similarity import RegionSignature, SimilarRegionGroup, SimilarityResult
 from tssim.pipeline.pipeline import run_pipeline
 
 console = Console()
@@ -77,46 +77,51 @@ def display_processed_regions(result: SimilarityResult) -> None:
             )
 
 
-def display_similar_pairs(result: SimilarityResult) -> None:
-    """Display similar region pairs."""
-    if not result.similar_pairs:
+def _get_group_sort_key(group: SimilarRegionGroup) -> tuple[float, float]:
+    """Get sort key for a similarity group.
+
+    Args:
+        group: SimilarRegionGroup to sort
+
+    Returns:
+        Tuple of (similarity, average line count)
+    """
+    avg_lines = sum(r.end_line - r.start_line + 1 for r in group.regions) / len(group.regions)
+    return (group.similarity, avg_lines)
+
+
+def _display_group(group: SimilarRegionGroup) -> None:
+    """Display a single similarity group.
+
+    Args:
+        group: SimilarRegionGroup to display
+    """
+    # Display similarity group header
+    console.print(f"Similar group found ([bold]{group.similarity:.1%}[/bold] similar, {group.size} regions):")
+
+    # Display all regions in the group
+    for i, region in enumerate(group.regions):
+        lines = region.end_line - region.start_line + 1
+        prefix = "  - " if i == 0 else "    "
+        console.print(
+            f"{prefix}{region.path} [{region.start_line}:{region.end_line}] "
+            f"({lines} lines) {region.region_name}"
+        )
+
+    console.print()  # Blank line between groups
+
+
+def display_similar_groups(result: SimilarityResult) -> None:
+    """Display similar region groups."""
+    if not result.similar_groups:
         console.print("\n[yellow]No similar regions found above threshold.[/yellow]")
         return
 
     console.print("\n[bold cyan]Similar Regions:[/bold cyan]")
-    # Sort similar_pairs by similarity, then by average line count (ascending)
-    sorted_pairs = sorted(
-        result.similar_pairs,
-        key=lambda pair: (
-            pair.similarity,  # similarity ascending
-            (
-                (pair.region1.end_line - pair.region1.start_line + 1)
-                + (pair.region2.end_line - pair.region2.start_line + 1)
-            )
-            / 2,  # average line count ascending
-        ),
-    )
+    sorted_groups = sorted(result.similar_groups, key=_get_group_sort_key)
 
-    for pair in sorted_pairs:
-        # Calculate line counts for each region
-        lines1 = pair.region1.end_line - pair.region1.start_line + 1
-        lines2 = pair.region2.end_line - pair.region2.start_line + 1
-
-        # Display similarity group header (jscpd-style)
-        console.print(f"Clone found ([bold]{pair.similarity:.1%}[/bold] similar):")
-
-        # Display first region with leading dash (jscpd-style)
-        console.print(
-            f"  - {pair.region1.path} [{pair.region1.start_line}:{pair.region1.end_line}] "
-            f"({lines1} lines) {pair.region1.region_name}"
-        )
-
-        # Display second region with indentation only (jscpd-style)
-        console.print(
-            f"    {pair.region2.path} [{pair.region2.start_line}:{pair.region2.end_line}] "
-            f"({lines2} lines) {pair.region2.region_name}"
-        )
-        console.print()  # Blank line between groups
+    for group in sorted_groups:
+        _display_group(group)
 
 
 def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
@@ -155,7 +160,9 @@ def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
         The similarity result
     """
     if output_format.lower() == "console":
-        console.print("\n[bold blue]tssim - Code Similarity Detection[/bold blue]")
+        from tssim.config import get_settings
+        settings = get_settings()
+        console.print(f"\nRuleset: [cyan]{settings.rules.ruleset}[/cyan]")
         console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
         with console.status("[bold green]Running pipeline..."):
             return run_pipeline(path)
@@ -181,7 +188,7 @@ def _handle_output(
         output_text = format_as_sarif(result, pretty=True)
         _write_output(output_text, output_path)
     else:  # console
-        display_similar_pairs(result)
+        display_similar_groups(result)
         display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
         console.print()
 

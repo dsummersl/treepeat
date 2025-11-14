@@ -51,14 +51,40 @@ class SimilarRegionPair(BaseModel):
         )
 
 
+class SimilarRegionGroup(BaseModel):
+    """A group of similar regions with their similarity score."""
+
+    regions: list[Region] = Field(description="List of similar regions")
+    similarity: float = Field(
+        ge=0.0, le=1.0, description="Estimated Jaccard similarity (0.0 to 1.0)"
+    )
+
+    @property
+    def is_self_similarity(self) -> bool:
+        """True if all regions are from the same file."""
+        if not self.regions:
+            return False
+        first_path = self.regions[0].path
+        return all(r.path == first_path for r in self.regions)
+
+    @property
+    def size(self) -> int:
+        """Number of regions in the group."""
+        return len(self.regions)
+
+    def __repr__(self) -> str:
+        region_names = ", ".join(r.region_name for r in self.regions)
+        return f"SimilarRegionGroup({self.size} regions: {region_names} {self.similarity:.2%} similar)"
+
+
 class SimilarityResult(BaseModel):
     """Result of similarity detection."""
 
     signatures: list[RegionSignature] = Field(
         default_factory=list, description="MinHash signatures for all regions"
     )
-    similar_pairs: list[SimilarRegionPair] = Field(
-        default_factory=list, description="Pairs of similar regions above threshold"
+    similar_groups: list[SimilarRegionGroup] = Field(
+        default_factory=list, description="Groups of similar regions above threshold"
     )
     failed_files: dict[Path, str] = Field(
         default_factory=dict, description="Files that failed processing"
@@ -86,11 +112,11 @@ class SimilarityResult(BaseModel):
         return len(self.failed_files)
 
     @property
-    def pair_count(self) -> int:
-        """Number of similar pairs found."""
-        return len(self.similar_pairs)
+    def group_count(self) -> int:
+        """Number of similar groups found."""
+        return len(self.similar_groups)
 
     @property
     def self_similarity_count(self) -> int:
-        """Number of similar pairs within the same file."""
-        return sum(1 for pair in self.similar_pairs if pair.is_self_similarity)
+        """Number of similar groups within the same file."""
+        return sum(1 for group in self.similar_groups if group.is_self_similarity)
