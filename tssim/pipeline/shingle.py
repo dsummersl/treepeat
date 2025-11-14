@@ -226,6 +226,10 @@ def _shingle_single_region(
         )
         return None
 
+    # Reset identifier counter for each region to ensure consistent anonymization
+    # This allows identical functions to get the same anonymized variable names
+    shingler.rule_engine.reset_identifiers()
+
     return shingler.shingle_region(extracted_region, source)
 
 
