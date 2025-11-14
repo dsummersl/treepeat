@@ -380,6 +380,51 @@ def find_similar_pairs(
     return filtered_pairs
 
 
+def _should_verify_candidates(
+    verify_candidates: bool,
+    shingled_regions: list[ShingledRegion] | None,
+    candidate_pairs: list[SimilarRegionPair],
+) -> bool:
+    """Check if candidate verification should be performed.
+
+    Args:
+        verify_candidates: Whether verification is enabled
+        shingled_regions: Shingled regions for verification
+        candidate_pairs: Candidate pairs to verify
+
+    Returns:
+        True if verification should be performed
+    """
+    return verify_candidates and shingled_regions is not None and len(candidate_pairs) > 0
+
+
+def _verify_and_filter_pairs(
+    candidate_pairs: list[SimilarRegionPair],
+    shingled_regions: list[ShingledRegion],
+    threshold: float,
+) -> list[SimilarRegionPair]:
+    """Verify candidate pairs and filter by threshold.
+
+    Args:
+        candidate_pairs: Candidate pairs from LSH
+        shingled_regions: Shingled regions for verification
+        threshold: Similarity threshold for filtering
+
+    Returns:
+        Verified and filtered similar pairs
+    """
+    logger.info("Verifying %d candidate pair(s)", len(candidate_pairs))
+    verified_pairs = verify_similar_pairs(candidate_pairs, shingled_regions)
+
+    similar_pairs = [p for p in verified_pairs if p.similarity >= threshold]
+    if len(similar_pairs) < len(verified_pairs):
+        logger.info(
+            "Filtered %d pair(s) below threshold after verification",
+            len(verified_pairs) - len(similar_pairs),
+        )
+    return similar_pairs
+
+
 def detect_similarity(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
@@ -399,21 +444,12 @@ def detect_similarity(
     Returns:
         SimilarityResult with similar region pairs
     """
-    # Find candidate similar pairs using LSH
     candidate_pairs = find_similar_pairs(signatures, threshold=threshold)
 
-    # Verify candidates if enabled and shingled regions provided
-    if verify_candidates and shingled_regions is not None and candidate_pairs:
-        logger.info("Verifying %d candidate pair(s)", len(candidate_pairs))
-        verified_pairs = verify_similar_pairs(candidate_pairs, shingled_regions)
-
-        # Filter verified pairs by threshold
-        similar_pairs = [p for p in verified_pairs if p.similarity >= threshold]
-        if len(similar_pairs) < len(verified_pairs):
-            logger.info(
-                "Filtered %d pair(s) below threshold after verification",
-                len(verified_pairs) - len(similar_pairs),
-            )
+    if _should_verify_candidates(verify_candidates, shingled_regions, candidate_pairs):
+        # shingled_regions is guaranteed to be non-None by _should_verify_candidates
+        assert shingled_regions is not None
+        similar_pairs = _verify_and_filter_pairs(candidate_pairs, shingled_regions, threshold)
     else:
         similar_pairs = candidate_pairs
 
