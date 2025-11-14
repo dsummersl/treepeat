@@ -275,28 +275,39 @@ def _parse_patterns(pattern_string: str) -> list[str]:
     return [p.strip() for p in pattern_string.split(",") if p.strip()]
 
 
-def _print_rulesets(listing_type: str) -> None:
-    """Print available rulesets based on listing type.
+def _print_rulesets(ruleset_name: str) -> None:
+    """Print rules in the specified ruleset.
 
     Args:
-        listing_type: Type of listing ('non' for non-default, 'default' for default)
+        ruleset_name: Name of the ruleset to display (none, default, loose)
     """
-    rulesets = {
-        "none": "No normalization rules applied - raw AST comparison",
-        "default": "Standard normalization (skip imports/comments, anonymize identifiers, replace literals)",
-        "loose": "Aggressive normalization (includes default + operator/type/collection canonicalization)",
-    }
+    from tssim.pipeline.rules_factory import get_ruleset_with_descriptions
 
-    console.print("\n[bold blue]Available Rulesets:[/bold blue]\n")
+    rules_with_descriptions = get_ruleset_with_descriptions(ruleset_name)
 
-    if listing_type == "default":
-        console.print("[green]default[/green] (default)")
-        console.print(f"  {rulesets['default']}\n")
-    else:  # listing_type == "non"
-        console.print("[yellow]none[/yellow]")
-        console.print(f"  {rulesets['none']}\n")
-        console.print("[cyan]loose[/cyan]")
-        console.print(f"  {rulesets['loose']}\n")
+    # Display header with ruleset name
+    console.print(f"\n[bold blue]Ruleset: {ruleset_name}[/bold blue]\n")
+
+    if not rules_with_descriptions:
+        console.print("  [dim]No normalization rules - raw AST comparison[/dim]\n")
+        return
+
+    # Display each rule with its description
+    console.print(f"[dim]{len(rules_with_descriptions)} rule(s):[/dim]\n")
+    for rule, description in rules_with_descriptions:
+        # Format the rule specification
+        params_str = (
+            f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
+            if rule.params
+            else ""
+        )
+        node_patterns = "|".join(rule.node_patterns)
+        rule_spec = (
+            f"{rule.language}:{rule.operation.value}:nodes="
+            f"{node_patterns}{params_str}"
+        )
+        console.print(f"  [cyan]•[/cyan] {description}")
+        console.print(f"    [dim]{rule_spec}[/dim]\n")
 
 
 def _create_rules_settings(rules: str, rules_file: str, ruleset: str) -> RulesSettings:
@@ -390,9 +401,9 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 )
 @click.option(
     "--list-ruleset",
-    type=click.Choice(["non", "default"], case_sensitive=False),
+    type=click.Choice(["none", "default", "loose"], case_sensitive=False),
     default=None,
-    help="List available rulesets (non: list non-default rulesets, default: list default ruleset)",
+    help="List rules in the specified ruleset (none/default/loose)",
 )
 @click.option(
     "--threshold",

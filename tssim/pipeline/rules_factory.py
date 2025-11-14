@@ -64,6 +64,24 @@ def _log_active_rules(rules: list[Rule]) -> None:
         )
 
 
+def get_ruleset_with_descriptions(ruleset: str) -> list[tuple[Rule, str]]:
+    """Get a ruleset with rule descriptions for display purposes.
+
+    Args:
+        ruleset: Name of the ruleset (default, loose, none)
+
+    Returns:
+        List of tuples containing (Rule, description)
+    """
+    ruleset = ruleset.lower()
+    if ruleset == "default":
+        return build_default_rules()
+    elif ruleset == "loose":
+        return build_loose_rules()
+    else:  # none
+        return []
+
+
 def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
     # Start with ruleset-based defaults
     ruleset = settings.rules.ruleset.lower()
@@ -71,10 +89,12 @@ def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
 
     if ruleset == "default":
         logger.info("Using 'default' ruleset")
-        rules = build_default_rules()
+        # Extract just the rules from the tuples
+        rules = [rule for rule, _ in build_default_rules()]
     elif ruleset == "loose":
         logger.info("Using 'loose' ruleset")
-        rules = build_loose_rules()
+        # Extract just the rules from the tuples
+        rules = [rule for rule, _ in build_loose_rules()]
 
     if settings.rules.rules:
         rules = _load_rules_from_string(settings.rules.rules)
