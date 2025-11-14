@@ -1,5 +1,6 @@
 """CLI interface for tssim."""
 
+import difflib
 import logging
 import sys
 from pathlib import Path
@@ -7,6 +8,7 @@ from pathlib import Path
 import click
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.syntax import Syntax
 
 from tssim.config import (
     LSHSettings,
@@ -90,11 +92,67 @@ def _get_group_sort_key(group: SimilarRegionGroup) -> tuple[float, float]:
     return (group.similarity, avg_lines)
 
 
-def _display_group(group: SimilarRegionGroup) -> None:
+def _read_region_lines(region: "Region") -> list[str]:  # type: ignore[name-defined]
+    """Read lines from a file for a specific region.
+
+    Args:
+        region: Region to read lines from
+
+    Returns:
+        List of lines from the region
+    """
+    try:
+        with open(region.path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            # Extract lines for this region (1-indexed to 0-indexed)
+            return lines[region.start_line - 1 : region.end_line]
+    except Exception as e:
+        logging.warning(f"Failed to read region from {region.path}: {e}")
+        return []
+
+
+def _display_diff(region1: "Region", region2: "Region") -> None:  # type: ignore[name-defined]
+    """Display a unified diff between two regions.
+
+    Args:
+        region1: First region to compare
+        region2: Second region to compare
+    """
+    lines1 = _read_region_lines(region1)
+    lines2 = _read_region_lines(region2)
+
+    if not lines1 or not lines2:
+        console.print("  [yellow]Unable to generate diff (failed to read file content)[/yellow]\n")
+        return
+
+    # Generate unified diff
+    diff_lines = difflib.unified_diff(
+        lines1,
+        lines2,
+        fromfile=f"{region1.path}:{region1.start_line}-{region1.end_line}",
+        tofile=f"{region2.path}:{region2.start_line}-{region2.end_line}",
+        lineterm="",
+    )
+
+    diff_text = "\n".join(diff_lines)
+
+    if not diff_text:
+        console.print("  [green]No differences found (regions are identical)[/green]\n")
+        return
+
+    # Display diff with syntax highlighting using Rich
+    console.print("  [bold]Diff:[/bold]")
+    syntax = Syntax(diff_text, "diff", theme="monokai", line_numbers=False, word_wrap=True)
+    console.print(syntax)
+    console.print()
+
+
+def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
     """Display a single similarity group.
 
     Args:
         group: SimilarRegionGroup to display
+        show_diff: If True, show diff between first two regions in the group
     """
     # Display similarity group header
     console.print(f"Similar group found ([bold]{group.similarity:.1%}[/bold] similar, {group.size} regions):")
@@ -108,11 +166,21 @@ def _display_group(group: SimilarRegionGroup) -> None:
             f"({lines} lines) {region.region_name}"
         )
 
-    console.print()  # Blank line between groups
+    # Show diff if requested and we have at least 2 regions
+    if show_diff and len(group.regions) >= 2:
+        console.print()
+        _display_diff(group.regions[0], group.regions[1])
+    else:
+        console.print()  # Blank line between groups
 
 
-def display_similar_groups(result: SimilarityResult) -> None:
-    """Display similar region groups."""
+def display_similar_groups(result: SimilarityResult, show_diff: bool = False) -> None:
+    """Display similar region groups.
+
+    Args:
+        result: Similarity result to display
+        show_diff: If True, show diff between first two regions in each group
+    """
     if not result.similar_groups:
         console.print("\n[yellow]No similar regions found above threshold.[/yellow]")
         return
@@ -121,7 +189,7 @@ def display_similar_groups(result: SimilarityResult) -> None:
     sorted_groups = sorted(result.similar_groups, key=_get_group_sort_key)
 
     for group in sorted_groups:
-        _display_group(group)
+        _display_group(group, show_diff=show_diff)
 
 
 def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
@@ -171,7 +239,11 @@ def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
 
 
 def _handle_output(
-    result: SimilarityResult, output_format: str, output_path: Path | None, log_level: str
+    result: SimilarityResult,
+    output_format: str,
+    output_path: Path | None,
+    log_level: str,
+    show_diff: bool = False,
 ) -> None:
     """Handle formatting and outputting results.
 
@@ -180,6 +252,7 @@ def _handle_output(
         output_format: Output format (console, json, sarif)
         output_path: Path to output file, or None for stdout
         log_level: Logging level for debug output
+        show_diff: If True, show diff between first two regions in each group
     """
     if output_format.lower() == "json":
         output_text = format_as_json(result, pretty=True)
@@ -188,7 +261,7 @@ def _handle_output(
         output_text = format_as_sarif(result, pretty=True)
         _write_output(output_text, output_path)
     else:  # console
-        display_similar_groups(result)
+        display_similar_groups(result, show_diff=show_diff)
         display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
         console.print()
 
@@ -354,6 +427,12 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     default="**/.*ignore",
     help="Comma-separated list of glob patterns to find ignore files (default: '**/.*ignore')",
 )
+@click.option(
+    "--show-diff",
+    is_flag=True,
+    default=False,
+    help="Show inline diff between the first two files in each similar group (console format only)",
+)
 def main(
     path: Path | None,
     log_level: str,
@@ -369,6 +448,7 @@ def main(
     output: Path | None,
     ignore: str,
     ignore_files: str,
+    show_diff: bool,
 ) -> None:
     """
     Analyze code similarity in PATH.
@@ -395,7 +475,7 @@ def main(
     )
     result = _run_pipeline_with_ui(path, output_format)
     _check_result_errors(result, output_format)
-    _handle_output(result, output_format, output, log_level)
+    _handle_output(result, output_format, output, log_level, show_diff)
 
 
 if __name__ == "__main__":
