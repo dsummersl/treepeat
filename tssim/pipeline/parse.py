@@ -61,15 +61,7 @@ LANGUAGE_MAP: dict[str, LanguageName] = {
 
 
 def detect_language(file_path: Path) -> LanguageName | None:
-    """
-    Detect programming language from file extension.
-
-    Args:
-        file_path: Path to the source file
-
-    Returns:
-        Language name if detected, None otherwise
-    """
+    """Detect programming language from file extension."""
     # TODO support a more robust detection mechanism (something like enry maybe or pygments)
     suffix = file_path.suffix.lower()
     return LANGUAGE_MAP.get(suffix)
@@ -102,19 +94,7 @@ def parse_source_code(source: bytes, language_name: LanguageName, file_path: Pat
 
 
 def parse_file(file_path: Path) -> ParsedFile:
-    """
-    Parse a single source file using tree-sitter.
-
-    Args:
-        file_path: Path to the source file
-
-    Returns:
-        ParsedFile object containing the AST
-
-    Raises:
-        ValueError: If language cannot be detected or file cannot be read
-        RuntimeError: If parsing fails
-    """
+    """Parse a single source file using tree-sitter."""
     logger.debug(f"Parsing file: {file_path}")
 
     language_name = detect_language(file_path)
@@ -131,14 +111,7 @@ def parse_file(file_path: Path) -> ParsedFile:
 
 
 def parse_ignore_file(ignore_file: Path) -> list[str]:
-    """Parse an ignore file and return list of patterns.
-
-    Args:
-        ignore_file: Path to the ignore file (e.g., .gitignore)
-
-    Returns:
-        List of ignore patterns (empty lines and comments are filtered out)
-    """
+    """Parse an ignore file and return list of patterns."""
     try:
         patterns = []
         with ignore_file.open("r", encoding="utf-8") as f:
@@ -169,15 +142,7 @@ def _process_ignore_file(
 
 
 def find_ignore_files(target_path: Path, ignore_file_patterns: list[str]) -> dict[Path, list[str]]:
-    """Find all ignore files in the directory hierarchy.
-
-    Args:
-        target_path: Root directory to search
-        ignore_file_patterns: Glob patterns to find ignore files
-
-    Returns:
-        Dictionary mapping directory paths to their ignore patterns
-    """
+    """Find all ignore files in the directory hierarchy."""
     ignore_files_map: dict[Path, list[str]] = {}
 
     if not target_path.is_dir():
@@ -241,16 +206,7 @@ def _match_simple_pattern(rel_path_str: str, file_name: str, pattern: str) -> bo
 
 
 def matches_pattern(file_path: Path, pattern: str, base_path: Path) -> bool:
-    """Check if a file matches an ignore pattern.
-
-    Args:
-        file_path: Path to check
-        pattern: Ignore pattern (supports glob patterns)
-        base_path: Base directory for relative pattern matching
-
-    Returns:
-        True if the file matches the pattern
-    """
+    """Check if a file matches an ignore pattern."""
     if pattern.startswith("!"):
         return False
 
@@ -316,17 +272,7 @@ def should_ignore_file(
     ignore_patterns: list[str],
     ignore_files_map: dict[Path, list[str]],
 ) -> bool:
-    """Check if a file should be ignored based on patterns.
-
-    Args:
-        file_path: File to check
-        target_path: Root directory being analyzed
-        ignore_patterns: Direct ignore patterns from CLI
-        ignore_files_map: Map of directory to ignore patterns from ignore files
-
-    Returns:
-        True if the file should be ignored
-    """
+    """Check if a file should be ignored based on patterns."""
     # Check direct ignore patterns from CLI
     for pattern in ignore_patterns:
         if matches_pattern(file_path, pattern, target_path):
@@ -368,7 +314,7 @@ def _collect_directory_files(
 
 
 def collect_source_files(target_path: Path) -> list[Path]:
-    """Collect all source files from a path, applying ignore patterns."""
+    """Collect all source files from a path with ignore patterns applied."""
     settings = get_settings()
     ignore_patterns = settings.ignore_patterns
     ignore_file_patterns = settings.ignore_file_patterns
@@ -394,15 +340,7 @@ def parse_files(files: list[Path], result: ParseResult) -> None:
 
 
 def parse_path(target_path: Path) -> ParseResult:
-    """
-    Parse a file or directory of source files.
-
-    Args:
-        target_path: Path to a file or directory to parse
-
-    Returns:
-        ParseResult containing all parsed files and any failures
-    """
+    """Parse a file or directory of source files."""
     logger.info(f"Starting parse of: {target_path}")
 
     result = ParseResult()

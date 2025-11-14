@@ -10,19 +10,10 @@ from .parser import parse_rule
 
 
 class RuleEngine:
-    """
-    Engine for applying rules to syntax tree nodes.
-
-    Replaces the normalizer system with a more flexible rule-based approach.
-    """
+    """Engine for applying rules to syntax tree nodes."""
 
     def __init__(self, rules: list[Rule]):
-        """
-        Initialize the rule engine with a list of rules.
-
-        Args:
-            rules: List of rules to apply (last rule wins for conflicts)
-        """
+        """Initialize the rule engine with a list of rules."""
         self.rules = rules
         self._identifier_counters: dict[str, int] = {}
         self._operation_handlers = self._build_operation_handlers()
@@ -95,20 +86,7 @@ class RuleEngine:
     def apply_rules(
         self, node: Node, language: str, node_name: Optional[str] = None
     ) -> tuple[Optional[str], Optional[str]]:
-        """
-        Apply all matching rules to a node.
-
-        Args:
-            node: The syntax tree node
-            language: The language of the source code
-            node_name: Optional override for node type name
-
-        Returns:
-            Tuple of (name, value) where either can be None
-
-        Raises:
-            SkipNodeException: If a skip rule matches this node
-        """
+        """Apply all matching rules to a node."""
         node_type = node_name or node.type
         name = None
         value = None
@@ -120,7 +98,7 @@ class RuleEngine:
         return name, value
 
     def reset_identifiers(self) -> None:
-        """Reset the identifier counter (useful between files)."""
+        """Reset the identifier counter."""
         self._identifier_counters.clear()
 
 

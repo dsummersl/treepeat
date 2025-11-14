@@ -26,12 +26,7 @@ console = Console()
 
 
 def setup_logging(log_level: str) -> None:
-    """
-    Configure logging with rich handler.
-
-    Args:
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    """
+    """Configure logging with rich handler."""
     logging.basicConfig(
         level=log_level,
         format="%(message)s",
@@ -42,14 +37,7 @@ def setup_logging(log_level: str) -> None:
 def _group_signatures_by_file(
     signatures: list[RegionSignature],
 ) -> dict[Path, list[RegionSignature]]:
-    """Group region signatures by file path.
-
-    Args:
-        signatures: List of region signatures
-
-    Returns:
-        Dictionary mapping file paths to lists of signatures
-    """
+    """Group region signatures by file path."""
     regions_by_file: dict[Path, list[RegionSignature]] = {}
     for sig in signatures:
         path = sig.region.path
@@ -80,27 +68,13 @@ def display_processed_regions(result: SimilarityResult) -> None:
 
 
 def _get_group_sort_key(group: SimilarRegionGroup) -> tuple[float, float]:
-    """Get sort key for a similarity group.
-
-    Args:
-        group: SimilarRegionGroup to sort
-
-    Returns:
-        Tuple of (similarity, average line count)
-    """
+    """Get sort key for a similarity group by similarity and average line count."""
     avg_lines = sum(r.end_line - r.start_line + 1 for r in group.regions) / len(group.regions)
     return (group.similarity, avg_lines)
 
 
 def _read_region_lines(region: Region) -> list[str]:
-    """Read lines from a file for a specific region.
-
-    Args:
-        region: Region to read lines from
-
-    Returns:
-        List of lines from the region
-    """
+    """Read lines from a file for a specific region."""
     try:
         with open(region.path, "r", encoding="utf-8") as f:
             lines = f.readlines()
@@ -112,15 +86,7 @@ def _read_region_lines(region: Region) -> list[str]:
 
 
 def _truncate_line(line: str, max_width: int) -> str:
-    """Truncate a line to fit within max_width.
-
-    Args:
-        line: Line to truncate
-        max_width: Maximum width
-
-    Returns:
-        Truncated line if necessary, original otherwise
-    """
+    """Truncate a line to fit within max_width."""
     return line[:max_width] if len(line) > max_width else line
 
 
@@ -173,11 +139,7 @@ def _print_inserted_lines(lines2: list[str], j1: int, j2: int, col_width: int) -
 
 
 def _prepare_diff_lines(region1: Region, region2: Region) -> tuple[list[str], list[str]] | None:
-    """Read and prepare lines from both regions for diff.
-
-    Returns:
-        Tuple of (lines1, lines2) if successful, None otherwise
-    """
+    """Read and prepare lines from both regions for diff."""
     lines1 = _read_region_lines(region1)
     lines2 = _read_region_lines(region2)
 
@@ -227,12 +189,7 @@ def _process_diff_opcodes(
 
 
 def _display_diff(region1: Region, region2: Region) -> None:
-    """Display a side-by-side diff between two regions.
-
-    Args:
-        region1: First region to compare
-        region2: Second region to compare
-    """
+    """Display a side-by-side diff between two regions."""
     # Prepare lines from both regions
     prepared = _prepare_diff_lines(region1, region2)
     if prepared is None:
@@ -262,12 +219,7 @@ def _display_diff(region1: Region, region2: Region) -> None:
 
 
 def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
-    """Display a single similarity group.
-
-    Args:
-        group: SimilarRegionGroup to display
-        show_diff: If True, show diff between first two regions in the group
-    """
+    """Display a single similarity group with optional diff."""
     # Display similarity group header
     console.print(f"Similar group found ([bold]{group.similarity:.1%}[/bold] similar, {group.size} regions):")
 
@@ -289,12 +241,7 @@ def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
 
 
 def display_similar_groups(result: SimilarityResult, show_diff: bool = False) -> None:
-    """Display similar region groups.
-
-    Args:
-        result: Similarity result to display
-        show_diff: If True, show diff between first two regions in each group
-    """
+    """Display similar region groups with optional diff."""
     if not result.similar_groups:
         console.print("\n[yellow]No similar regions found above threshold.[/yellow]")
         return
@@ -319,12 +266,7 @@ def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
 
 
 def _write_output(text: str, output_path: Path | None) -> None:
-    """Write output text to file or stdout.
-
-    Args:
-        text: The text to write
-        output_path: Path to output file, or None for stdout
-    """
+    """Write output text to file or stdout."""
     if output_path:
         output_path.write_text(text)
     else:
@@ -332,15 +274,7 @@ def _write_output(text: str, output_path: Path | None) -> None:
 
 
 def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
-    """Run the pipeline with appropriate UI feedback based on output format.
-
-    Args:
-        path: Path to analyze
-        output_format: Output format (console, sarif)
-
-    Returns:
-        The similarity result
-    """
+    """Run the pipeline with appropriate UI feedback based on output format."""
     if output_format.lower() == "console":
         from tssim.config import get_settings
         settings = get_settings()
@@ -359,15 +293,7 @@ def _handle_output(
     log_level: str,
     show_diff: bool = False,
 ) -> None:
-    """Handle formatting and outputting results.
-
-    Args:
-        result: The similarity result
-        output_format: Output format (console, sarif)
-        output_path: Path to output file, or None for stdout
-        log_level: Logging level for debug output
-        show_diff: If True, show diff between first two regions in each group
-    """
+    """Handle formatting and outputting results."""
     if output_format.lower() == "sarif":
         output_text = format_as_sarif(result, pretty=True)
         _write_output(output_text, output_path)
@@ -378,23 +304,12 @@ def _handle_output(
 
 
 def _parse_patterns(pattern_string: str) -> list[str]:
-    """Parse comma-separated pattern string into list.
-
-    Args:
-        pattern_string: Comma-separated patterns
-
-    Returns:
-        List of stripped non-empty patterns
-    """
+    """Parse comma-separated pattern string into list."""
     return [p.strip() for p in pattern_string.split(",") if p.strip()]
 
 
 def _print_rulesets(ruleset_name: str) -> None:
-    """Print rules in the specified ruleset.
-
-    Args:
-        ruleset_name: Name of the ruleset to display (none, default, loose)
-    """
+    """Print rules in the specified ruleset."""
     from tssim.pipeline.rules_factory import get_ruleset_with_descriptions
 
     rules_with_descriptions = get_ruleset_with_descriptions(ruleset_name)
@@ -425,16 +340,7 @@ def _print_rulesets(ruleset_name: str) -> None:
 
 
 def _create_rules_settings(rules: str, rules_file: str, ruleset: str) -> RulesSettings:
-    """Create RulesSettings with proper None handling.
-
-    Args:
-        rules: Comma-separated list of rule specifications
-        rules_file: Path to file containing rule specifications
-        ruleset: Ruleset profile to use (none, default, loose)
-
-    Returns:
-        RulesSettings object
-    """
+    """Create RulesSettings with proper None handling."""
     return RulesSettings(
         ruleset=ruleset,
         rules=rules or None,
@@ -451,17 +357,7 @@ def _configure_settings(
     ignore: str,
     ignore_files: str,
 ) -> None:
-    """Configure pipeline settings.
-
-    Args:
-        rules: Comma-separated list of rule specifications
-        rules_file: Path to file containing rule specifications (one per line)
-        ruleset: Ruleset profile to use (none, default, loose)
-        threshold: LSH similarity threshold
-        min_lines: Minimum number of lines for a match
-        ignore: Comma-separated list of glob patterns to ignore files
-        ignore_files: Comma-separated list of glob patterns to find ignore files
-    """
+    """Configure pipeline settings."""
     settings = PipelineSettings(
         rules=_create_rules_settings(rules, rules_file, ruleset),
         shingle=ShingleSettings(),  # Uses default k=3
@@ -474,12 +370,7 @@ def _configure_settings(
 
 
 def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
-    """Check for errors in the result and exit if necessary.
-
-    Args:
-        result: The similarity result
-        output_format: Output format (console, sarif)
-    """
+    """Check for errors in the result and exit if necessary."""
     if result.success_count == 0 and result.failure_count > 0:
         if output_format.lower() == "console":
             console.print("[bold red]Error:[/bold red] Failed to parse any files")
@@ -578,11 +469,7 @@ def main(
     ignore_files: str,
     diff: bool,
 ) -> None:
-    """
-    Analyze code similarity in PATH.
-
-    PATH can be a file or directory containing source code files.
-    """
+    """Analyze code similarity in a file or directory."""
     setup_logging(log_level.upper())
 
     # Handle --list-ruleset option

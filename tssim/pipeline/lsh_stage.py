@@ -155,42 +155,19 @@ def _process_signature_candidates(
 
 
 def _regions_overlap(r1: Region, r2: Region) -> bool:
-    """Check if two regions overlap in the same file.
-
-    Args:
-        r1: First region
-        r2: Second region
-
-    Returns:
-        True if regions are in the same file and have overlapping line ranges
-    """
+    """Check if two regions overlap in the same file."""
     if r1.path != r2.path:
         return False
     return not (r1.end_line < r2.start_line or r2.end_line < r1.start_line)
 
 
 def _region_size(region: Region) -> int:
-    """Get the size of a region in lines.
-
-    Args:
-        region: Region to measure
-
-    Returns:
-        Number of lines in the region
-    """
+    """Get the size of a region in lines."""
     return region.end_line - region.start_line + 1
 
 
 def _pairs_have_overlap(pair1: SimilarRegionPair, pair2: SimilarRegionPair) -> bool:
-    """Check if two pairs have any overlapping regions.
-
-    Args:
-        pair1: First pair
-        pair2: Second pair
-
-    Returns:
-        True if any regions overlap
-    """
+    """Check if two pairs have any overlapping regions."""
     return any(
         [
             _regions_overlap(pair1.region1, pair2.region1),
@@ -204,31 +181,12 @@ def _pairs_have_overlap(pair1: SimilarRegionPair, pair2: SimilarRegionPair) -> b
 def _pair_overlaps_with_any(
     candidate: SimilarRegionPair, kept_pairs: list[SimilarRegionPair]
 ) -> bool:
-    """Check if a candidate pair overlaps with any kept pairs.
-
-    Args:
-        candidate: Candidate pair to check
-        kept_pairs: List of already kept pairs
-
-    Returns:
-        True if candidate overlaps with any kept pair
-    """
+    """Check if a candidate pair overlaps with any kept pairs."""
     return any(_pairs_have_overlap(candidate, kept) for kept in kept_pairs)
 
 
 def _filter_overlapping_pairs(pairs: list[SimilarRegionPair]) -> list[SimilarRegionPair]:
-    """Filter out overlapping pairs, keeping only the largest regions.
-
-    When multiple pairs have overlapping regions, keeps only the pair(s) with
-    the largest regions (most lines). This implements greedy matching where
-    larger code structures take precedence over nested smaller ones.
-
-    Args:
-        pairs: List of similar pairs
-
-    Returns:
-        Filtered list with overlapping pairs removed
-    """
+    """Filter out overlapping pairs using greedy matching to keep the largest regions."""
     if not pairs:
         return []
 
@@ -272,16 +230,7 @@ def _collect_candidate_pairs(
     lsh: MinHashLSH,
     threshold: float,
 ) -> list[SimilarRegionPair]:
-    """Collect all candidate pairs from LSH queries.
-
-    Args:
-        signatures: List of region signatures
-        lsh: LSH index
-        threshold: Similarity threshold
-
-    Returns:
-        List of similar pairs above threshold
-    """
+    """Collect all candidate pairs from LSH queries."""
     seen_pairs: set[tuple[str, str]] = set()
     pairs: list[SimilarRegionPair] = []
 
@@ -309,14 +258,7 @@ class UnionFind:
         self.rank: dict[str, int] = {}
 
     def find(self, key: str) -> str:
-        """Find the root of the set containing key.
-
-        Args:
-            key: Key to find
-
-        Returns:
-            Root key of the set
-        """
+        """Find the root of the set containing key with path compression."""
         if key not in self.parent:
             self.parent[key] = key
             self.rank[key] = 0
@@ -328,12 +270,7 @@ class UnionFind:
         return self.parent[key]
 
     def union(self, key1: str, key2: str) -> None:
-        """Union the sets containing key1 and key2.
-
-        Args:
-            key1: First key
-            key2: Second key
-        """
+        """Union the sets containing key1 and key2 using union by rank."""
         root1 = self.find(key1)
         root2 = self.find(key2)
 
@@ -350,11 +287,7 @@ class UnionFind:
             self.rank[root1] += 1
 
     def get_groups(self) -> dict[str, list[str]]:
-        """Get all groups as a dictionary mapping root to members.
-
-        Returns:
-            Dictionary mapping root keys to lists of member keys
-        """
+        """Get all groups as a dictionary mapping root to members."""
         groups: dict[str, list[str]] = {}
         for key in self.parent:
             root = self.find(key)
@@ -374,14 +307,7 @@ def _compute_pair_similarity(sig1: RegionSignature, sig2: RegionSignature) -> fl
 def _calculate_group_similarity(
     group_sigs: list[RegionSignature],
 ) -> float:
-    """Calculate average pairwise similarity for a group.
-
-    Args:
-        group_sigs: List of signatures in the group
-
-    Returns:
-        Average Jaccard similarity across all pairs
-    """
+    """Calculate average pairwise similarity for a group."""
     if len(group_sigs) < 2:
         return 1.0
 
@@ -464,15 +390,7 @@ def _get_valid_group_signatures(
     member_keys: list[str],
     key_to_sig: dict[str, RegionSignature],
 ) -> list[RegionSignature] | None:
-    """Get signatures for member keys if valid.
-
-    Args:
-        member_keys: List of region keys
-        key_to_sig: Mapping from keys to signatures
-
-    Returns:
-        List of signatures if at least 2 valid, None otherwise
-    """
+    """Get signatures for member keys if at least 2 valid signatures exist."""
     group_sigs = [key_to_sig[key] for key in member_keys if key in key_to_sig]
     return group_sigs if len(group_sigs) >= 2 else None
 
@@ -482,16 +400,7 @@ def _create_group_from_keys(
     key_to_sig: dict[str, RegionSignature],
     threshold: float,
 ) -> SimilarRegionGroup | None:
-    """Create a similarity group from member keys.
-
-    Args:
-        member_keys: List of region keys in the group
-        key_to_sig: Mapping from keys to signatures
-        threshold: Similarity threshold
-
-    Returns:
-        SimilarRegionGroup if valid, None otherwise
-    """
+    """Create a similarity group from member keys."""
     group_sigs = _get_valid_group_signatures(member_keys, key_to_sig)
     if group_sigs is None:
         return None
@@ -523,16 +432,7 @@ def _collect_candidate_groups(
     lsh: MinHashLSH,
     threshold: float,
 ) -> list[SimilarRegionGroup]:
-    """Collect similar region groups from LSH queries.
-
-    Args:
-        signatures: List of region signatures
-        lsh: LSH index
-        threshold: Similarity threshold
-
-    Returns:
-        List of similar region groups above threshold
-    """
+    """Collect similar region groups from LSH queries."""
     # Build union-find structure
     uf, key_to_sig = _build_union_find_from_lsh(signatures, lsh, threshold)
 
@@ -557,15 +457,7 @@ def find_similar_groups(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
 ) -> list[SimilarRegionGroup]:
-    """Find similar region groups using LSH.
-
-    Args:
-        signatures: List of region signatures
-        threshold: Jaccard similarity threshold
-
-    Returns:
-        List of similar region groups above the threshold
-    """
+    """Find similar region groups using LSH."""
     if len(signatures) < 2:
         logger.info("Need at least 2 regions to find similar groups")
         return []
@@ -592,15 +484,7 @@ def find_similar_pairs(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
 ) -> list[SimilarRegionPair]:
-    """Find similar region pairs using LSH.
-
-    Args:
-        signatures: List of region signatures
-        threshold: Jaccard similarity threshold
-
-    Returns:
-        List of similar region pairs above the threshold (including self-similarity)
-    """
+    """Find similar region pairs using LSH."""
     if len(signatures) < 2:
         logger.info("Need at least 2 regions to find similar pairs")
         return []
@@ -638,16 +522,7 @@ def _should_verify_candidates(
     shingled_regions: list[ShingledRegion] | None,
     candidate_pairs: list[SimilarRegionPair],
 ) -> bool:
-    """Check if candidate verification should be performed.
-
-    Args:
-        verify_candidates: Whether verification is enabled
-        shingled_regions: Shingled regions for verification
-        candidate_pairs: Candidate pairs to verify
-
-    Returns:
-        True if verification should be performed
-    """
+    """Check if candidate verification should be performed."""
     return verify_candidates and shingled_regions is not None and len(candidate_pairs) > 0
 
 
@@ -656,16 +531,7 @@ def _verify_and_filter_pairs(
     shingled_regions: list[ShingledRegion],
     threshold: float,
 ) -> list[SimilarRegionPair]:
-    """Verify candidate pairs and filter by threshold.
-
-    Args:
-        candidate_pairs: Candidate pairs from LSH
-        shingled_regions: Shingled regions for verification
-        threshold: Similarity threshold for filtering
-
-    Returns:
-        Verified and filtered similar pairs
-    """
+    """Verify candidate pairs and filter by threshold."""
     logger.info("Verifying %d candidate pair(s)", len(candidate_pairs))
     verified_pairs = verify_similar_pairs(candidate_pairs, shingled_regions)
 
@@ -685,18 +551,7 @@ def detect_similarity(
     shingled_regions: list[ShingledRegion] | None = None,
     verify_candidates: bool = True,
 ) -> SimilarityResult:
-    """Detect similar regions using LSH.
-
-    Args:
-        signatures: List of region signatures
-        threshold: Jaccard similarity threshold for LSH
-        failed_files: Optional dict of failed files from earlier stages
-        shingled_regions: Optional shingled regions (unused, kept for API compatibility)
-        verify_candidates: If True, verify candidates (unused, kept for API compatibility)
-
-    Returns:
-        SimilarityResult with similar region groups
-    """
+    """Detect similar regions using LSH."""
     # Find groups of similar regions
     similar_groups = find_similar_groups(signatures, threshold=threshold)
 
