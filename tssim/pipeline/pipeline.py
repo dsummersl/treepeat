@@ -28,11 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def _run_parse_stage(target_path: Path) -> ParseResult:
-    """Run parsing stage.
-
-    Returns:
-        Parse result with parsed files and failures
-    """
+    """Run parsing stage."""
     logger.info("Stage 1/5: Parsing...")
     parse_result = parse_path(target_path)
     logger.info(
@@ -46,15 +42,7 @@ def _run_parse_stage(target_path: Path) -> ParseResult:
 def _run_extract_stage(
     parsed_files: list[ParsedFile], include_sections: bool = True
 ) -> list[ExtractedRegion]:
-    """Run region extraction stage.
-
-    Args:
-        parsed_files: List of parsed source files
-        include_sections: If True, create section regions for non-target code
-
-    Returns:
-        List of extracted regions
-    """
+    """Run region extraction stage."""
     logger.info("Stage 2/5: Extracting regions...")
     extracted_regions = extract_all_regions(parsed_files, include_sections)
     logger.info("Extracted %d region(s) from %d file(s)", len(extracted_regions), len(parsed_files))
@@ -64,15 +52,7 @@ def _run_extract_stage(
 def _filter_groups_by_min_lines(
     groups: list[SimilarRegionGroup], min_lines: int
 ) -> list[SimilarRegionGroup]:
-    """Filter similar groups to only include those with at least min_lines in all regions.
-
-    Args:
-        groups: List of similar region groups
-        min_lines: Minimum number of lines for a match
-
-    Returns:
-        Filtered list of groups
-    """
+    """Filter similar groups to only include those meeting the minimum line count in all regions."""
     filtered = []
     for group in groups:
         # Check if all regions meet the min_lines threshold
@@ -93,15 +73,7 @@ def _filter_groups_by_min_lines(
 def _filter_pairs_by_min_lines(
     pairs: list[SimilarRegionPair], min_lines: int
 ) -> list[SimilarRegionPair]:
-    """Filter similar pairs to only include those with at least min_lines.
-
-    Args:
-        pairs: List of similar region pairs
-        min_lines: Minimum number of lines for a match
-
-    Returns:
-        Filtered list of pairs
-    """
+    """Filter similar pairs to only include those meeting the minimum line count."""
     filtered = []
     for pair in pairs:
         lines1 = pair.region1.end_line - pair.region1.start_line + 1
@@ -124,14 +96,7 @@ def _filter_pairs_by_min_lines(
 
 
 def _get_matched_regions_from_groups(groups: list[SimilarRegionGroup]) -> list[Region]:
-    """Extract all matched regions from similar groups.
-
-    Args:
-        groups: List of similar region groups
-
-    Returns:
-        List of all regions that were matched
-    """
+    """Extract all matched regions from similar groups."""
     matched_regions: list[Region] = []
     for group in groups:
         matched_regions.extend(group.regions)
@@ -144,11 +109,7 @@ def _run_shingle_stage(
     rule_engine: RuleEngine,
     settings: PipelineSettings,
 ) -> list[ShingledRegion]:
-    """Run shingling stage.
-
-    Returns:
-        List of shingled regions
-    """
+    """Run shingling stage."""
     logger.info("Stage 3/5: Shingling regions (with rules)...")
     shingled_regions = shingle_regions(
         extracted_regions,
@@ -161,11 +122,7 @@ def _run_shingle_stage(
 
 
 def _run_minhash_stage(shingled_regions: list[ShingledRegion], num_perm: int) -> list[RegionSignature]:
-    """Run MinHash signature computation stage.
-
-    Returns:
-        List of region signatures
-    """
+    """Run MinHash signature computation stage."""
     logger.info("Stage 4/5: Computing MinHash signatures...")
     signatures = compute_region_signatures(shingled_regions, num_perm=num_perm)
     logger.info("Created %d signature(s)", len(signatures))
@@ -178,11 +135,7 @@ def _run_lsh_stage(
     threshold: float,
     failed_files: dict[Path, str],
 ) -> SimilarityResult:
-    """Run LSH similarity detection stage.
-
-    Returns:
-        SimilarityResult with similar pairs
-    """
+    """Run LSH similarity detection stage."""
     logger.info("Stage 5/5: Finding similar pairs...")
     similarity_result = detect_similarity(
         signatures,
@@ -204,16 +157,7 @@ def _run_level1_matching(
     rule_engine: RuleEngine,
     settings: PipelineSettings,
 ) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
-    """Run Level 1: Region-Level Matching (functions/classes).
-
-    Args:
-        parsed_files: List of parsed source files
-        rule_engine: Rule engine for applying transformation rules
-        settings: Pipeline settings
-
-    Returns:
-        Tuple of (filtered groups, signatures)
-    """
+    """Run Level 1 region-level matching for functions and classes."""
     logger.info("===== LEVEL 1: Region-Level Matching =====")
 
     # Extract only functions/classes (no section regions)
@@ -248,17 +192,7 @@ def _run_level2_matching(
     rule_engine: RuleEngine,
     settings: PipelineSettings,
 ) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
-    """Run Level 2: Line-Level Matching (unmatched sections).
-
-    Args:
-        parsed_files: List of parsed source files
-        level1_filtered_groups: Filtered groups from Level 1
-        rule_engine: Rule engine for applying transformation rules
-        settings: Pipeline settings
-
-    Returns:
-        Tuple of (filtered groups, signatures)
-    """
+    """Run Level 2 line-level matching for unmatched sections."""
     logger.info("===== LEVEL 2: Line-Level Matching =====")
 
     # Track matched lines from level 1
@@ -291,7 +225,7 @@ def _run_level2_matching(
 
 
 def run_pipeline(target_path: str | Path) -> SimilarityResult:
-    """Run the full two-level pipeline on a target path. """
+    """Run the full two-level pipeline on a target path."""
     settings = get_settings()
     logger.info("Starting two-level pipeline for: %s (min_lines=%d)", target_path, settings.lsh.min_lines)
 

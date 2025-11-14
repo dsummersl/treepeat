@@ -17,17 +17,7 @@ class RuleOperation(Enum):
 
 @dataclass
 class Rule:
-    """
-    Represents a single rule that can be applied to syntax tree nodes.
-
-    Rules follow the format:
-    <lang|*> : <op> : nodes=<node1|node2|glob*> [,:k=v ...]
-
-    Examples:
-        python:skip:nodes=import_statement|import_from_statement
-        python:replace_value:nodes=string|integer|float,value=<LIT>
-        *:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR
-    """
+    """Represents a single rule that can be applied to syntax tree nodes."""
 
     language: str  # Language name or "*" for all languages
     operation: RuleOperation
@@ -47,7 +37,7 @@ class Rule:
 
     @staticmethod
     def _matches_pattern(node_type: str, pattern: str) -> bool:
-        """Check if a node type matches a pattern (supports * wildcard at end)."""
+        """Check if a node type matches a pattern with wildcard support."""
         if pattern == node_type:
             return True
         if pattern.endswith("*"):
@@ -58,21 +48,13 @@ class Rule:
 
 @dataclass
 class RuleResult:
-    """
-    Result of applying a rule to a node.
-
-    Similar to NormalizationResult but for rules.
-    """
+    """Result of applying a rule to a node."""
 
     name: Optional[str] = None  # New name for the node
     value: Optional[str] = None  # New value for the node
 
 
 class SkipNodeException(Exception):
-    """
-    Exception raised when a rule indicates a node should be skipped.
-
-    Similar to SkipNode from normalizers.
-    """
+    """Exception raised when a rule indicates a node should be skipped."""
 
     pass

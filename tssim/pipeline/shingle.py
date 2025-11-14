@@ -103,11 +103,7 @@ class ASTShingler:
         language: str,
         source: bytes,
     ) -> tuple[str, str | None]:
-        """Apply rules to a node and return the modified name and value.
-
-        Raises:
-            SkipNodeException: If a skip rule matches this node
-        """
+        """Apply rules to a node and return the modified name and value."""
         rule_name, rule_value = self.rule_engine.apply_rules(node, language, name)
         if rule_name is not None:
             name = rule_name
@@ -121,11 +117,7 @@ class ASTShingler:
         language: str,
         source: bytes,
     ) -> NodeRepresentation:
-        """Get the representation of a node with rules applied.
-
-        Raises:
-            SkipNodeException: If a skip rule matches this node (converted to SkipNode for compatibility)
-        """
+        """Get the representation of a node with rules applied."""
         name = node.type
         value = self._extract_node_value(node, source)
         try:
