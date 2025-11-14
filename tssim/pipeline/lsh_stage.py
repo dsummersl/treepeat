@@ -19,7 +19,8 @@ def _create_lsh_index(
     """Create and populate LSH index. """
     num_perm = signatures[0].minhash.hashvalues.shape[0]
 
-    lsh = MinHashLSH(threshold, num_perm)
+    lsh_threshold = min(threshold, 0.98)
+    lsh = MinHashLSH(lsh_threshold, num_perm)
 
     for sig in signatures:
         # Create a unique key for each region (path + line range)
@@ -28,7 +29,7 @@ def _create_lsh_index(
 
     logger.debug(
         "Inserted %d region signatures into LSH index (lsh_threshold=%.2f, filter_threshold=%.2f)",
-        len(signatures), threshold, threshold
+        len(signatures), lsh_threshold, threshold
     )
     return lsh
 

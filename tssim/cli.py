@@ -172,7 +172,7 @@ def _configure_settings(
     rules_file: str,
     shingle_k: int,
     minhash_num_perm: int,
-    lsh_threshold: float,
+    threshold: float,
     min_lines: int,
     ignore: str,
     ignore_files: str,
@@ -184,7 +184,7 @@ def _configure_settings(
         rules_file: Path to file containing rule specifications (one per line)
         shingle_k: Length of k-grams for shingling
         minhash_num_perm: Number of MinHash permutations
-        lsh_threshold: LSH similarity threshold
+        threshold: LSH similarity threshold
         min_lines: Minimum number of lines for a match
         ignore: Comma-separated list of glob patterns to ignore files
         ignore_files: Comma-separated list of glob patterns to find ignore files
@@ -197,7 +197,7 @@ def _configure_settings(
         rules=RulesSettings(rules=rules or None, rules_file=rules_file or None),
         shingle=ShingleSettings(k=shingle_k),
         minhash=MinHashSettings(num_perm=minhash_num_perm),
-        lsh=LSHSettings(threshold=lsh_threshold, min_lines=min_lines),
+        lsh=LSHSettings(threshold=threshold, min_lines=min_lines),
         ignore_patterns=ignore_patterns,
         ignore_file_patterns=ignore_file_patterns,
     )
@@ -257,10 +257,10 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     help="Number of MinHash permutations (default: 128, higher = more accurate)",
 )
 @click.option(
-    "--lsh-threshold",
+    "--threshold",
     type=float,
-    default=0.8,
-    help="LSH similarity threshold 0.0-1.0 (default: 0.5)",
+    default=1.0,
+    help="Filter threshold for similarity (default: 1.0)",
 )
 @click.option(
     "--min-lines",
@@ -302,7 +302,7 @@ def main(
     shingle_k: int,
     shingle_include_text: bool,
     minhash_num_perm: int,
-    lsh_threshold: float,
+    threshold: float,
     min_lines: int,
     output_format: str,
     output: Path | None,
@@ -321,7 +321,7 @@ def main(
         console.print("Try 'tssim --help' for more information.")
         sys.exit(1)
 
-    _configure_settings(rules, rules_file, shingle_k, minhash_num_perm, lsh_threshold, min_lines, ignore, ignore_files)
+    _configure_settings(rules, rules_file, shingle_k, minhash_num_perm, threshold, min_lines, ignore, ignore_files)
     result = _run_pipeline_with_ui(path, output_format)
     _check_result_errors(result, output_format)
     _handle_output(result, output_format, output, log_level)
