@@ -13,6 +13,11 @@ class RulesSettings(BaseSettings):
         env_prefix="RULES_",
     )
 
+    ruleset: str = Field(
+        default="default",
+        description="Ruleset profile to use (none, default)",
+    )
+
     rules: Optional[str] = Field(
         default=None,
         description="Comma-separated list of rule specifications",
