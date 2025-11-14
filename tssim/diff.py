@@ -57,7 +57,7 @@ def _print_equal_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j
     for i, j in zip(range(i1, i2), range(j1, j2)):
         left = _truncate_line(lines1[i], col_width)
         right = _truncate_line(lines2[j], col_width)
-        console.print(f"  {left:<{col_width}} │ {right:<{col_width}}")
+        console.print(f"{left:<{col_width}}│{right:<{col_width}}")
 
 
 def _apply_char_style(text: str, style: str) -> str:
@@ -130,7 +130,7 @@ def _print_replaced_lines(lines1: list[str], lines2: list[str], i1: int, i2: int
             left = f"[{_colors.left_bg}]{' ' * col_width}[/{_colors.left_bg}]"
             right = f"[{_colors.right_bg}]{right_line}{' ' * padding}[/{_colors.right_bg}]"
 
-        console.print(f"  {left} │ {right}")
+        console.print(f"{left}│{right}")
 
 
 def _print_deleted_lines(lines1: list[str], i1: int, i2: int, col_width: int) -> None:
@@ -140,7 +140,7 @@ def _print_deleted_lines(lines1: list[str], i1: int, i2: int, col_width: int) ->
         # Use soft red background for full width
         padding = col_width - len(left_line)
         left = f"[{_colors.left_bg}]{left_line}{' ' * padding}[/{_colors.left_bg}]"
-        console.print(f"  {left} │ {' ' * col_width}")
+        console.print(f"{left}│{' ' * col_width}")
 
 
 def _print_inserted_lines(lines2: list[str], j1: int, j2: int, col_width: int) -> None:
@@ -150,16 +150,16 @@ def _print_inserted_lines(lines2: list[str], j1: int, j2: int, col_width: int) -
         # Use soft green background for full width
         padding = col_width - len(right_line)
         right = f"[{_colors.right_bg}]{right_line}{' ' * padding}[/{_colors.right_bg}]"
-        console.print(f"  {' ' * col_width} │ {right}")
+        console.print(f"{' ' * col_width}│{right}")
 
 
 def _print_diff_header(region1: Region, region2: Region, col_width: int) -> None:
     """Print diff header with file information."""
-    console.print("  [bold]Side-by-side diff:[/bold]")
+    console.print("[bold]Diff:[/bold]")
     header1 = f"{region1.path}:{region1.start_line}-{region1.end_line}"
     header2 = f"{region2.path}:{region2.start_line}-{region2.end_line}"
-    console.print(f"  [dim]{header1:<{col_width}}[/dim] │ [dim]{header2:<{col_width}}[/dim]")
-    console.print(f"  {'-' * col_width} │ {'-' * col_width}")
+    console.print(f"[dim]{header1:<{col_width}}[/dim]│[dim]{header2:<{col_width}}[/dim]")
+    console.print(f"{'-' * col_width}│{'-' * col_width}")
 
 
 def _process_diff_opcodes(
@@ -184,7 +184,7 @@ def display_diff(region1: Region, region2: Region) -> None:
     # Prepare lines from both regions
     prepared = _prepare_diff_lines(region1, region2)
     if prepared is None:
-        console.print("  [yellow]Unable to generate diff (failed to read file content)[/yellow]\n")
+        console.print("[yellow]Unable to generate diff (failed to read file content)[/yellow]\n")
         return
 
     lines1, lines2 = prepared
@@ -195,13 +195,12 @@ def display_diff(region1: Region, region2: Region) -> None:
 
     # Check if regions are identical
     if _regions_are_identical(opcodes):
-        console.print("  [green]No differences found (regions are identical)[/green]\n")
+        console.print("[green]No differences found (regions are identical)[/green]\n")
         return
 
     # Calculate column width
     terminal_width = console.width
-    available_width = terminal_width - 4
-    col_width = available_width // 2
+    col_width = terminal_width // 2
 
     # Display diff
     _print_diff_header(region1, region2, col_width)
