@@ -3,12 +3,12 @@
 import difflib
 import logging
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import click
 from rich.console import Console
 from rich.logging import RichHandler
-from rich.syntax import Syntax
 
 from tssim.config import (
     LSHSettings,
@@ -111,6 +111,121 @@ def _read_region_lines(region: Region) -> list[str]:
         return []
 
 
+def _truncate_line(line: str, max_width: int) -> str:
+    """Truncate a line to fit within max_width.
+
+    Args:
+        line: Line to truncate
+        max_width: Maximum width
+
+    Returns:
+        Truncated line if necessary, original otherwise
+    """
+    return line[:max_width] if len(line) > max_width else line
+
+
+def _print_equal_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int) -> None:
+    """Print equal (matching) lines side-by-side."""
+    for i, j in zip(range(i1, i2), range(j1, j2)):
+        left = _truncate_line(lines1[i], col_width)
+        right = _truncate_line(lines2[j], col_width)
+        console.print(f"  {left:<{col_width}} | {right:<{col_width}}")
+
+
+def _print_replaced_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int) -> None:
+    """Print replaced (changed) lines side-by-side."""
+    max_len = max(i2 - i1, j2 - j1)
+    for idx in range(max_len):
+        left = ""
+        left_display = ""
+
+        if idx < (i2 - i1):
+            left_line = _truncate_line(lines1[i1 + idx], col_width - 2)
+            left = f"[red]- {left_line}[/red]"
+            left_display = f"- {left_line}"
+
+        right = ""
+        if idx < (j2 - j1):
+            right_line = _truncate_line(lines2[j1 + idx], col_width - 2)
+            right = f"[green]+ {right_line}[/green]"
+
+        # Calculate padding for left side
+        padding = col_width - len(left_display)
+        console.print(f"  {left}{' ' * padding} | {right}")
+
+
+def _print_deleted_lines(lines1: list[str], i1: int, i2: int, col_width: int) -> None:
+    """Print deleted lines (only on left side)."""
+    for i in range(i1, i2):
+        left_line = _truncate_line(lines1[i], col_width - 2)
+        left = f"[red]- {left_line}[/red]"
+        left_display = f"- {left_line}"
+        padding = col_width - len(left_display)
+        console.print(f"  {left}{' ' * padding} | {' ' * col_width}")
+
+
+def _print_inserted_lines(lines2: list[str], j1: int, j2: int, col_width: int) -> None:
+    """Print inserted lines (only on right side)."""
+    for j in range(j1, j2):
+        right_line = _truncate_line(lines2[j], col_width - 2)
+        right = f"[green]+ {right_line}[/green]"
+        console.print(f"  {' ' * col_width} | {right}")
+
+
+def _prepare_diff_lines(region1: Region, region2: Region) -> tuple[list[str], list[str]] | None:
+    """Read and prepare lines from both regions for diff.
+
+    Returns:
+        Tuple of (lines1, lines2) if successful, None otherwise
+    """
+    lines1 = _read_region_lines(region1)
+    lines2 = _read_region_lines(region2)
+
+    if not lines1:
+        return None
+    if not lines2:
+        return None
+
+    # Strip newlines from lines
+    lines1 = [line.rstrip('\n\r') for line in lines1]
+    lines2 = [line.rstrip('\n\r') for line in lines2]
+
+    return (lines1, lines2)
+
+
+def _regions_are_identical(opcodes: Sequence[tuple[str, int, int, int, int]]) -> bool:
+    """Check if opcodes indicate identical regions."""
+    if len(opcodes) != 1:
+        return False
+    return opcodes[0][0] == 'equal'
+
+
+def _print_diff_header(region1: Region, region2: Region, col_width: int) -> None:
+    """Print diff header with file information."""
+    console.print("  [bold]Side-by-side diff:[/bold]")
+    header1 = f"{region1.path}:{region1.start_line}-{region1.end_line}"
+    header2 = f"{region2.path}:{region2.start_line}-{region2.end_line}"
+    console.print(f"  [dim]{header1:<{col_width}}[/dim] | [dim]{header2:<{col_width}}[/dim]")
+    console.print(f"  {'-' * col_width} | {'-' * col_width}")
+
+
+def _process_diff_opcodes(
+    lines1: list[str], lines2: list[str], opcodes: Sequence[tuple[str, int, int, int, int]], col_width: int
+) -> None:
+    """Process diff opcodes and display changes."""
+    handlers = {
+        'equal': lambda i1, i2, j1, j2: _print_equal_lines(lines1, lines2, i1, i2, j1, j2, col_width),
+        'replace': lambda i1, i2, j1, j2: _print_replaced_lines(lines1, lines2, i1, i2, j1, j2, col_width),
+        'delete': lambda i1, i2, j1, j2: _print_deleted_lines(lines1, i1, i2, col_width),
+        'insert': lambda i1, i2, j1, j2: _print_inserted_lines(lines2, j1, j2, col_width),
+    }
+
+    for tag, i1, i2, j1, j2 in opcodes:
+        handler = handlers.get(tag)
+        if handler:
+            handler(i1, i2, j1, j2)
+
+
 def _display_diff(region1: Region, region2: Region) -> None:
     """Display a side-by-side diff between two regions.
 
@@ -118,94 +233,31 @@ def _display_diff(region1: Region, region2: Region) -> None:
         region1: First region to compare
         region2: Second region to compare
     """
-    lines1 = _read_region_lines(region1)
-    lines2 = _read_region_lines(region2)
-
-    if not lines1 or not lines2:
+    # Prepare lines from both regions
+    prepared = _prepare_diff_lines(region1, region2)
+    if prepared is None:
         console.print("  [yellow]Unable to generate diff (failed to read file content)[/yellow]\n")
         return
 
-    # Strip newlines from lines
-    lines1 = [line.rstrip('\n\r') for line in lines1]
-    lines2 = [line.rstrip('\n\r') for line in lines2]
+    lines1, lines2 = prepared
 
     # Use SequenceMatcher to get diff opcodes
     matcher = difflib.SequenceMatcher(None, lines1, lines2)
     opcodes = matcher.get_opcodes()
 
     # Check if regions are identical
-    if len(opcodes) == 1 and opcodes[0][0] == 'equal':
+    if _regions_are_identical(opcodes):
         console.print("  [green]No differences found (regions are identical)[/green]\n")
         return
 
-    # Display header
-    console.print("  [bold]Side-by-side diff:[/bold]")
-    header1 = f"{region1.path}:{region1.start_line}-{region1.end_line}"
-    header2 = f"{region2.path}:{region2.start_line}-{region2.end_line}"
-
-    # Get terminal width and calculate column width
+    # Calculate column width
     terminal_width = console.width
-    # Reserve space for: "  " (indent) + " " + "|" + " "
     available_width = terminal_width - 4
     col_width = available_width // 2
 
-    # Print headers
-    console.print(f"  [dim]{header1:<{col_width}}[/dim] | [dim]{header2:<{col_width}}[/dim]")
-    console.print(f"  {'-' * col_width} | {'-' * col_width}")
-
-    # Process opcodes and display side-by-side
-    for tag, i1, i2, j1, j2 in opcodes:
-        if tag == 'equal':
-            # Display matching lines
-            for i, j in zip(range(i1, i2), range(j1, j2)):
-                left = lines1[i][:col_width] if len(lines1[i]) > col_width else lines1[i]
-                right = lines2[j][:col_width] if len(lines2[j]) > col_width else lines2[j]
-                console.print(f"  {left:<{col_width}} | {right:<{col_width}}")
-
-        elif tag == 'replace':
-            # Display changed lines
-            max_len = max(i2 - i1, j2 - j1)
-            for idx in range(max_len):
-                left = ""
-                right = ""
-
-                if idx < (i2 - i1):
-                    left_line = lines1[i1 + idx][:col_width-2] if len(lines1[i1 + idx]) > col_width-2 else lines1[i1 + idx]
-                    left = f"[red]- {left_line}[/red]"
-                    left_display = f"- {left_line}"
-                else:
-                    left_display = ""
-
-                if idx < (j2 - j1):
-                    right_line = lines2[j1 + idx][:col_width-2] if len(lines2[j1 + idx]) > col_width-2 else lines2[j1 + idx]
-                    right = f"[green]+ {right_line}[/green]"
-                    right_display = f"+ {right_line}"
-                else:
-                    right_display = ""
-
-                # Calculate padding for left side (accounting for markup)
-                left_len = len(left_display)
-                padding = col_width - left_len
-
-                console.print(f"  {left}{' ' * padding} | {right}")
-
-        elif tag == 'delete':
-            # Display deleted lines (only on left)
-            for i in range(i1, i2):
-                left_line = lines1[i][:col_width-2] if len(lines1[i]) > col_width-2 else lines1[i]
-                left = f"[red]- {left_line}[/red]"
-                left_display = f"- {left_line}"
-                left_len = len(left_display)
-                padding = col_width - left_len
-                console.print(f"  {left}{' ' * padding} | {' ' * col_width}")
-
-        elif tag == 'insert':
-            # Display inserted lines (only on right)
-            for j in range(j1, j2):
-                right_line = lines2[j][:col_width-2] if len(lines2[j]) > col_width-2 else lines2[j]
-                right = f"[green]+ {right_line}[/green]"
-                console.print(f"  {' ' * col_width} | {right}")
-
+    # Display diff
+    _print_diff_header(region1, region2, col_width)
+    _process_diff_opcodes(lines1, lines2, opcodes, col_width)
     console.print()
 
 
