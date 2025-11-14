@@ -17,7 +17,7 @@ from tssim.config import (
     set_settings,
 )
 from tssim.formatters import format_as_json, format_as_sarif
-from tssim.models.similarity import RegionSignature, SimilarityResult
+from tssim.models.similarity import RegionSignature, SimilarRegionGroup, SimilarityResult
 from tssim.pipeline.pipeline import run_pipeline
 
 console = Console()
@@ -77,6 +77,40 @@ def display_processed_regions(result: SimilarityResult) -> None:
             )
 
 
+def _get_group_sort_key(group: SimilarRegionGroup) -> tuple[float, float]:
+    """Get sort key for a similarity group.
+
+    Args:
+        group: SimilarRegionGroup to sort
+
+    Returns:
+        Tuple of (similarity, average line count)
+    """
+    avg_lines = sum(r.end_line - r.start_line + 1 for r in group.regions) / len(group.regions)
+    return (group.similarity, avg_lines)
+
+
+def _display_group(group: SimilarRegionGroup) -> None:
+    """Display a single similarity group.
+
+    Args:
+        group: SimilarRegionGroup to display
+    """
+    # Display similarity group header
+    console.print(f"Similar group found ([bold]{group.similarity:.1%}[/bold] similar, {group.size} regions):")
+
+    # Display all regions in the group
+    for i, region in enumerate(group.regions):
+        lines = region.end_line - region.start_line + 1
+        prefix = "  - " if i == 0 else "    "
+        console.print(
+            f"{prefix}{region.path} [{region.start_line}:{region.end_line}] "
+            f"({lines} lines) {region.region_name}"
+        )
+
+    console.print()  # Blank line between groups
+
+
 def display_similar_groups(result: SimilarityResult) -> None:
     """Display similar region groups."""
     if not result.similar_groups:
@@ -84,29 +118,10 @@ def display_similar_groups(result: SimilarityResult) -> None:
         return
 
     console.print("\n[bold cyan]Similar Regions:[/bold cyan]")
-    # Sort groups by similarity, then by average line count (ascending)
-    sorted_groups = sorted(
-        result.similar_groups,
-        key=lambda group: (
-            group.similarity,  # similarity ascending
-            sum(r.end_line - r.start_line + 1 for r in group.regions) / len(group.regions),  # average line count
-        ),
-    )
+    sorted_groups = sorted(result.similar_groups, key=_get_group_sort_key)
 
     for group in sorted_groups:
-        # Display similarity group header
-        console.print(f"Similar group found ([bold]{group.similarity:.1%}[/bold] similar, {group.size} regions):")
-
-        # Display all regions in the group
-        for i, region in enumerate(group.regions):
-            lines = region.end_line - region.start_line + 1
-            prefix = "  - " if i == 0 else "    "
-            console.print(
-                f"{prefix}{region.path} [{region.start_line}:{region.end_line}] "
-                f"({lines} lines) {region.region_name}"
-            )
-
-        console.print()  # Blank line between groups
+        _display_group(group)
 
 
 def display_similar_pairs(result: SimilarityResult) -> None:
