@@ -268,15 +268,16 @@ class DiffColors:
 LIGHT_MODE_COLORS = DiffColors(
     left_bg="on rgb(255,235,235)",    # Soft pink background
     right_bg="on rgb(235,255,235)",   # Soft mint background
-    left_fg="bold rgb(220,0,0)",      # Bright red text
-    right_fg="bold rgb(0,180,0)",     # Bright green text
+    left_fg="bold rgb(120,25,25)",      # Muted red text
+    right_fg="bold rgb(0,100,0)",     # Muted green text
 )
 
 DARK_MODE_COLORS = DiffColors(
     left_bg="on rgb(60,20,20)",       # Dark red background
     right_bg="on rgb(20,60,20)",      # Dark green background
-    left_fg="bold rgb(255,120,120)",  # Light red text
-    right_fg="bold rgb(120,255,120)", # Light green text
+    left_fg="bold rgb(170,40,40)",  # Muted light red text
+    right_fg="bold rgb(40,170,40)", # Muted light green text
+
 )
 
 
