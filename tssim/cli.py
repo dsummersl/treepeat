@@ -112,7 +112,7 @@ def _read_region_lines(region: Region) -> list[str]:
 
 
 def _display_diff(region1: Region, region2: Region) -> None:
-    """Display a unified diff between two regions.
+    """Display a side-by-side diff between two regions.
 
     Args:
         region1: First region to compare
@@ -125,25 +125,87 @@ def _display_diff(region1: Region, region2: Region) -> None:
         console.print("  [yellow]Unable to generate diff (failed to read file content)[/yellow]\n")
         return
 
-    # Generate unified diff
-    diff_lines = difflib.unified_diff(
-        lines1,
-        lines2,
-        fromfile=f"{region1.path}:{region1.start_line}-{region1.end_line}",
-        tofile=f"{region2.path}:{region2.start_line}-{region2.end_line}",
-        lineterm="",
-    )
+    # Strip newlines from lines
+    lines1 = [line.rstrip('\n\r') for line in lines1]
+    lines2 = [line.rstrip('\n\r') for line in lines2]
 
-    diff_text = "\n".join(diff_lines)
+    # Use SequenceMatcher to get diff opcodes
+    matcher = difflib.SequenceMatcher(None, lines1, lines2)
+    opcodes = matcher.get_opcodes()
 
-    if not diff_text:
+    # Check if regions are identical
+    if len(opcodes) == 1 and opcodes[0][0] == 'equal':
         console.print("  [green]No differences found (regions are identical)[/green]\n")
         return
 
-    # Display diff with syntax highlighting using Rich
-    console.print("  [bold]Diff:[/bold]")
-    syntax = Syntax(diff_text, "diff", theme="monokai", line_numbers=False, word_wrap=True)
-    console.print(syntax)
+    # Display header
+    console.print("  [bold]Side-by-side diff:[/bold]")
+    header1 = f"{region1.path}:{region1.start_line}-{region1.end_line}"
+    header2 = f"{region2.path}:{region2.start_line}-{region2.end_line}"
+
+    # Get terminal width and calculate column width
+    terminal_width = console.width
+    # Reserve space for: "  " (indent) + " " + "|" + " "
+    available_width = terminal_width - 4
+    col_width = available_width // 2
+
+    # Print headers
+    console.print(f"  [dim]{header1:<{col_width}}[/dim] | [dim]{header2:<{col_width}}[/dim]")
+    console.print(f"  {'-' * col_width} | {'-' * col_width}")
+
+    # Process opcodes and display side-by-side
+    for tag, i1, i2, j1, j2 in opcodes:
+        if tag == 'equal':
+            # Display matching lines
+            for i, j in zip(range(i1, i2), range(j1, j2)):
+                left = lines1[i][:col_width] if len(lines1[i]) > col_width else lines1[i]
+                right = lines2[j][:col_width] if len(lines2[j]) > col_width else lines2[j]
+                console.print(f"  {left:<{col_width}} | {right:<{col_width}}")
+
+        elif tag == 'replace':
+            # Display changed lines
+            max_len = max(i2 - i1, j2 - j1)
+            for idx in range(max_len):
+                left = ""
+                right = ""
+
+                if idx < (i2 - i1):
+                    left_line = lines1[i1 + idx][:col_width-2] if len(lines1[i1 + idx]) > col_width-2 else lines1[i1 + idx]
+                    left = f"[red]- {left_line}[/red]"
+                    left_display = f"- {left_line}"
+                else:
+                    left_display = ""
+
+                if idx < (j2 - j1):
+                    right_line = lines2[j1 + idx][:col_width-2] if len(lines2[j1 + idx]) > col_width-2 else lines2[j1 + idx]
+                    right = f"[green]+ {right_line}[/green]"
+                    right_display = f"+ {right_line}"
+                else:
+                    right_display = ""
+
+                # Calculate padding for left side (accounting for markup)
+                left_len = len(left_display)
+                padding = col_width - left_len
+
+                console.print(f"  {left}{' ' * padding} | {right}")
+
+        elif tag == 'delete':
+            # Display deleted lines (only on left)
+            for i in range(i1, i2):
+                left_line = lines1[i][:col_width-2] if len(lines1[i]) > col_width-2 else lines1[i]
+                left = f"[red]- {left_line}[/red]"
+                left_display = f"- {left_line}"
+                left_len = len(left_display)
+                padding = col_width - left_len
+                console.print(f"  {left}{' ' * padding} | {' ' * col_width}")
+
+        elif tag == 'insert':
+            # Display inserted lines (only on right)
+            for j in range(j1, j2):
+                right_line = lines2[j][:col_width-2] if len(lines2[j]) > col_width-2 else lines2[j]
+                right = f"[green]+ {right_line}[/green]"
+                console.print(f"  {' ' * col_width} | {right}")
+
     console.print()
 
 
@@ -444,10 +506,10 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     help="Comma-separated list of glob patterns to find ignore files (default: '**/.*ignore')",
 )
 @click.option(
-    "--show-diff",
+    "--diff",
     is_flag=True,
     default=False,
-    help="Show inline diff between the first two files in each similar group (console format only)",
+    help="Show side-by-side diff between the first two files in each similar group (console format only)",
 )
 def main(
     path: Path | None,
@@ -462,7 +524,7 @@ def main(
     output: Path | None,
     ignore: str,
     ignore_files: str,
-    show_diff: bool,
+    diff: bool,
 ) -> None:
     """
     Analyze code similarity in PATH.
@@ -492,7 +554,7 @@ def main(
     )
     result = _run_pipeline_with_ui(path, output_format)
     _check_result_errors(result, output_format)
-    _handle_output(result, output_format, output, log_level, show_diff)
+    _handle_output(result, output_format, output, log_level, diff)
 
 
 if __name__ == "__main__":
