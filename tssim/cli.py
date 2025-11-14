@@ -308,6 +308,12 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     default=False,
     help="Show side-by-side diff between the first two files in each similar group (console format only)",
 )
+@click.option(
+    "--strict",
+    is_flag=True,
+    default=False,
+    help="Exit with error code 1 if any similar blocks are detected",
+)
 def main(
     path: Path | None,
     log_level: str,
@@ -322,6 +328,7 @@ def main(
     ignore: str,
     ignore_files: str,
     diff: bool,
+    strict: bool,
 ) -> None:
     """Analyze code similarity in a file or directory."""
     setup_logging(log_level.upper())
@@ -348,6 +355,10 @@ def main(
     result = _run_pipeline_with_ui(path, output_format)
     _check_result_errors(result, output_format)
     _handle_output(result, output_format, output, log_level, diff)
+
+    # Exit with error code 1 in strict mode if any similar blocks are detected
+    if strict and result.similar_groups:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
