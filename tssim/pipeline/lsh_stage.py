@@ -5,7 +5,9 @@ from pathlib import Path
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
 
+from tssim.models.shingle import ShingledRegion
 from tssim.models.similarity import Region, RegionSignature, SimilarRegionPair, SimilarityResult
+from tssim.pipeline.verification import verify_similar_pairs
 
 logger = logging.getLogger(__name__)
 
@@ -381,19 +383,38 @@ def detect_similarity(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
     failed_files: dict[Path, str] | None = None,
+    shingled_regions: list[ShingledRegion] | None = None,
+    verify_candidates: bool = True,
 ) -> SimilarityResult:
-    """Detect similar regions using LSH.
+    """Detect similar regions using LSH with optional verification.
 
     Args:
         signatures: List of region signatures
-        threshold: Jaccard similarity threshold for LSH
+        threshold: Jaccard similarity threshold for LSH and verification
         failed_files: Optional dict of failed files from earlier stages
+        shingled_regions: Optional shingled regions for verification
+        verify_candidates: If True, verify candidates with order-sensitive similarity
 
     Returns:
         SimilarityResult with similar region pairs
     """
-    # Find similar pairs using LSH
-    similar_pairs = find_similar_pairs(signatures, threshold=threshold)
+    # Find candidate similar pairs using LSH
+    candidate_pairs = find_similar_pairs(signatures, threshold=threshold)
+
+    # Verify candidates if enabled and shingled regions provided
+    if verify_candidates and shingled_regions is not None and candidate_pairs:
+        logger.info("Verifying %d candidate pair(s)", len(candidate_pairs))
+        verified_pairs = verify_similar_pairs(candidate_pairs, shingled_regions)
+
+        # Filter verified pairs by threshold
+        similar_pairs = [p for p in verified_pairs if p.similarity >= threshold]
+        if len(similar_pairs) < len(verified_pairs):
+            logger.info(
+                "Filtered %d pair(s) below threshold after verification",
+                len(verified_pairs) - len(similar_pairs),
+            )
+    else:
+        similar_pairs = candidate_pairs
 
     return SimilarityResult(
         signatures=signatures,
