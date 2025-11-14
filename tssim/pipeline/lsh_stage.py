@@ -2,11 +2,18 @@
 
 import logging
 from pathlib import Path
+from typing import Hashable
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
 
 from tssim.models.shingle import ShingledRegion
-from tssim.models.similarity import Region, RegionSignature, SimilarRegionPair, SimilarRegionGroup, SimilarityResult
+from tssim.models.similarity import (
+    Region,
+    RegionSignature,
+    SimilarRegionPair,
+    SimilarRegionGroup,
+    SimilarityResult,
+)
 from tssim.pipeline.verification import verify_similar_pairs
 
 logger = logging.getLogger(__name__)
@@ -16,7 +23,7 @@ def _create_lsh_index(
     signatures: list[RegionSignature],
     threshold: float,
 ) -> MinHashLSH:
-    """Create and populate LSH index. """
+    """Create and populate LSH index."""
     num_perm = signatures[0].minhash.hashvalues.shape[0]
 
     lsh_threshold = min(threshold, 0.98)
@@ -29,24 +36,18 @@ def _create_lsh_index(
 
     logger.debug(
         "Inserted %d region signatures into LSH index (lsh_threshold=%.2f, filter_threshold=%.2f)",
-        len(signatures), lsh_threshold, threshold
+        len(signatures),
+        lsh_threshold,
+        threshold,
     )
     return lsh
 
 
 def _find_signature_by_key(
     signatures: list[RegionSignature],
-    key: str,
+    key: Hashable,
 ) -> RegionSignature | None:
-    """Find signature by region key.
-
-    Args:
-        signatures: List of signatures to search
-        key: Region key (path:start-end) to find
-
-    Returns:
-        Matching signature or None
-    """
+    """Find signature by region key. """
     return next(
         (
             s
@@ -61,19 +62,7 @@ def _create_similar_pair(
     sig1: RegionSignature,
     sig2: RegionSignature,
 ) -> SimilarRegionPair:
-    """Create a similar region pair with computed similarity.
-
-    Args:
-        sig1: First signature
-        sig2: Second signature
-
-    Returns:
-        SimilarRegionPair with Jaccard similarity
-
-    Note:
-        If both signatures have zero shingles, similarity is set to 0.0
-        (not 1.0) because empty regions shouldn't be considered similar.
-    """
+    """Create a similar region pair with computed similarity. """
     # If both regions have no shingles, they should not be considered similar
     # (even though mathematically Jaccard(∅, ∅) = 1.0)
     if sig1.shingle_count == 0 and sig2.shingle_count == 0:
@@ -95,18 +84,7 @@ def _is_valid_pair_candidate(
     similar_key: str,
     seen_pairs: set[tuple[str, str]],
 ) -> bool:
-    """Check if a pair is a valid candidate for similarity comparison.
-
-    Args:
-        sig: Current signature
-        similar_sig: Similar signature
-        current_key: Key of current region
-        similar_key: Key of similar region
-        seen_pairs: Set of already processed pair keys
-
-    Returns:
-        True if pair is valid for comparison
-    """
+    """Check if a pair is a valid candidate for similarity comparison. """
     # Skip self-overlapping pairs
     if _regions_overlap(sig.region, similar_sig.region):
         return False
@@ -125,19 +103,7 @@ def _process_candidate_pair(
     seen_pairs: set[tuple[str, str]],
     threshold: float,
 ) -> SimilarRegionPair | None:
-    """Process a candidate similar pair.
-
-    Args:
-        sig: Current signature
-        similar_key: Key of potentially similar region
-        current_key: Key of current region
-        signatures: All signatures
-        seen_pairs: Set of already processed pair keys
-        threshold: Similarity threshold
-
-    Returns:
-        SimilarRegionPair if valid and above threshold, None otherwise
-    """
+    """Process a candidate similar pair. """
     if similar_key == current_key:
         return None
 
@@ -173,18 +139,7 @@ def _process_signature_candidates(
     seen_pairs: set[tuple[str, str]],
     threshold: float,
 ) -> list[SimilarRegionPair]:
-    """Process all candidate pairs for a signature.
-
-    Args:
-        sig: Signature to find candidates for
-        lsh: LSH index
-        signatures: All signatures
-        seen_pairs: Set of already processed pair keys
-        threshold: Similarity threshold
-
-    Returns:
-        List of valid similar pairs
-    """
+    """Process all candidate pairs for a signature. """
     pairs: list[SimilarRegionPair] = []
     similar_keys = lsh.query(sig.minhash)
     current_key = f"{sig.region.path}:{sig.region.start_line}-{sig.region.end_line}"
@@ -236,12 +191,14 @@ def _pairs_have_overlap(pair1: SimilarRegionPair, pair2: SimilarRegionPair) -> b
     Returns:
         True if any regions overlap
     """
-    return any([
-        _regions_overlap(pair1.region1, pair2.region1),
-        _regions_overlap(pair1.region1, pair2.region2),
-        _regions_overlap(pair1.region2, pair2.region1),
-        _regions_overlap(pair1.region2, pair2.region2),
-    ])
+    return any(
+        [
+            _regions_overlap(pair1.region1, pair2.region1),
+            _regions_overlap(pair1.region1, pair2.region2),
+            _regions_overlap(pair1.region2, pair2.region1),
+            _regions_overlap(pair1.region2, pair2.region2),
+        ]
+    )
 
 
 def _pair_overlaps_with_any(
@@ -277,9 +234,7 @@ def _filter_overlapping_pairs(pairs: list[SimilarRegionPair]) -> list[SimilarReg
 
     # Sort by size (largest first) for greedy selection
     sorted_pairs = sorted(
-        pairs,
-        key=lambda p: (_region_size(p.region1) + _region_size(p.region2)),
-        reverse=True
+        pairs, key=lambda p: (_region_size(p.region1) + _region_size(p.region2)), reverse=True
     )
 
     kept_pairs: list[SimilarRegionPair] = []
@@ -288,16 +243,24 @@ def _filter_overlapping_pairs(pairs: list[SimilarRegionPair]) -> list[SimilarReg
         if _pair_overlaps_with_any(candidate, kept_pairs):
             logger.debug(
                 "Filtering out pair %s:%d-%d ↔ %s:%d-%d (overlaps with kept pair)",
-                candidate.region1.region_name, candidate.region1.start_line, candidate.region1.end_line,
-                candidate.region2.region_name, candidate.region2.start_line, candidate.region2.end_line,
+                candidate.region1.region_name,
+                candidate.region1.start_line,
+                candidate.region1.end_line,
+                candidate.region2.region_name,
+                candidate.region2.start_line,
+                candidate.region2.end_line,
             )
             continue
 
         kept_pairs.append(candidate)
         logger.debug(
             "Keeping pair %s:%d-%d ↔ %s:%d-%d (size: %d lines)",
-            candidate.region1.region_name, candidate.region1.start_line, candidate.region1.end_line,
-            candidate.region2.region_name, candidate.region2.start_line, candidate.region2.end_line,
+            candidate.region1.region_name,
+            candidate.region1.start_line,
+            candidate.region1.end_line,
+            candidate.region2.region_name,
+            candidate.region2.start_line,
+            candidate.region2.end_line,
             _region_size(candidate.region1) + _region_size(candidate.region2),
         )
 
@@ -327,8 +290,10 @@ def _collect_candidate_pairs(
         if sig_pairs:
             logger.debug(
                 "Query for %s:%d-%d returned %d candidate pair(s)",
-                sig.region.region_name, sig.region.start_line, sig.region.end_line,
-                len(sig_pairs)
+                sig.region.region_name,
+                sig.region.start_line,
+                sig.region.end_line,
+                len(sig_pairs),
             )
         pairs.extend(sig_pairs)
 
@@ -400,15 +365,7 @@ class UnionFind:
 
 
 def _compute_pair_similarity(sig1: RegionSignature, sig2: RegionSignature) -> float:
-    """Compute similarity between two signatures.
-
-    Args:
-        sig1: First signature
-        sig2: Second signature
-
-    Returns:
-        Jaccard similarity (0.0 if both have zero shingles)
-    """
+    """Compute similarity between two signatures. """
     if sig1.shingle_count == 0 and sig2.shingle_count == 0:
         return 0.0
     return float(sig1.minhash.jaccard(sig2.minhash))
@@ -432,48 +389,48 @@ def _calculate_group_similarity(
     pair_count = 0
 
     for i, sig1 in enumerate(group_sigs):
-        for sig2 in group_sigs[i + 1:]:
+        for sig2 in group_sigs[i + 1 :]:
             total_similarity += _compute_pair_similarity(sig1, sig2)
             pair_count += 1
 
     return total_similarity / pair_count if pair_count > 0 else 1.0
 
 
-def _union_similar_keys(
+def _is_pairwise_similar(
+    other_key: Hashable,
+    sig: RegionSignature,
+    signatures: list[RegionSignature],
+    threshold: float,
+) -> bool:
+    similar_sig = _find_signature_by_key(signatures, other_key)
+    if similar_sig is None:
+        return False
+
+    if _regions_overlap(sig.region, similar_sig.region):
+        return False
+
+    similarity = _compute_pair_similarity(sig, similar_sig)
+    if similarity < threshold:
+        return False
+
+    return True
+
+
+def _append_pairwise_similar(
     uf: UnionFind,
     current_key: str,
-    similar_keys: list[str],
+    similar_keys: list[Hashable],
     sig: RegionSignature,
     signatures: list[RegionSignature],
     threshold: float,
 ) -> None:
-    """Union a signature with its similar keys that meet the threshold.
-
-    Args:
-        uf: Union-find structure
-        current_key: Key of current signature
-        similar_keys: Keys of similar signatures
-        sig: Current signature
-        signatures: All signatures
-        threshold: Minimum similarity threshold for unioning
-    """
-    for similar_key in similar_keys:
-        if similar_key == current_key:
-            continue
-
-        similar_sig = _find_signature_by_key(signatures, similar_key)
-        if similar_sig is None:
-            continue
-
-        if _regions_overlap(sig.region, similar_sig.region):
-            continue
-
-        # Check actual pairwise similarity before unioning
-        similarity = _compute_pair_similarity(sig, similar_sig)
-        if similarity < threshold:
-            continue
-
-        uf.union(current_key, similar_key)
+    pairwise_similar_keys = [
+        sk for sk in similar_keys
+        if _is_pairwise_similar(sk, sig, signatures, threshold)
+        if sk != current_key
+    ]
+    for similar_key in pairwise_similar_keys:
+        uf.union(current_key, str(similar_key))
 
 
 def _build_union_find_from_lsh(
@@ -481,16 +438,7 @@ def _build_union_find_from_lsh(
     lsh: MinHashLSH,
     threshold: float,
 ) -> tuple[UnionFind, dict[str, RegionSignature]]:
-    """Build union-find structure from LSH queries.
-
-    Args:
-        signatures: List of region signatures
-        lsh: LSH index
-        threshold: Minimum similarity threshold
-
-    Returns:
-        Tuple of (union-find structure, key-to-signature mapping)
-    """
+    """Build union-find structure from LSH queries. """
     uf = UnionFind()
     key_to_sig: dict[str, RegionSignature] = {}
 
@@ -501,11 +449,13 @@ def _build_union_find_from_lsh(
         similar_keys = lsh.query(sig.minhash)
         logger.debug(
             "Query for %s:%d-%d returned %d similar key(s)",
-            sig.region.region_name, sig.region.start_line, sig.region.end_line,
-            len(similar_keys)
+            sig.region.region_name,
+            sig.region.start_line,
+            sig.region.end_line,
+            len(similar_keys),
         )
 
-        _union_similar_keys(uf, current_key, similar_keys, sig, signatures, threshold)
+        _append_pairwise_similar(uf, current_key, similar_keys, sig, signatures, threshold)
 
     return uf, key_to_sig
 
