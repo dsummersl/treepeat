@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.table import Table
 
 from tssim.config import (
     LSHSettings,
@@ -18,7 +19,7 @@ from tssim.config import (
 )
 from tssim.diff import display_diff
 from tssim.formatters import format_as_sarif
-from tssim.models.similarity import RegionSignature, SimilarRegionGroup, SimilarityResult
+from tssim.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
 from tssim.pipeline.pipeline import run_pipeline
 
 console = Console()
@@ -72,6 +73,13 @@ def _get_group_sort_key(group: SimilarRegionGroup) -> tuple[float, float]:
     return (group.similarity, avg_lines)
 
 
+def _format_region_name(region: Region) -> str:
+    """Format region name with type if not lines."""
+    if region.region_type == "lines":
+        return region.region_name
+    return f"{region.region_name}({region.region_type})"
+
+
 def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
     """Display a single similarity group with optional diff."""
     # Display similarity group header
@@ -81,9 +89,10 @@ def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
     for i, region in enumerate(group.regions):
         lines = region.end_line - region.start_line + 1
         prefix = "  - " if i == 0 else "    "
+        region_display = _format_region_name(region)
         console.print(
             f"{prefix}{region.path} [{region.start_line}:{region.end_line}] "
-            f"({lines} lines) {region.region_name}"
+            f"({lines} lines) {region_display}"
         )
 
     # Show diff if requested and we have at least 2 regions
@@ -117,6 +126,55 @@ def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
         console.print(f"  [red]✗[/red] {file_path}")
         if show_details:
             console.print(f"    [dim]{error}[/dim]")
+
+
+def _collect_format_statistics(similar_groups: list[SimilarRegionGroup]) -> dict[str, dict[str, int | set[Path]]]:
+    """Collect statistics by language/format from similar groups."""
+    stats_by_format: dict[str, dict[str, int | set[Path]]] = {}
+
+    for group in similar_groups:
+        for region in group.regions:
+            language = region.language
+            if language not in stats_by_format:
+                stats_by_format[language] = {"files": set(), "groups": 0, "lines": 0}
+
+            stats = stats_by_format[language]
+            stats["files"].add(region.path)  # type: ignore[union-attr]
+            stats["lines"] += region.end_line - region.start_line + 1  # type: ignore[operator]
+
+        # Count group once per language (use first region's language)
+        if group.regions:
+            first_language = group.regions[0].language
+            stats_by_format[first_language]["groups"] += 1  # type: ignore[operator]
+
+    return stats_by_format
+
+
+def display_summary_table(result: SimilarityResult) -> None:
+    """Display summary table with statistics by format."""
+    if not result.similar_groups:
+        return
+
+    stats_by_format = _collect_format_statistics(result.similar_groups)
+
+    # Create summary table
+    table = Table(title="\n[bold cyan]Summary[/bold cyan]", show_header=True, header_style="bold")
+    table.add_column("Format", style="cyan")
+    table.add_column("# Files", justify="right")
+    table.add_column("Groups Found", justify="right")
+    table.add_column("Lines", justify="right")
+
+    # Sort by format name
+    for language in sorted(stats_by_format.keys()):
+        stats = stats_by_format[language]
+        table.add_row(
+            language,
+            str(len(stats["files"])),  # type: ignore[arg-type]
+            str(stats["groups"]),
+            str(stats["lines"]),
+        )
+
+    console.print(table)
 
 
 def _write_output(text: str, output_path: Path | None) -> None:
@@ -154,6 +212,7 @@ def _handle_output(
     else:  # console
         display_similar_groups(result, show_diff=show_diff)
         display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
+        display_summary_table(result)
         console.print()
 
 
