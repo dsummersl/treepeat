@@ -124,34 +124,34 @@ class RuleEngine:
         self._identifier_counters.clear()
 
 
-def build_default_rules() -> list[Rule]:
+def build_default_rules() -> list[tuple[Rule, str]]:
     return [
         # Python-specific rules
-        parse_rule("python:skip:nodes=import_statement|import_from_statement"),
-        parse_rule("python:skip:nodes=comment"),
-        parse_rule("python:skip:nodes=string_content"),  # Docstrings and string literals
-        parse_rule("python:replace_value:nodes=string|integer|float|number|template_string|true|false|none|null|undefined,value=<LIT>"),
-        parse_rule("python:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"),
+        (parse_rule("python:skip:nodes=import_statement|import_from_statement"), "Skip Python import statements"),
+        (parse_rule("python:skip:nodes=comment"), "Skip Python comments"),
+        (parse_rule("python:skip:nodes=string_content"), "Skip Python docstrings and string literals"),
+        (parse_rule("python:replace_value:nodes=string|integer|float|number|template_string|true|false|none|null|undefined,value=<LIT>"), "Replace Python literal values with placeholder"),
+        (parse_rule("python:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"), "Anonymize Python identifiers to generic variables"),
 
         # JavaScript/TypeScript rules
-        parse_rule("javascript|typescript:skip:nodes=import_statement|export_statement"),
-        parse_rule("javascript|typescript:skip:nodes=comment"),
-        parse_rule("javascript|typescript:replace_value:nodes=string|number|template_string,value=<LIT>"),
-        parse_rule("javascript|typescript:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"),
+        (parse_rule("javascript|typescript:skip:nodes=import_statement|export_statement"), "Skip JS/TS import and export statements"),
+        (parse_rule("javascript|typescript:skip:nodes=comment"), "Skip JS/TS comments"),
+        (parse_rule("javascript|typescript:replace_value:nodes=string|number|template_string,value=<LIT>"), "Replace JS/TS literal values with placeholder"),
+        (parse_rule("javascript|typescript:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR"), "Anonymize JS/TS identifiers to generic variables"),
     ]
 
 
-def build_loose_rules() -> list[Rule]:
+def build_loose_rules() -> list[tuple[Rule, str]]:
     return [
         *build_default_rules(),
 
         # Python
-        parse_rule("python:replace_name:nodes=binary_operator|boolean_operator|comparison_operator|unary_operator,token=<OP>"),
-        parse_rule("python:canonicalize_types:nodes=type"),
-        parse_rule("python:replace_name:nodes=list|dictionary|tuple|set,token=<COLL>"),
+        (parse_rule("python:replace_name:nodes=binary_operator|boolean_operator|comparison_operator|unary_operator,token=<OP>"), "Replace Python operators with generic placeholder"),
+        (parse_rule("python:canonicalize_types:nodes=type"), "Canonicalize Python type annotations"),
+        (parse_rule("python:replace_name:nodes=list|dictionary|tuple|set,token=<COLL>"), "Replace Python collections with generic placeholder"),
 
         # JS/TS:
-        parse_rule("typescript:canonicalize_types:nodes=type_annotation|predefined_type|type_identifier"),
-        parse_rule("javascript|typescript:replace_name:nodes=array|object,token=<COLL>"),
-        parse_rule("javascript|typescript:replace_name:nodes=binary_expression|unary_expression|update_expression|assignment_expression|ternary_expression,token=<EXP>")
+        (parse_rule("typescript:canonicalize_types:nodes=type_annotation|predefined_type|type_identifier"), "Canonicalize TypeScript type annotations"),
+        (parse_rule("javascript|typescript:replace_name:nodes=array|object,token=<COLL>"), "Replace JS/TS collections with generic placeholder"),
+        (parse_rule("javascript|typescript:replace_name:nodes=binary_expression|unary_expression|update_expression|assignment_expression|ternary_expression,token=<EXP>"), "Replace JS/TS expressions with generic placeholder")
     ]

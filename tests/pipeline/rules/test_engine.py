@@ -202,12 +202,13 @@ class TestBuildDefaultRules:
 
     def test_default_rules_exist(self):
         """Test that default rules are created."""
-        rules = build_default_rules()
-        assert len(rules) > 0
+        rules_with_descriptions = build_default_rules()
+        assert len(rules_with_descriptions) > 0
 
     def test_default_python_import_skip(self, parser):
         """Test that default rules skip Python imports."""
-        rules = build_default_rules()
+        rules_with_descriptions = build_default_rules()
+        rules = [rule for rule, _ in rules_with_descriptions]
         engine = RuleEngine(rules)
 
         root, source = parse_source("import os\n", parser)

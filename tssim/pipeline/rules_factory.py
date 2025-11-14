@@ -64,24 +64,55 @@ def _log_active_rules(rules: list[Rule]) -> None:
         )
 
 
-def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
-    # Start with ruleset-based defaults
-    ruleset = settings.rules.ruleset.lower()
-    rules = []
+def get_ruleset_with_descriptions(ruleset: str) -> list[tuple[Rule, str]]:
+    """Get a ruleset with rule descriptions for display purposes.
 
+    Args:
+        ruleset: Name of the ruleset (default, loose, none)
+
+    Returns:
+        List of tuples containing (Rule, description)
+    """
+    ruleset = ruleset.lower()
     if ruleset == "default":
-        logger.info("Using 'default' ruleset")
-        rules = build_default_rules()
+        return build_default_rules()
     elif ruleset == "loose":
-        logger.info("Using 'loose' ruleset")
-        rules = build_loose_rules()
+        return build_loose_rules()
+    else:  # none
+        return []
 
-    if settings.rules.rules:
-        rules = _load_rules_from_string(settings.rules.rules)
 
-    # Override with --rules-file parameter if provided (takes precedence)
+def _load_ruleset_rules(ruleset: str) -> list[Rule]:
+    """Load rules from a predefined ruleset.
+
+    Args:
+        ruleset: Name of the ruleset (default, loose, none)
+
+    Returns:
+        List of rules (without descriptions)
+    """
+    rules_with_descriptions = get_ruleset_with_descriptions(ruleset)
+    if rules_with_descriptions:
+        logger.info("Using '%s' ruleset", ruleset)
+    return [rule for rule, _ in rules_with_descriptions]
+
+
+def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
+    """Build a rule engine from settings.
+
+    Args:
+        settings: Pipeline settings containing rule configuration
+
+    Returns:
+        Configured RuleEngine instance
+    """
+    # Load rules based on priority: rules-file > rules > ruleset
     if settings.rules.rules_file:
         rules = _load_rules_from_file(settings.rules.rules_file)
+    elif settings.rules.rules:
+        rules = _load_rules_from_string(settings.rules.rules)
+    else:
+        rules = _load_ruleset_rules(settings.rules.ruleset.lower())
 
     _log_active_rules(rules)
     return RuleEngine(rules)
