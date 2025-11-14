@@ -1,9 +1,7 @@
 """CLI interface for tssim."""
 
-import difflib
 import logging
 import sys
-from collections.abc import Sequence
 from pathlib import Path
 
 import click
@@ -18,8 +16,9 @@ from tssim.config import (
     ShingleSettings,
     set_settings,
 )
+from tssim.diff import display_diff
 from tssim.formatters import format_as_sarif
-from tssim.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
+from tssim.models.similarity import RegionSignature, SimilarRegionGroup, SimilarityResult
 from tssim.pipeline.pipeline import run_pipeline
 
 console = Console()
@@ -73,209 +72,6 @@ def _get_group_sort_key(group: SimilarRegionGroup) -> tuple[float, float]:
     return (group.similarity, avg_lines)
 
 
-def _read_region_lines(region: Region) -> list[str]:
-    """Read lines from a file for a specific region."""
-    try:
-        with open(region.path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-            # Extract lines for this region (1-indexed to 0-indexed)
-            return lines[region.start_line - 1 : region.end_line]
-    except Exception as e:
-        logging.warning(f"Failed to read region from {region.path}: {e}")
-        return []
-
-
-def _truncate_line(line: str, max_width: int) -> str:
-    """Truncate a line to fit within max_width."""
-    return line[:max_width] if len(line) > max_width else line
-
-
-def _print_equal_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int) -> None:
-    """Print equal (matching) lines side-by-side."""
-    for i, j in zip(range(i1, i2), range(j1, j2)):
-        left = _truncate_line(lines1[i], col_width)
-        right = _truncate_line(lines2[j], col_width)
-        console.print(f"  {left:<{col_width}} │ {right:<{col_width}}")
-
-
-def _highlight_char_diff(text1: str, text2: str) -> tuple[str, int, str, int]:
-    """Highlight character-level differences within two strings.
-
-    Returns (left_highlighted, left_display_len, right_highlighted, right_display_len)
-    """
-    # Soft background colors for entire line
-    soft_left_bg = "on rgb(255,235,235)"  # Soft pink/red
-    soft_right_bg = "on rgb(235,255,235)"  # Soft mint/green
-
-    # Strong colors for actual differences
-    strong_left_color = "rgb(200,0,0)"  # Strong red text
-    strong_right_color = "rgb(0,150,0)"  # Strong green text
-
-    matcher = difflib.SequenceMatcher(None, text1, text2)
-    opcodes = matcher.get_opcodes()
-
-    result_left = []
-    result_right = []
-
-    for tag, i1, i2, j1, j2 in opcodes:
-        left_part = text1[i1:i2]
-        right_part = text2[j1:j2]
-
-        if tag == 'equal':
-            # Same text in both - no highlighting needed
-            result_left.append(left_part)
-            result_right.append(right_part)
-        elif tag == 'replace':
-            # Different text - use strong colors
-            result_left.append(f"[{strong_left_color}]{left_part}[/{strong_left_color}]")
-            result_right.append(f"[{strong_right_color}]{right_part}[/{strong_right_color}]")
-        elif tag == 'delete':
-            # Only in left - use strong color
-            result_left.append(f"[{strong_left_color}]{left_part}[/{strong_left_color}]")
-        elif tag == 'insert':
-            # Only in right - use strong color
-            result_right.append(f"[{strong_right_color}]{right_part}[/{strong_right_color}]")
-
-    # Wrap text in soft background (without padding)
-    left_text = ''.join(result_left)
-    right_text = ''.join(result_right)
-
-    left_highlighted = f"[{soft_left_bg}]{left_text}[/{soft_left_bg}]"
-    right_highlighted = f"[{soft_right_bg}]{right_text}[/{soft_right_bg}]"
-
-    return left_highlighted, len(text1), right_highlighted, len(text2)
-
-
-def _print_replaced_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int) -> None:
-    """Print replaced (changed) lines side-by-side with character-level diff highlighting."""
-    max_len = max(i2 - i1, j2 - j1)
-    for idx in range(max_len):
-        left = ""
-        left_len = 0
-        right = ""
-        right_len = 0
-
-        if idx < (i2 - i1):
-            left_line = _truncate_line(lines1[i1 + idx], col_width)
-
-            # If we have a corresponding right line, do character-level diff
-            if idx < (j2 - j1):
-                right_line = _truncate_line(lines2[j1 + idx], col_width)
-                left, left_len, right, right_len = _highlight_char_diff(left_line, right_line)
-            else:
-                # No corresponding right line - just soft background
-                left = f"[on rgb(255,235,235)]{left_line}[/on rgb(255,235,235)]"
-                left_len = len(left_line)
-        else:
-            # No left line, only right
-            right_line = _truncate_line(lines2[j1 + idx], col_width)
-            right = f"[on rgb(235,255,235)]{right_line}[/on rgb(235,255,235)]"
-            right_len = len(right_line)
-
-        # Calculate padding
-        left_padding = col_width - left_len
-        console.print(f"  {left}{' ' * left_padding} │ {right}")
-
-
-def _print_deleted_lines(lines1: list[str], i1: int, i2: int, col_width: int) -> None:
-    """Print deleted lines (only on left side)."""
-    for i in range(i1, i2):
-        left_line = _truncate_line(lines1[i], col_width)
-        # Use soft red background for deleted lines
-        left = f"[on rgb(255,235,235)]{left_line}[/on rgb(255,235,235)]"
-        padding = col_width - len(left_line)
-        console.print(f"  {left}{' ' * padding} │ {' ' * col_width}")
-
-
-def _print_inserted_lines(lines2: list[str], j1: int, j2: int, col_width: int) -> None:
-    """Print inserted lines (only on right side)."""
-    for j in range(j1, j2):
-        right_line = _truncate_line(lines2[j], col_width)
-        # Use soft green background for inserted lines
-        right = f"[on rgb(235,255,235)]{right_line}[/on rgb(235,255,235)]"
-        console.print(f"  {' ' * col_width} │ {right}")
-
-
-def _prepare_diff_lines(region1: Region, region2: Region) -> tuple[list[str], list[str]] | None:
-    """Read and prepare lines from both regions for diff."""
-    lines1 = _read_region_lines(region1)
-    lines2 = _read_region_lines(region2)
-
-    if not lines1:
-        return None
-    if not lines2:
-        return None
-
-    # Strip newlines from lines
-    lines1 = [line.rstrip('\n\r') for line in lines1]
-    lines2 = [line.rstrip('\n\r') for line in lines2]
-
-    return (lines1, lines2)
-
-
-def _regions_are_identical(opcodes: Sequence[tuple[str, int, int, int, int]]) -> bool:
-    """Check if opcodes indicate identical regions."""
-    if len(opcodes) != 1:
-        return False
-    return opcodes[0][0] == 'equal'
-
-
-def _print_diff_header(region1: Region, region2: Region, col_width: int) -> None:
-    """Print diff header with file information."""
-    console.print("  [bold]Side-by-side diff:[/bold]")
-    header1 = f"{region1.path}:{region1.start_line}-{region1.end_line}"
-    header2 = f"{region2.path}:{region2.start_line}-{region2.end_line}"
-    console.print(f"  [dim]{header1:<{col_width}}[/dim] │ [dim]{header2:<{col_width}}[/dim]")
-    console.print(f"  {'-' * col_width} │ {'-' * col_width}")
-
-
-def _process_diff_opcodes(
-    lines1: list[str], lines2: list[str], opcodes: Sequence[tuple[str, int, int, int, int]], col_width: int
-) -> None:
-    """Process diff opcodes and display changes."""
-    handlers = {
-        'equal': lambda i1, i2, j1, j2: _print_equal_lines(lines1, lines2, i1, i2, j1, j2, col_width),
-        'replace': lambda i1, i2, j1, j2: _print_replaced_lines(lines1, lines2, i1, i2, j1, j2, col_width),
-        'delete': lambda i1, i2, j1, j2: _print_deleted_lines(lines1, i1, i2, col_width),
-        'insert': lambda i1, i2, j1, j2: _print_inserted_lines(lines2, j1, j2, col_width),
-    }
-
-    for tag, i1, i2, j1, j2 in opcodes:
-        handler = handlers.get(tag)
-        if handler:
-            handler(i1, i2, j1, j2)
-
-
-def _display_diff(region1: Region, region2: Region) -> None:
-    """Display a side-by-side diff between two regions."""
-    # Prepare lines from both regions
-    prepared = _prepare_diff_lines(region1, region2)
-    if prepared is None:
-        console.print("  [yellow]Unable to generate diff (failed to read file content)[/yellow]\n")
-        return
-
-    lines1, lines2 = prepared
-
-    # Use SequenceMatcher to get diff opcodes
-    matcher = difflib.SequenceMatcher(None, lines1, lines2)
-    opcodes = matcher.get_opcodes()
-
-    # Check if regions are identical
-    if _regions_are_identical(opcodes):
-        console.print("  [green]No differences found (regions are identical)[/green]\n")
-        return
-
-    # Calculate column width
-    terminal_width = console.width
-    available_width = terminal_width - 4
-    col_width = available_width // 2
-
-    # Display diff
-    _print_diff_header(region1, region2, col_width)
-    _process_diff_opcodes(lines1, lines2, opcodes, col_width)
-    console.print()
-
-
 def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
     """Display a single similarity group with optional diff."""
     # Display similarity group header
@@ -293,7 +89,7 @@ def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
     # Show diff if requested and we have at least 2 regions
     if show_diff and len(group.regions) >= 2:
         console.print()
-        _display_diff(group.regions[0], group.regions[1])
+        display_diff(group.regions[0], group.regions[1])
     else:
         console.print()  # Blank line between groups
 
