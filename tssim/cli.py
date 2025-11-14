@@ -98,35 +98,92 @@ def _print_equal_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j
         console.print(f"  {left:<{col_width}} │ {right:<{col_width}}")
 
 
+def _highlight_char_diff(text1: str, text2: str) -> tuple[str, int, str, int]:
+    """Highlight character-level differences within two strings.
+
+    Returns (left_highlighted, left_display_len, right_highlighted, right_display_len)
+    """
+    # Soft background colors for entire line
+    soft_left_bg = "on rgb(255,235,235)"  # Soft pink/red
+    soft_right_bg = "on rgb(235,255,235)"  # Soft mint/green
+
+    # Strong colors for actual differences
+    strong_left_color = "rgb(200,0,0)"  # Strong red text
+    strong_right_color = "rgb(0,150,0)"  # Strong green text
+
+    matcher = difflib.SequenceMatcher(None, text1, text2)
+    opcodes = matcher.get_opcodes()
+
+    result_left = []
+    result_right = []
+
+    for tag, i1, i2, j1, j2 in opcodes:
+        left_part = text1[i1:i2]
+        right_part = text2[j1:j2]
+
+        if tag == 'equal':
+            # Same text in both - no highlighting needed
+            result_left.append(left_part)
+            result_right.append(right_part)
+        elif tag == 'replace':
+            # Different text - use strong colors
+            result_left.append(f"[{strong_left_color}]{left_part}[/{strong_left_color}]")
+            result_right.append(f"[{strong_right_color}]{right_part}[/{strong_right_color}]")
+        elif tag == 'delete':
+            # Only in left - use strong color
+            result_left.append(f"[{strong_left_color}]{left_part}[/{strong_left_color}]")
+        elif tag == 'insert':
+            # Only in right - use strong color
+            result_right.append(f"[{strong_right_color}]{right_part}[/{strong_right_color}]")
+
+    # Wrap text in soft background (without padding)
+    left_text = ''.join(result_left)
+    right_text = ''.join(result_right)
+
+    left_highlighted = f"[{soft_left_bg}]{left_text}[/{soft_left_bg}]"
+    right_highlighted = f"[{soft_right_bg}]{right_text}[/{soft_right_bg}]"
+
+    return left_highlighted, len(text1), right_highlighted, len(text2)
+
+
 def _print_replaced_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int) -> None:
-    """Print replaced (changed) lines side-by-side."""
+    """Print replaced (changed) lines side-by-side with character-level diff highlighting."""
     max_len = max(i2 - i1, j2 - j1)
     for idx in range(max_len):
         left = ""
-        left_display = ""
+        left_len = 0
+        right = ""
+        right_len = 0
 
         if idx < (i2 - i1):
             left_line = _truncate_line(lines1[i1 + idx], col_width)
-            left = f"[black on red]{left_line}[/black on red]"
-            left_display = left_line
 
-        right = ""
-        if idx < (j2 - j1):
+            # If we have a corresponding right line, do character-level diff
+            if idx < (j2 - j1):
+                right_line = _truncate_line(lines2[j1 + idx], col_width)
+                left, left_len, right, right_len = _highlight_char_diff(left_line, right_line)
+            else:
+                # No corresponding right line - just soft background
+                left = f"[on rgb(255,235,235)]{left_line}[/on rgb(255,235,235)]"
+                left_len = len(left_line)
+        else:
+            # No left line, only right
             right_line = _truncate_line(lines2[j1 + idx], col_width)
-            right = f"[black on green]{right_line}[/black on green]"
+            right = f"[on rgb(235,255,235)]{right_line}[/on rgb(235,255,235)]"
+            right_len = len(right_line)
 
-        # Calculate padding for left side
-        padding = col_width - len(left_display)
-        console.print(f"  {left}{' ' * padding} │ {right}")
+        # Calculate padding
+        left_padding = col_width - left_len
+        console.print(f"  {left}{' ' * left_padding} │ {right}")
 
 
 def _print_deleted_lines(lines1: list[str], i1: int, i2: int, col_width: int) -> None:
     """Print deleted lines (only on left side)."""
     for i in range(i1, i2):
         left_line = _truncate_line(lines1[i], col_width)
-        left = f"[black on red]{left_line}[/black on red]"
-        left_display = left_line
-        padding = col_width - len(left_display)
+        # Use soft red background for deleted lines
+        left = f"[on rgb(255,235,235)]{left_line}[/on rgb(255,235,235)]"
+        padding = col_width - len(left_line)
         console.print(f"  {left}{' ' * padding} │ {' ' * col_width}")
 
 
@@ -134,7 +191,8 @@ def _print_inserted_lines(lines2: list[str], j1: int, j2: int, col_width: int) -
     """Print inserted lines (only on right side)."""
     for j in range(j1, j2):
         right_line = _truncate_line(lines2[j], col_width)
-        right = f"[black on green]{right_line}[/black on green]"
+        # Use soft green background for inserted lines
+        right = f"[on rgb(235,255,235)]{right_line}[/on rgb(235,255,235)]"
         console.print(f"  {' ' * col_width} │ {right}")
 
 
