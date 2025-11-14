@@ -37,7 +37,9 @@ def setup_logging(log_level: str) -> None:
     )
 
 
-def _group_signatures_by_file(signatures: list[RegionSignature]) -> dict[Path, list[RegionSignature]]:
+def _group_signatures_by_file(
+    signatures: list[RegionSignature],
+) -> dict[Path, list[RegionSignature]]:
     """Group region signatures by file path.
 
     Args:
@@ -62,7 +64,9 @@ def display_processed_regions(result: SimilarityResult) -> None:
 
     regions_by_file = _group_signatures_by_file(result.signatures)
 
-    console.print(f"\n[bold green]Processed {len(regions_by_file)} file(s) with {len(result.signatures)} region(s):[/bold green]")
+    console.print(
+        f"\n[bold green]Processed {len(regions_by_file)} file(s) with {len(result.signatures)} region(s):[/bold green]"
+    )
     for path, sigs in sorted(regions_by_file.items()):
         console.print(f"\n  [green]✓[/green] {path} ([dim]{len(sigs)} region(s)[/dim])")
         for sig in sigs:
@@ -80,7 +84,20 @@ def display_similar_pairs(result: SimilarityResult) -> None:
         return
 
     console.print("\n[bold cyan]Similar Regions:[/bold cyan]")
-    for pair in result.similar_pairs:
+    # Sort similar_pairs by similarity, then by average line count (ascending)
+    sorted_pairs = sorted(
+        result.similar_pairs,
+        key=lambda pair: (
+            pair.similarity,  # similarity ascending
+            (
+                (pair.region1.end_line - pair.region1.start_line + 1)
+                + (pair.region2.end_line - pair.region2.start_line + 1)
+            )
+            / 2,  # average line count ascending
+        ),
+    )
+
+    for pair in sorted_pairs:
         # Calculate line counts for each region
         lines1 = pair.region1.end_line - pair.region1.start_line + 1
         lines2 = pair.region2.end_line - pair.region2.start_line + 1
@@ -90,13 +107,13 @@ def display_similar_pairs(result: SimilarityResult) -> None:
 
         # Display first region with leading dash (jscpd-style)
         console.print(
-            f"  - {pair.region1.path} [{pair.region1.start_line} - {pair.region1.end_line}] "
+            f"  - {pair.region1.path} [{pair.region1.start_line}:{pair.region1.end_line}] "
             f"({lines1} lines) {pair.region1.region_name}"
         )
 
         # Display second region with indentation only (jscpd-style)
         console.print(
-            f"    {pair.region2.path} [{pair.region2.start_line} - {pair.region2.end_line}] "
+            f"    {pair.region2.path} [{pair.region2.start_line}:{pair.region2.end_line}] "
             f"({lines2} lines) {pair.region2.region_name}"
         )
         console.print()  # Blank line between groups
@@ -146,7 +163,9 @@ def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
         return run_pipeline(path)
 
 
-def _handle_output(result: SimilarityResult, output_format: str, output_path: Path | None, log_level: str) -> None:
+def _handle_output(
+    result: SimilarityResult, output_format: str, output_path: Path | None, log_level: str
+) -> None:
     """Handle formatting and outputting results.
 
     Args:
@@ -356,7 +375,17 @@ def main(
         console.print("Try 'tssim --help' for more information.")
         sys.exit(1)
 
-    _configure_settings(rules, rules_file, ruleset, shingle_k, minhash_num_perm, threshold, min_lines, ignore, ignore_files)
+    _configure_settings(
+        rules,
+        rules_file,
+        ruleset,
+        shingle_k,
+        minhash_num_perm,
+        threshold,
+        min_lines,
+        ignore,
+        ignore_files,
+    )
     result = _run_pipeline_with_ui(path, output_format)
     _check_result_errors(result, output_format)
     _handle_output(result, output_format, output, log_level)
