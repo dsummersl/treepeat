@@ -1,7 +1,7 @@
 [project]
 name = "tssim"
 version = "0.1.0"
-description = "Code similarity detection"
+description = "Treesitter-based CLI tool to detect similarity detection"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Dane Summers", email = "dsummersl@gmail.com" }]
