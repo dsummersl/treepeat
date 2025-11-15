@@ -263,26 +263,40 @@ class RuleEngine:
             root_node, query_strings, language
         )
 
-    def _extract_region_rule_params(self, rule: Rule) -> Optional[tuple[list[str], str]]:
-        """Extract region params from a rule if it's a region extraction rule."""
-        if "node_types" not in rule.params or "region_type" not in rule.params:
-            return None
-        node_types = rule.params["node_types"].split("|")
-        region_type = rule.params["region_type"]
-        return (node_types, region_type)
-
-    def get_region_extraction_rules(self, language: str) -> list[tuple[list[str], str]]:
+    def get_region_extraction_rules(self, language: str) -> list[tuple[str, str]]:
         """Get region extraction rules for a language.
 
-        Returns list of tuples: (node_types, region_type)
+        Returns list of tuples: (query, region_type)
         """
         region_rules = []
         for rule in self.rules:
             if rule.action == RuleAction.EXTRACT_REGION and rule.matches_language(language):
-                params = self._extract_region_rule_params(rule)
-                if params:
-                    region_rules.append(params)
+                region_type = rule.params.get("region_type")
+                if region_type:
+                    region_rules.append((rule.query, region_type))
         return region_rules
+
+    def get_nodes_matching_query(self, root_node: Node, query_str: str, language: str) -> list[Node]:
+        """Execute a query and return all matching nodes.
+
+        Args:
+            root_node: Root node to query
+            query_str: TreeSitter query string
+            language: Language for the query
+
+        Returns:
+            List of nodes that match the query
+        """
+        query = self._get_compiled_query(language, query_str)
+        cursor = QueryCursor(query)
+        matching_nodes = []
+
+        for match_id, captures_dict in cursor.matches(root_node):
+            # Collect all captured nodes from this match
+            for capture_name, nodes in captures_dict.items():
+                matching_nodes.extend(nodes)
+
+        return matching_nodes
 
 
 def build_region_extraction_rules() -> list[tuple[Rule, str]]:
@@ -291,18 +305,14 @@ def build_region_extraction_rules() -> list[tuple[Rule, str]]:
     for lang_name, lang_config in LANGUAGE_CONFIGS.items():
         for region_rule in lang_config.get_region_extraction_rules():
             # Create a query-based Rule from RegionExtractionRule
-            # Use alternation to match any of the node types
-            node_patterns = " ".join(f"({node_type})" for node_type in region_rule.node_types)
-            query = f"[{node_patterns}] @region"
-
+            # Use the query directly from the region rule
             rule = Rule(
                 name=f"Extract {region_rule.region_type} regions for {lang_name}",
                 languages=[lang_name],
-                query=query,
+                query=region_rule.query,
                 action=RuleAction.EXTRACT_REGION,
                 params={
                     "region_type": region_rule.region_type,
-                    "node_types": "|".join(region_rule.node_types),  # Store for extraction
                 },
             )
             rules.append((rule, rule.name))

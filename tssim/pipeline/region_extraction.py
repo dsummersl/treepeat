@@ -27,9 +27,9 @@ class ExtractedRegion(BaseModel):
 
 @dataclass
 class RegionTypeMapping:
-    """Mapping of node types to region types for a language."""
+    """Mapping of queries to region types for a language."""
 
-    types: list[str]  # Node types to extract (e.g., "function_definition")
+    query: str  # TreeSitter query to match nodes
     region_type: str  # Region type label (e.g., "function")
 
 
@@ -37,8 +37,8 @@ def _get_region_mappings_from_engine(engine: "RuleEngine", language: str) -> lis
     """Get region extraction rules from the rule engine for a language."""
     rules = engine.get_region_extraction_rules(language)
     mappings = []
-    for node_types, region_type in rules:
-        mappings.append(RegionTypeMapping(types=node_types, region_type=region_type))
+    for query, region_type in rules:
+        mappings.append(RegionTypeMapping(query=query, region_type=region_type))
     return mappings
 
 
@@ -60,20 +60,19 @@ def _collect_top_level_nodes(root_node: Node) -> list[Node]:
     return [root_node]
 
 
-def _collect_all_matching_nodes(root_node: Node, target_types: set[str]) -> list[Node]:
-    """Recursively collect all nodes matching target types from the AST using depth-first traversal."""
-    matching_nodes: list[Node] = []
+def _collect_all_matching_nodes(
+    root_node: Node, mappings: list[RegionTypeMapping], language: str, engine: "RuleEngine"
+) -> list[tuple[Node, str]]:
+    """Execute queries to collect all matching nodes and their region types."""
+    matching_nodes: list[tuple[Node, str]] = []
 
-    def traverse(node: Node) -> None:
-        # If this node matches, add it
-        if node.type in target_types:
-            matching_nodes.append(node)
+    for mapping in mappings:
+        nodes = engine.get_nodes_matching_query(root_node, mapping.query, language)
+        for node in nodes:
+            matching_nodes.append((node, mapping.region_type))
 
-        # Recursively traverse children
-        for child in node.children:
-            traverse(child)
-
-    traverse(root_node)
+    # Sort by start position to maintain document order
+    matching_nodes.sort(key=lambda x: (x[0].start_byte, x[0].end_byte))
     return matching_nodes
 
 
@@ -101,22 +100,13 @@ def _create_section_region(
     )
 
 
-def _get_region_type_for_node(node_type: str, mappings: list[RegionTypeMapping]) -> str:
-    """Get the region type label for a node type."""
-    for mapping in mappings:
-        if node_type in mapping.types:
-            return mapping.region_type
-    return "unknown"
-
-
 def _create_target_region(
     node: Node,
+    region_type: str,
     parsed_file: ParsedFile,
-    mappings: list[RegionTypeMapping],
 ) -> ExtractedRegion:
     """Create a region for a target node such as a function or class."""
     name = _extract_node_name(node, parsed_file.source)
-    region_type = _get_region_type_for_node(node.type, mappings)
 
     region = Region(
         path=parsed_file.path,
@@ -151,37 +141,23 @@ def _flush_pending_sections(
 
 def _partition_with_sections(
     nodes: list[Node],
-    target_types: set[str],
+    matched_nodes: dict[int, str],
     parsed_file: ParsedFile,
-    mappings: list[RegionTypeMapping],
 ) -> list[ExtractedRegion]:
     """Partition nodes into target regions and sections."""
     regions: list[ExtractedRegion] = []
     pending_section_nodes: list[Node] = []
 
     for node in nodes:
-        if node.type in target_types:
+        if node.id in matched_nodes:
             _flush_pending_sections(pending_section_nodes, parsed_file, regions)
-            regions.append(_create_target_region(node, parsed_file, mappings))
+            region_type = matched_nodes[node.id]
+            regions.append(_create_target_region(node, region_type, parsed_file))
         else:
             pending_section_nodes.append(node)
 
     _flush_pending_sections(pending_section_nodes, parsed_file, regions)
     return regions
-
-
-def _partition_by_type(
-    nodes: list[Node],
-    target_types: set[str],
-    parsed_file: ParsedFile,
-    mappings: list[RegionTypeMapping],
-    include_sections: bool = True,
-) -> list[ExtractedRegion]:
-    """Partition nodes into target regions and optional section regions for non-target nodes."""
-    if not include_sections:
-        return [_create_target_region(node, parsed_file, mappings) for node in nodes if node.type in target_types]
-
-    return _partition_with_sections(nodes, target_types, parsed_file, mappings)
 
 
 def extract_regions(
@@ -211,19 +187,25 @@ def extract_regions(
         )
         regions = [ExtractedRegion(region=region, node=parsed_file.root_node)]
     else:
-        # Collect all target types from mappings
-        target_types: set[str] = set()
-        for mapping in mappings:
-            target_types.update(mapping.types)
-
+        # Execute queries to get all matching nodes
         if include_sections:
             # Original behavior: top-level nodes with sections
+            # Execute queries to find all matching nodes
+            matching_nodes_list = _collect_all_matching_nodes(
+                parsed_file.root_node, mappings, parsed_file.language, rule_engine
+            )
+            # Create lookup dict: node.id -> region_type
+            matched_nodes_dict = {node.id: region_type for node, region_type in matching_nodes_list}
+
+            # Get top-level nodes
             top_level_nodes = _collect_top_level_nodes(parsed_file.root_node)
-            regions = _partition_by_type(top_level_nodes, target_types, parsed_file, mappings, include_sections)
+            regions = _partition_with_sections(top_level_nodes, matched_nodes_dict, parsed_file)
         else:
             # Recursive extraction: find ALL matching nodes (methods, nested functions, etc.)
-            matching_nodes = _collect_all_matching_nodes(parsed_file.root_node, target_types)
-            regions = [_create_target_region(node, parsed_file, mappings) for node in matching_nodes]
+            matching_nodes_list = _collect_all_matching_nodes(
+                parsed_file.root_node, mappings, parsed_file.language, rule_engine
+            )
+            regions = [_create_target_region(node, region_type, parsed_file) for node, region_type in matching_nodes_list]
 
     logger.info("Extracted %d region(s) from %s", len(regions), parsed_file.path)
     return regions

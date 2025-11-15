@@ -8,7 +8,7 @@ from tssim.pipeline.rules.models import Rule
 class RegionExtractionRule:
     """Configuration for extracting a specific type of region from a language."""
 
-    node_types: list[str]  # Node types to extract (e.g., ["function_definition"])
+    query: str  # TreeSitter query to match nodes (e.g., "(function_definition) @region")
     region_type: str  # Region type label (e.g., "function")
 
 

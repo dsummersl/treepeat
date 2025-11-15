@@ -20,11 +20,11 @@ class MarkdownConfig(LanguageConfig):
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
         return [
             RegionExtractionRule(
-                node_types=["atx_heading", "setext_heading", "section"],
+                query="[(atx_heading) (setext_heading) (section)] @region",
                 region_type="heading",
             ),
             RegionExtractionRule(
-                node_types=["fenced_code_block", "indented_code_block"],
+                query="[(fenced_code_block) (indented_code_block)] @region",
                 region_type="code_block",
             ),
         ]
