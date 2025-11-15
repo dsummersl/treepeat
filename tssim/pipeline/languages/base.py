@@ -2,6 +2,10 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tssim.pipeline.rules import Rule
 
 
 @dataclass
@@ -21,13 +25,13 @@ class LanguageConfig(ABC):
         pass
 
     @abstractmethod
-    def get_default_rules(self) -> list[str]:
-        """Return list of rule strings for default normalization mode."""
+    def get_default_rules(self) -> list["Rule"]:
+        """Return list of Rule objects for default normalization mode."""
         pass
 
     @abstractmethod
-    def get_loose_rules(self) -> list[str]:
-        """Return list of rule strings for loose normalization mode (includes default rules)."""
+    def get_loose_rules(self) -> list["Rule"]:
+        """Return list of Rule objects for loose normalization mode (includes default rules)."""
         pass
 
     @abstractmethod

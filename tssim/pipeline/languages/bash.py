@@ -1,6 +1,11 @@
 """Bash language configuration."""
 
+from typing import TYPE_CHECKING
+
 from .base import LanguageConfig, RegionExtractionRule
+
+if TYPE_CHECKING:
+    from tssim.pipeline.rules import Rule
 
 
 class BashConfig(LanguageConfig):
@@ -9,18 +14,51 @@ class BashConfig(LanguageConfig):
     def get_language_name(self) -> str:
         return "bash"
 
-    def get_default_rules(self) -> list[str]:
+    def get_default_rules(self) -> list["Rule"]:
+        from tssim.pipeline.rules import Rule, RuleAction
+
         return [
-            "bash:skip:nodes=comment",
-            "bash:anonymize_identifiers:nodes=variable_name,scheme=flat,prefix=VAR",
+            Rule(
+                name="Skip Bash comments",
+                languages=["bash"],
+                query="(comment) @comment",
+                action=RuleAction.REMOVE,
+            ),
+            Rule(
+                name="Anonymize Bash variables",
+                languages=["bash"],
+                query="(variable_name) @var",
+                action=RuleAction.ANONYMIZE,
+                params={"prefix": "VAR"},
+            ),
         ]
 
-    def get_loose_rules(self) -> list[str]:
+    def get_loose_rules(self) -> list["Rule"]:
+        from tssim.pipeline.rules import Rule, RuleAction
+
         return [
             *self.get_default_rules(),
-            "bash:replace_value:nodes=string|raw_string|simple_expansion|number,value=<LIT>",
-            "bash:replace_name:nodes=command|command_name,token=<CMD>",
-            "bash:replace_name:nodes=binary_expression|unary_expression,token=<EXP>",
+            Rule(
+                name="Replace Bash literal values",
+                languages=["bash"],
+                query="[(string) (raw_string) (simple_expansion) (number)] @lit",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "<LIT>"},
+            ),
+            Rule(
+                name="Replace Bash commands",
+                languages=["bash"],
+                query="[(command) (command_name)] @cmd",
+                action=RuleAction.RENAME,
+                params={"token": "<CMD>"},
+            ),
+            Rule(
+                name="Replace Bash expressions",
+                languages=["bash"],
+                query="[(binary_expression) (unary_expression)] @exp",
+                action=RuleAction.RENAME,
+                params={"token": "<EXP>"},
+            ),
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:

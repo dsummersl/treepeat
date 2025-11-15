@@ -9,7 +9,6 @@ from tssim.pipeline.rules import (
     RuleEngine,
     RuleParseError,
     build_default_rules,
-    parse_rules,
     parse_rules_file,
     parse_yaml_rules_file,
 )
@@ -54,6 +53,35 @@ def _load_rules_from_file(rules_file_path: str, ruleset_name: str = "default") -
         raise
 
 
+def _log_query_rule(rule: Rule) -> None:
+    """Log a query-based rule."""
+    query_preview = rule.query[:50] + "..." if rule.query and len(rule.query) > 50 else rule.query
+    logger.debug(
+        "  %s (languages=%s, action=%s, query=%s)",
+        rule.name,
+        ",".join(rule.languages),
+        rule.action.value if rule.action else "none",
+        query_preview,
+    )
+
+
+def _log_legacy_rule(rule: Rule) -> None:
+    """Log a legacy rule."""
+    params_str = (
+        f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
+        if rule.params
+        else ""
+    )
+    logger.debug(
+        "  %s (languages=%s, operation=%s, nodes=%s%s)",
+        rule.name,
+        ",".join(rule.languages),
+        rule.operation.value if rule.operation else "none",
+        "|".join(rule.node_patterns) if rule.node_patterns else "",
+        params_str,
+    )
+
+
 def _log_active_rules(rules: list[Rule]) -> None:
     """Log the active rules for debugging."""
     if not rules:
@@ -63,29 +91,9 @@ def _log_active_rules(rules: list[Rule]) -> None:
     logger.debug("Active rules:")
     for rule in rules:
         if rule.is_query_based():
-            # Query-based rule
-            logger.debug(
-                "  %s (languages=%s, action=%s, query=%s)",
-                rule.name,
-                ",".join(rule.languages),
-                rule.action.value if rule.action else "none",
-                rule.query[:50] + "..." if rule.query and len(rule.query) > 50 else rule.query,
-            )
+            _log_query_rule(rule)
         else:
-            # Legacy rule
-            params_str = (
-                f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
-                if rule.params
-                else ""
-            )
-            logger.debug(
-                "  %s (languages=%s, operation=%s, nodes=%s%s)",
-                rule.name,
-                ",".join(rule.languages),
-                rule.operation.value if rule.operation else "none",
-                "|".join(rule.node_patterns) if rule.node_patterns else "",
-                params_str,
-            )
+            _log_legacy_rule(rule)
 
 
 def get_ruleset_with_descriptions(ruleset: str) -> list[tuple[Rule, str]]:

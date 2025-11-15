@@ -3,6 +3,7 @@
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -221,6 +222,39 @@ def _parse_patterns(pattern_string: str) -> list[str]:
     return [p.strip() for p in pattern_string.split(",") if p.strip()]
 
 
+def _format_query_rule(rule: Any) -> tuple[str, str]:
+    """Format a query-based rule for display."""
+    query_preview = rule.query[:60] + "..." if rule.query and len(rule.query) > 60 else rule.query
+    rule_spec = f"languages={','.join(rule.languages)}, action={rule.action.value if rule.action else 'none'}"
+    return rule_spec, f"query: {query_preview}"
+
+
+def _format_legacy_rule(rule: Any) -> str:
+    """Format a legacy rule for display."""
+    params_str = (
+        f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
+        if rule.params
+        else ""
+    )
+    node_patterns = "|".join(rule.node_patterns) if rule.node_patterns else ""
+    languages = ",".join(rule.languages)
+    return (
+        f"{languages}:{rule.operation.value if rule.operation else 'unknown'}:nodes="
+        f"{node_patterns}{params_str}"
+    )
+
+
+def _print_rule_spec(rule: Any) -> None:
+    """Print rule specification."""
+    if rule.is_query_based():
+        rule_spec, query_line = _format_query_rule(rule)
+        console.print(f"    [dim]{rule_spec}[/dim]")
+        console.print(f"    [dim]{query_line}[/dim]\n")
+    else:
+        rule_spec = _format_legacy_rule(rule)
+        console.print(f"    [dim]{rule_spec}[/dim]\n")
+
+
 def _print_rulesets(ruleset_name: str) -> None:
     """Print rules in the specified ruleset."""
     from tssim.pipeline.rules_factory import get_ruleset_with_descriptions
@@ -237,19 +271,8 @@ def _print_rulesets(ruleset_name: str) -> None:
     # Display each rule with its description
     console.print(f"[dim]{len(rules_with_descriptions)} rule(s):[/dim]\n")
     for rule, description in rules_with_descriptions:
-        # Format the rule specification
-        params_str = (
-            f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
-            if rule.params
-            else ""
-        )
-        node_patterns = "|".join(rule.node_patterns)
-        rule_spec = (
-            f"{rule.language}:{rule.operation.value}:nodes="
-            f"{node_patterns}{params_str}"
-        )
         console.print(f"  [cyan]•[/cyan] {description}")
-        console.print(f"    [dim]{rule_spec}[/dim]\n")
+        _print_rule_spec(rule)
 
 
 def _create_rules_settings(

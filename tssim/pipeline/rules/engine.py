@@ -19,6 +19,7 @@ class RuleEngine:
         self.rules = rules
         self._identifier_counters: dict[str, int] = {}
         self._operation_handlers = self._build_operation_handlers()
+        self._action_handlers = self._build_action_handlers()
         self._compiled_queries: dict[tuple[str, str], Query] = {}  # (language, query_str) -> Query
         # Cache using (start_byte, end_byte) as key instead of Python object id
         self._query_node_cache: dict[tuple[int, int], set[str]] = {}  # (start, end) -> set of matched rules
@@ -42,6 +43,25 @@ class RuleEngine:
             RuleOperation.EXTRACT_REGION: self._handle_extract_region,
         }
 
+    def _build_action_handlers(
+        self,
+    ) -> dict[
+        RuleAction,
+        Callable[
+            [Rule, str, str, Optional[str], Optional[str]],
+            tuple[Optional[str], Optional[str]],
+        ],
+    ]:
+        """Build mapping of actions to handler functions."""
+        return {
+            RuleAction.REMOVE: self._handle_skip,
+            RuleAction.RENAME: self._handle_replace_name,
+            RuleAction.REPLACE_VALUE: self._handle_replace_value,
+            RuleAction.ANONYMIZE: self._handle_anonymize,
+            RuleAction.CANONICALIZE: self._handle_canonicalize,
+            RuleAction.EXTRACT_REGION: self._handle_extract_region,
+        }
+
     def _get_anonymized_identifier(self, prefix: str) -> str:
         """Generate an anonymized identifier."""
         if prefix not in self._identifier_counters:
@@ -53,9 +73,38 @@ class RuleEngine:
         """Get or compile a query for a language."""
         key = (language, query_str)
         if key not in self._compiled_queries:
-            lang = get_language(language)
+            lang = get_language(language)  # type: ignore[arg-type]
             self._compiled_queries[key] = Query(lang, query_str)
         return self._compiled_queries[key]
+
+    def _is_node_in_query_cache(
+        self, node_key: tuple[int, int], cache_key: str
+    ) -> bool:
+        """Check if a node is in the query cache."""
+        return (
+            node_key in self._query_node_cache
+            and cache_key in self._query_node_cache[node_key]
+        )
+
+    def _cache_query_matches(
+        self, cache_key: str, root_node: Node, query_str: str, language: str
+    ) -> None:
+        """Execute query and cache all matched nodes."""
+        query = self._get_compiled_query(language, query_str)
+        cursor = QueryCursor(query)
+        matches = cursor.matches(root_node)
+
+        for pattern_index, captures_dict in matches:
+            for capture_name, nodes in captures_dict.items():
+                for matched_node in nodes:
+                    matched_key = (matched_node.start_byte, matched_node.end_byte)
+                    if matched_key not in self._query_node_cache:
+                        self._query_node_cache[matched_key] = set()
+                    self._query_node_cache[matched_key].add(cache_key)
+
+    def _get_query_match_result(self, rule: Rule) -> str:
+        """Get the result to return for a query match."""
+        return rule.target or "match"
 
     def _check_node_matches_query(
         self, node: Node, rule: Rule, language: str, root_node: Node
@@ -67,33 +116,16 @@ class RuleEngine:
         if not rule.query:
             return None
 
-        # Use node position as key (start_byte, end_byte)
         node_key = (node.start_byte, node.end_byte)
         cache_key = f"{language}:{rule.query}"
 
-        # Check cache first
-        if node_key in self._query_node_cache:
-            if cache_key in self._query_node_cache[node_key]:
-                return rule.target or "match"
+        # Check cache first, or execute query and cache results
+        if not self._is_node_in_query_cache(node_key, cache_key):
+            self._cache_query_matches(cache_key, root_node, rule.query, language)
 
-        # Execute query on root node to find all matches
-        query = self._get_compiled_query(language, rule.query)
-        cursor = QueryCursor(query)
-        matches = cursor.matches(root_node)
-
-        # Cache all matched nodes using their positions
-        for pattern_index, captures_dict in matches:
-            for capture_name, nodes in captures_dict.items():
-                for matched_node in nodes:
-                    matched_key = (matched_node.start_byte, matched_node.end_byte)
-                    if matched_key not in self._query_node_cache:
-                        self._query_node_cache[matched_key] = set()
-                    self._query_node_cache[matched_key].add(cache_key)
-
-        # Check if our node is in the cache now
-        if node_key in self._query_node_cache:
-            if cache_key in self._query_node_cache[node_key]:
-                return rule.target or "match"
+        # Return match result if found
+        if self._is_node_in_query_cache(node_key, cache_key):
+            return self._get_query_match_result(rule)
 
         return None
 
@@ -140,6 +172,8 @@ class RuleEngine:
         self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
         """Apply a single matching rule and return updated name and value."""
+        if rule.operation is None:
+            return name, value
         handler = self._operation_handlers[rule.operation]
         return handler(rule, node_type, language, name, value)
 
@@ -150,19 +184,46 @@ class RuleEngine:
         if not rule.action:
             return name, value
 
-        # Map action to legacy operation handlers
-        if rule.action == RuleAction.REMOVE:
-            return self._handle_skip(rule, node_type, language, name, value)
-        elif rule.action == RuleAction.RENAME:
-            return self._handle_replace_name(rule, node_type, language, name, value)
-        elif rule.action == RuleAction.REPLACE_VALUE:
-            return self._handle_replace_value(rule, node_type, language, name, value)
-        elif rule.action == RuleAction.ANONYMIZE:
-            return self._handle_anonymize(rule, node_type, language, name, value)
-        elif rule.action == RuleAction.CANONICALIZE:
-            return self._handle_canonicalize(rule, node_type, language, name, value)
-        elif rule.action == RuleAction.EXTRACT_REGION:
-            return self._handle_extract_region(rule, node_type, language, name, value)
+        handler = self._action_handlers.get(rule.action)
+        if handler:
+            return handler(rule, node_type, language, name, value)
+
+        return name, value
+
+    def _apply_query_rule(
+        self,
+        rule: Rule,
+        node: Node,
+        node_type: str,
+        language: str,
+        root_node: Node,
+        name: Optional[str],
+        value: Optional[str],
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Apply a query-based rule if it matches."""
+        if not rule.matches_language(language):
+            return name, value
+
+        capture_name = self._check_node_matches_query(node, rule, language, root_node)
+        if capture_name:
+            return self._apply_query_action(rule, node_type, language, name, value)
+
+        return name, value
+
+    def _apply_legacy_rule(
+        self,
+        rule: Rule,
+        node_type: str,
+        language: str,
+        name: Optional[str],
+        value: Optional[str],
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Apply a legacy rule if it matches."""
+        if not (rule.matches_language(language) and rule.matches_node_type(node_type)):
+            return name, value
+
+        if rule.operation:
+            return self._apply_single_rule(rule, node_type, language, name, value)
 
         return name, value
 
@@ -187,25 +248,15 @@ class RuleEngine:
         node_type = node_name or node.type
         name = None
         value = None
-
-        # Use the node itself as root if not provided (for backward compatibility)
-        if root_node is None:
-            root_node = node
+        root_node = root_node or node
 
         for rule in self.rules:
-            # Check if rule matches based on type (legacy) or query (new)
             if rule.is_query_based():
-                # Query-based rule - check if node matches the query
-                if rule.matches_language(language):
-                    capture_name = self._check_node_matches_query(node, rule, language, root_node)
-                    if capture_name:
-                        # Apply the action
-                        name, value = self._apply_query_action(rule, node_type, language, name, value)
+                name, value = self._apply_query_rule(
+                    rule, node, node_type, language, root_node, name, value
+                )
             else:
-                # Legacy rule - check node type pattern
-                if rule.matches_language(language) and rule.matches_node_type(node_type):
-                    if rule.operation:
-                        name, value = self._apply_single_rule(rule, node_type, language, name, value)
+                name, value = self._apply_legacy_rule(rule, node_type, language, name, value)
 
         return name, value
 
@@ -221,6 +272,8 @@ class RuleEngine:
         region_rules = []
         for rule in self.rules:
             if rule.operation == RuleOperation.EXTRACT_REGION and rule.matches_language(language):
+                if rule.node_patterns is None:
+                    continue
                 region_type = rule.params.get("region_type", "unknown")
                 region_rules.append((rule.node_patterns, region_type))
         return region_rules
@@ -234,6 +287,7 @@ def build_region_extraction_rules() -> list[tuple[Rule, str]]:
     rules = []
     for lang_name, lang_config in LANGUAGE_CONFIGS.items():
         for region_rule in lang_config.get_region_extraction_rules():
+            # Create legacy-style rule for region extraction
             node_types = "|".join(region_rule.node_types)
             rule_str = f"{lang_name}:extract_region:nodes={node_types},region_type={region_rule.region_type}"
             rules.append((parse_rule(rule_str), f"Extract {region_rule.region_type} from {lang_name}"))
@@ -249,8 +303,8 @@ def build_default_rules() -> list[tuple[Rule, str]]:
 
     # Add default normalization rules
     for lang_name, lang_config in LANGUAGE_CONFIGS.items():
-        for rule_str in lang_config.get_default_rules():
-            rules.append((parse_rule(rule_str), f"{lang_name.capitalize()} default rule"))
+        for rule in lang_config.get_default_rules():
+            rules.append((rule, rule.name))
 
     return rules
 
@@ -261,8 +315,11 @@ def build_loose_rules() -> list[tuple[Rule, str]]:
 
     # Add loose rules for each language
     for lang_name, lang_config in LANGUAGE_CONFIGS.items():
-        for rule_str in lang_config.get_loose_rules():
-            rules.append((parse_rule(rule_str), f"{lang_name.capitalize()} loose rule"))
+        for rule in lang_config.get_loose_rules():
+            # Skip rules already added in default (since loose extends default)
+            if any(existing_rule.name == rule.name for existing_rule, _ in rules):
+                continue
+            rules.append((rule, rule.name))
 
     return rules
 

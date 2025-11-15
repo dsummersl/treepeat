@@ -1,6 +1,11 @@
 """CSS language configuration."""
 
+from typing import TYPE_CHECKING
+
 from .base import LanguageConfig, RegionExtractionRule
+
+if TYPE_CHECKING:
+    from tssim.pipeline.rules import Rule
 
 
 class CSSConfig(LanguageConfig):
@@ -9,18 +14,51 @@ class CSSConfig(LanguageConfig):
     def get_language_name(self) -> str:
         return "css"
 
-    def get_default_rules(self) -> list[str]:
+    def get_default_rules(self) -> list["Rule"]:
+        from tssim.pipeline.rules import Rule, RuleAction
+
         return [
-            "css:skip:nodes=comment",
-            "css:anonymize_identifiers:nodes=class_name|id_name|tag_name,scheme=flat,prefix=SEL",
+            Rule(
+                name="Skip CSS comments",
+                languages=["css"],
+                query="(comment) @comment",
+                action=RuleAction.REMOVE,
+            ),
+            Rule(
+                name="Anonymize CSS selectors",
+                languages=["css"],
+                query="[(class_name) (id_name) (tag_name)] @sel",
+                action=RuleAction.ANONYMIZE,
+                params={"prefix": "SEL"},
+            ),
         ]
 
-    def get_loose_rules(self) -> list[str]:
+    def get_loose_rules(self) -> list["Rule"]:
+        from tssim.pipeline.rules import Rule, RuleAction
+
         return [
             *self.get_default_rules(),
-            "css:replace_value:nodes=string_value|integer_value|float_value|color_value|plain_value,value=<LIT>",
-            "css:replace_name:nodes=property_name,token=<PROP>",
-            "css:replace_name:nodes=feature_name,token=<FEAT>",
+            Rule(
+                name="Replace CSS literal values",
+                languages=["css"],
+                query="[(string_value) (integer_value) (float_value) (color_value) (plain_value)] @lit",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "<LIT>"},
+            ),
+            Rule(
+                name="Replace CSS properties",
+                languages=["css"],
+                query="(property_name) @prop",
+                action=RuleAction.RENAME,
+                params={"token": "<PROP>"},
+            ),
+            Rule(
+                name="Replace CSS features",
+                languages=["css"],
+                query="(feature_name) @feat",
+                action=RuleAction.RENAME,
+                params={"token": "<FEAT>"},
+            ),
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:

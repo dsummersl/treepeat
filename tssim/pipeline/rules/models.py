@@ -48,6 +48,11 @@ class Rule:
     operation: Optional[RuleOperation] = None
     node_patterns: Optional[list[str]] = None
 
+    @property
+    def language(self) -> str:
+        """Get the first language (for backward compatibility with legacy code)."""
+        return self.languages[0] if self.languages else "*"
+
     def is_query_based(self) -> bool:
         """Check if this is a query-based rule."""
         return self.query is not None

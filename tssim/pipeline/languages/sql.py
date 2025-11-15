@@ -1,6 +1,11 @@
 """SQL language configuration."""
 
+from typing import TYPE_CHECKING
+
 from .base import LanguageConfig, RegionExtractionRule
+
+if TYPE_CHECKING:
+    from tssim.pipeline.rules import Rule
 
 
 class SQLConfig(LanguageConfig):
@@ -9,18 +14,51 @@ class SQLConfig(LanguageConfig):
     def get_language_name(self) -> str:
         return "sql"
 
-    def get_default_rules(self) -> list[str]:
+    def get_default_rules(self) -> list["Rule"]:
+        from tssim.pipeline.rules import Rule, RuleAction
+
         return [
-            "sql:skip:nodes=comment|marginalia",
-            "sql:anonymize_identifiers:nodes=identifier|object_reference,scheme=flat,prefix=VAR",
+            Rule(
+                name="Skip SQL comments",
+                languages=["sql"],
+                query="[(comment) (marginalia)] @comment",
+                action=RuleAction.REMOVE,
+            ),
+            Rule(
+                name="Anonymize SQL identifiers",
+                languages=["sql"],
+                query="[(identifier) (object_reference)] @var",
+                action=RuleAction.ANONYMIZE,
+                params={"prefix": "VAR"},
+            ),
         ]
 
-    def get_loose_rules(self) -> list[str]:
+    def get_loose_rules(self) -> list["Rule"]:
+        from tssim.pipeline.rules import Rule, RuleAction
+
         return [
             *self.get_default_rules(),
-            "sql:replace_value:nodes=string|number,value=<LIT>",
-            "sql:replace_name:nodes=keyword,token=<KW>",
-            "sql:replace_name:nodes=binary_expression|unary_expression,token=<EXP>",
+            Rule(
+                name="Replace SQL literal values",
+                languages=["sql"],
+                query="[(string) (number)] @lit",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "<LIT>"},
+            ),
+            Rule(
+                name="Replace SQL keywords",
+                languages=["sql"],
+                query="(keyword) @kw",
+                action=RuleAction.RENAME,
+                params={"token": "<KW>"},
+            ),
+            Rule(
+                name="Replace SQL expressions",
+                languages=["sql"],
+                query="[(binary_expression) (unary_expression)] @exp",
+                action=RuleAction.RENAME,
+                params={"token": "<EXP>"},
+            ),
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
