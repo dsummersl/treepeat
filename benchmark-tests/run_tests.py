@@ -88,15 +88,15 @@ class DuplicationTester:
         print(f"    Running tssim on {codebase_name}...")
         output_dir = self.results_dir / f"{codebase_name}_tssim"
         output_dir.mkdir(exist_ok=True)
-        json_output_file = output_dir / 'tssim-report.json'
+        sarif_output_file = output_dir / 'tssim-report.sarif'
 
         start_time = time.time()
         try:
-            # Run tssim using uv run with JSON output
+            # Run tssim using uv run with SARIF output
             # Use configured ruleset (default or none)
             result = subprocess.run(
                 ['uv', 'run', 'tssim', str(repo_path), '--log-level', 'ERROR',
-                 '--format', 'json', '--output', str(json_output_file),
+                 '--format', 'sarif', '--output', str(sarif_output_file),
                  '--ruleset', self.ruleset],
                 capture_output=True,
                 text=True,
@@ -105,27 +105,37 @@ class DuplicationTester:
             )
             elapsed_time = time.time() - start_time
 
-            # Try to read the JSON report
-            if json_output_file.exists():
-                with open(json_output_file, 'r') as f:
+            # Try to read the SARIF report
+            if sarif_output_file.exists():
+                with open(sarif_output_file, 'r') as f:
                     data = json.load(f)
 
-                    # Extract metrics from JSON
-                    total_similar_pairs = data.get('total_similar_pairs', 0)
-                    total_regions = data.get('total_regions', 0)
-                    total_files = data.get('total_files', 0)
-                    failed_files = data.get('failed_files', 0)
+                    # Extract metrics from SARIF format
+                    # SARIF has runs[0].results which contains similar code findings
+                    runs = data.get('runs', [])
+                    if runs:
+                        results_list = runs[0].get('results', [])
+                        total_similar_groups = len(results_list)
+
+                        # Count total regions across all groups
+                        total_regions = sum(
+                            len(r.get('locations', []))
+                            for r in results_list
+                        )
+                    else:
+                        total_similar_groups = 0
+                        total_regions = 0
 
                     return {
                         'tool': 'tssim',
                         'codebase': codebase_name,
                         'duration': elapsed_time,
                         'status': 'success',
-                        'duplicates_found': total_similar_pairs,
+                        'duplicates_found': total_similar_groups,
                         'total_regions': total_regions,
-                        'total_files': total_files,
-                        'failed_files': failed_files,
-                        'output_file': str(json_output_file),
+                        'total_files': 0,  # SARIF doesn't track this directly
+                        'failed_files': 0,  # SARIF doesn't track this directly
+                        'output_file': str(sarif_output_file),
                         'stdout': result.stdout[:500] if result.stdout else '',
                         'stderr': result.stderr[:500] if result.stderr else ''
                     }
