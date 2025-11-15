@@ -32,6 +32,20 @@ class PythonConfig(LanguageConfig):
                 query="(expression_statement (string))",
                 action=RuleAction.REMOVE,
             ),
+            Rule(
+                name="Anonymize Python functions",
+                languages=["python"],
+                query="(function_definition name: (identifier) @func)",
+                action=RuleAction.ANONYMIZE,
+                params={"prefix": "FUNC"},
+            ),
+            Rule(
+                name="Anonymize Python classes",
+                languages=["python"],
+                query="(class_definition name: (identifier) @class)",
+                action=RuleAction.ANONYMIZE,
+                params={"prefix": "CLASS"},
+            ),
         ]
 
     def get_loose_rules(self) -> list[Rule]:
