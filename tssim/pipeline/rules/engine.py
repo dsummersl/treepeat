@@ -207,6 +207,18 @@ class RuleEngine:
         self._identifier_counters.clear()
         self._query_node_cache.clear()
 
+    def precompute_queries(self, root_node: Node, language: str) -> None:
+        """Pre-execute all queries for a root node to populate the cache.
+
+        This is an optimization to avoid lazy query execution during tree traversal.
+        Call this once per region after reset_identifiers().
+        """
+        for rule in self.rules:
+            if rule.matches_language(language):
+                cache_key = f"{language}:{rule.query}"
+                # Execute query and cache all results upfront
+                self._cache_query_matches(cache_key, root_node, rule.query, language)
+
     def _extract_region_rule_params(self, rule: Rule) -> Optional[tuple[list[str], str]]:
         """Extract region params from a rule if it's a region extraction rule."""
         if "node_types" not in rule.params or "region_type" not in rule.params:
