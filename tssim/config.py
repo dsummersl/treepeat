@@ -1,7 +1,5 @@
 """Configuration using pydantic-settings."""
 
-from typing import Optional
-
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -15,17 +13,7 @@ class RulesSettings(BaseSettings):
 
     ruleset: str = Field(
         default="default",
-        description="Ruleset profile to use (none, default)",
-    )
-
-    rules: Optional[str] = Field(
-        default=None,
-        description="Comma-separated list of rule specifications",
-    )
-
-    rules_file: Optional[str] = Field(
-        default=None,
-        description="Path to file containing rule specifications (one per line)",
+        description="Ruleset profile to use (none, default, loose)",
     )
 
 

@@ -102,9 +102,10 @@ class ASTShingler:
         value: str | None,
         language: str,
         source: bytes,
+        root: Node,
     ) -> tuple[str, str | None]:
         """Apply rules to a node and return the modified name and value."""
-        rule_name, rule_value = self.rule_engine.apply_rules(node, language, name)
+        rule_name, rule_value = self.rule_engine.apply_rules(node, language, name, root)
         if rule_name is not None:
             name = rule_name
         if rule_value is not None:
@@ -116,12 +117,13 @@ class ASTShingler:
         node: Node,
         language: str,
         source: bytes,
+        root: Node,
     ) -> NodeRepresentation:
         """Get the representation of a node with rules applied."""
         name = node.type
         value = self._extract_node_value(node, source)
         try:
-            name, value = self._apply_rules(node, name, value, language, source)
+            name, value = self._apply_rules(node, name, value, language, source, root)
         except SkipNodeException:
             # Convert to SkipNode for compatibility with existing code
             raise SkipNode(f"Node type '{name}' skipped by rule")
@@ -149,7 +151,7 @@ class ASTShingler:
 
             # Get normalized representation (may raise SkipNode)
             try:
-                node_repr = self._get_node_representation(node, language, source)
+                node_repr = self._get_node_representation(node, language, source, root)
             except SkipNode:
                 # Skip this node and its entire subtree
                 return
@@ -221,6 +223,12 @@ def _shingle_single_region(
     # Reset identifier counter for each region to ensure consistent anonymization
     # This allows identical functions to get the same anonymized variable names
     shingler.rule_engine.reset_identifiers()
+
+    # Pre-execute all queries for this region to populate the cache upfront
+    # This is a performance optimization to avoid lazy query execution during traversal
+    shingler.rule_engine.precompute_queries(
+        extracted_region.node, extracted_region.region.language
+    )
 
     return shingler.shingle_region(extracted_region, source)
 

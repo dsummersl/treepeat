@@ -1,50 +1,35 @@
 """Data models for the rules system."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
 
-class RuleOperation(Enum):
-    """Supported rule operations."""
+class RuleAction(Enum):
+    """Actions for tree-sitter query-based rules."""
 
-    SKIP = "skip"
-    REPLACE_NAME = "replace_name"
-    REPLACE_VALUE = "replace_value"
-    ANONYMIZE_IDENTIFIERS = "anonymize_identifiers"
-    CANONICALIZE_TYPES = "canonicalize_types"
-    EXTRACT_REGION = "extract_region"
+    REMOVE = "remove"  # Skip/remove matched nodes
+    RENAME = "rename"  # Rename matched nodes
+    REPLACE_VALUE = "replace_value"  # Replace node values
+    ANONYMIZE = "anonymize"  # Anonymize identifiers
+    CANONICALIZE = "canonicalize"  # Canonicalize types
+    EXTRACT_REGION = "extract_region"  # Mark regions for extraction
 
 
 @dataclass
 class Rule:
-    """Represents a single rule that can be applied to syntax tree nodes."""
+    """Represents a tree-sitter query-based rule."""
 
-    language: str  # Language name or "*" for all languages
-    operation: RuleOperation
-    node_patterns: list[str]  # Node type patterns (can include wildcards)
-    params: dict[str, str]  # Additional parameters like value=<LIT>, prefix=VAR, etc.
+    name: str
+    languages: list[str]
+    query: str  # Tree-sitter query pattern (required)
+    action: Optional[RuleAction] = None  # Action to perform on matched nodes
+    target: Optional[str] = None  # Capture name to target
+    params: dict[str, str] = field(default_factory=dict)
 
     def matches_language(self, language: str) -> bool:
         """Check if this rule applies to the given language."""
-        return self.language == "*" or self.language == language
-
-    def matches_node_type(self, node_type: str) -> bool:
-        """Check if this rule applies to the given node type."""
-        for pattern in self.node_patterns:
-            if self._matches_pattern(node_type, pattern):
-                return True
-        return False
-
-    @staticmethod
-    def _matches_pattern(node_type: str, pattern: str) -> bool:
-        """Check if a node type matches a pattern with wildcard support."""
-        if pattern == node_type:
-            return True
-        if pattern.endswith("*"):
-            prefix = pattern[:-1]
-            return node_type.startswith(prefix)
-        return False
+        return "*" in self.languages or language in self.languages
 
 
 @dataclass

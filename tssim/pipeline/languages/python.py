@@ -1,5 +1,7 @@
 """Python language configuration."""
 
+from tssim.pipeline.rules.models import Rule, RuleAction
+
 from .base import LanguageConfig, RegionExtractionRule
 
 
@@ -9,20 +11,60 @@ class PythonConfig(LanguageConfig):
     def get_language_name(self) -> str:
         return "python"
 
-    def get_default_rules(self) -> list[str]:
+    def get_default_rules(self) -> list[Rule]:
+
         return [
-            "python:skip:nodes=import_statement|import_from_statement",
-            "python:skip:nodes=comment",
-            "python:anonymize_identifiers:nodes=identifier,scheme=flat,prefix=VAR",
+            Rule(
+                name="Skip Python import statements",
+                languages=["python"],
+                query="[(import_statement) (import_from_statement)] @import",
+                action=RuleAction.REMOVE,
+            ),
+            Rule(
+                name="Skip Python comments",
+                languages=["python"],
+                query="(comment) @comment",
+                action=RuleAction.REMOVE,
+            ),
+            Rule(
+                name="Anonymize Python identifiers",
+                languages=["python"],
+                query="(identifier) @var",
+                action=RuleAction.ANONYMIZE,
+                params={"prefix": "VAR"},
+            ),
         ]
 
-    def get_loose_rules(self) -> list[str]:
+    def get_loose_rules(self) -> list[Rule]:
         return [
             *self.get_default_rules(),
-            "python:replace_value:nodes=string|integer|float|number|template_string|true|false|none|null|undefined,value=<LIT>",
-            "python:replace_name:nodes=binary_operator|boolean_operator|comparison_operator|unary_operator,token=<OP>",
-            "python:canonicalize_types:nodes=type",
-            "python:replace_name:nodes=list|dictionary|tuple|set,token=<COLL>",
+            Rule(
+                name="Replace Python literal values",
+                languages=["python"],
+                query="[(string) (integer) (float) (true) (false) (none)] @lit",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "<LIT>"},
+            ),
+            Rule(
+                name="Replace Python operators",
+                languages=["python"],
+                query="[(binary_operator) (boolean_operator) (comparison_operator) (unary_operator)] @op",
+                action=RuleAction.RENAME,
+                params={"token": "<OP>"},
+            ),
+            Rule(
+                name="Canonicalize Python types",
+                languages=["python"],
+                query="(type) @type",
+                action=RuleAction.CANONICALIZE,
+            ),
+            Rule(
+                name="Replace Python collections",
+                languages=["python"],
+                query="[(list) (dictionary) (tuple) (set)] @coll",
+                action=RuleAction.RENAME,
+                params={"token": "<COLL>"},
+            ),
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:

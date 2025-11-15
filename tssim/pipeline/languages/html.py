@@ -1,5 +1,7 @@
 """HTML language configuration."""
 
+from tssim.pipeline.rules.models import Rule, RuleAction
+
 from .base import LanguageConfig, RegionExtractionRule
 
 
@@ -9,17 +11,40 @@ class HTMLConfig(LanguageConfig):
     def get_language_name(self) -> str:
         return "html"
 
-    def get_default_rules(self) -> list[str]:
+    def get_default_rules(self) -> list[Rule]:
         return [
-            "html:skip:nodes=comment",
+            Rule(
+                name="Skip HTML comments",
+                languages=["html"],
+                query="(comment) @comment",
+                action=RuleAction.REMOVE,
+            ),
         ]
 
-    def get_loose_rules(self) -> list[str]:
+    def get_loose_rules(self) -> list[Rule]:
         return [
             *self.get_default_rules(),
-            "html:replace_value:nodes=attribute_value|text,value=<LIT>",
-            "html:replace_name:nodes=element|tag_name,token=<TAG>",
-            "html:replace_name:nodes=attribute_name,token=<ATTR>",
+            Rule(
+                name="Replace HTML literal values",
+                languages=["html"],
+                query="[(attribute_value) (text)] @lit",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "<LIT>"},
+            ),
+            Rule(
+                name="Replace HTML tags",
+                languages=["html"],
+                query="[(element) (tag_name)] @tag",
+                action=RuleAction.RENAME,
+                params={"token": "<TAG>"},
+            ),
+            Rule(
+                name="Replace HTML attributes",
+                languages=["html"],
+                query="(attribute_name) @attr",
+                action=RuleAction.RENAME,
+                params={"token": "<ATTR>"},
+            ),
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:

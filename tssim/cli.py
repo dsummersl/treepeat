@@ -3,6 +3,7 @@
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -221,6 +222,14 @@ def _parse_patterns(pattern_string: str) -> list[str]:
     return [p.strip() for p in pattern_string.split(",") if p.strip()]
 
 
+def _print_rule_spec(rule: Any) -> None:
+    """Print rule specification."""
+    query_preview = rule.query[:60] + "..." if len(rule.query) > 60 else rule.query
+    rule_spec = f"languages={','.join(rule.languages)}, action={rule.action.value if rule.action else 'none'}"
+    console.print(f"    [dim]{rule_spec}[/dim]")
+    console.print(f"    [dim]query: {query_preview}[/dim]\n")
+
+
 def _print_rulesets(ruleset_name: str) -> None:
     """Print rules in the specified ruleset."""
     from tssim.pipeline.rules_factory import get_ruleset_with_descriptions
@@ -237,33 +246,16 @@ def _print_rulesets(ruleset_name: str) -> None:
     # Display each rule with its description
     console.print(f"[dim]{len(rules_with_descriptions)} rule(s):[/dim]\n")
     for rule, description in rules_with_descriptions:
-        # Format the rule specification
-        params_str = (
-            f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
-            if rule.params
-            else ""
-        )
-        node_patterns = "|".join(rule.node_patterns)
-        rule_spec = (
-            f"{rule.language}:{rule.operation.value}:nodes="
-            f"{node_patterns}{params_str}"
-        )
         console.print(f"  [cyan]•[/cyan] {description}")
-        console.print(f"    [dim]{rule_spec}[/dim]\n")
+        _print_rule_spec(rule)
 
 
-def _create_rules_settings(rules: str, rules_file: str, ruleset: str) -> RulesSettings:
-    """Create RulesSettings with proper None handling."""
-    return RulesSettings(
-        ruleset=ruleset,
-        rules=rules or None,
-        rules_file=rules_file or None,
-    )
+def _create_rules_settings(ruleset: str) -> RulesSettings:
+    """Create RulesSettings."""
+    return RulesSettings(ruleset=ruleset)
 
 
 def _configure_settings(
-    rules: str,
-    rules_file: str,
     ruleset: str,
     threshold: float,
     min_lines: int,
@@ -272,7 +264,7 @@ def _configure_settings(
 ) -> None:
     """Configure pipeline settings."""
     settings = PipelineSettings(
-        rules=_create_rules_settings(rules, rules_file, ruleset),
+        rules=_create_rules_settings(ruleset),
         shingle=ShingleSettings(),  # Uses default k=3
         minhash=MinHashSettings(),  # Uses default num_perm=128
         lsh=LSHSettings(threshold=threshold, min_lines=min_lines),
@@ -300,22 +292,10 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     help="Set the logging level",
 )
 @click.option(
-    "--rules",
-    type=str,
-    default="",
-    help="Comma-separated list of rule specifications (e.g., 'python:skip:nodes=import_statement')",
-)
-@click.option(
-    "--rules-file",
-    type=str,
-    default="",
-    help="Path to file containing rule specifications (one per line)",
-)
-@click.option(
     "--ruleset",
     type=click.Choice(["none", "default", "loose"], case_sensitive=False),
     default="default",
-    help="Ruleset profile to use (default: default)",
+    help="Built-in ruleset profile to use (default: default)",
 )
 @click.option(
     "--list-ruleset",
@@ -376,8 +356,6 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 def main(
     path: Path | None,
     log_level: str,
-    rules: str,
-    rules_file: str,
     ruleset: str,
     list_ruleset: str | None,
     threshold: float,
@@ -403,8 +381,6 @@ def main(
         sys.exit(1)
 
     _configure_settings(
-        rules,
-        rules_file,
         ruleset,
         threshold,
         min_lines,
