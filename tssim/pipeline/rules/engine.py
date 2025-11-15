@@ -9,6 +9,11 @@ from .models import Rule, RuleAction, SkipNodeException
 from ..languages import LANGUAGE_CONFIGS
 
 
+def _extract_node_text(node: Node, source: bytes) -> str:
+    """Extract text content from a node."""
+    return source[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
+
+
 class RuleEngine:
     """Engine for applying tree-sitter query-based rules to syntax tree nodes."""
 
@@ -16,9 +21,11 @@ class RuleEngine:
         """Initialize the rule engine with a list of rules."""
         self.rules = rules
         self._identifier_counters: dict[str, int] = {}
+        self._identifier_mapping: dict[str, str] = {}
         self._action_handlers = self._build_action_handlers()
         self._compiled_queries: dict[tuple[str, str], Query] = {}
         self._query_matches_cache: dict[int, list[dict[str, Any]]] = {}
+        self._source: bytes | None = None  # Store source for value extraction
 
     def _build_action_handlers(
         self,
@@ -39,12 +46,17 @@ class RuleEngine:
             RuleAction.EXTRACT_REGION: self._handle_extract_region,
         }
 
-    def _get_anonymized_identifier(self, prefix: str) -> str:
-        """Generate an anonymized identifier."""
-        if prefix not in self._identifier_counters:
-            self._identifier_counters[prefix] = 0
-        self._identifier_counters[prefix] += 1
-        return f"{prefix}_{self._identifier_counters[prefix]}"
+    def _get_anonymized_identifier(self, prefix: str, original_value: str) -> str:
+        """Generate an anonymized identifier, consistent for the same original value."""
+        # Create a key combining prefix and original value to maintain consistency
+        key = f"{prefix}:{original_value}"
+        if key not in self._identifier_mapping:
+            # First time seeing this identifier, assign it a new number
+            if prefix not in self._identifier_counters:
+                self._identifier_counters[prefix] = 0
+            self._identifier_counters[prefix] += 1
+            self._identifier_mapping[key] = f"{prefix}_{self._identifier_counters[prefix]}"
+        return self._identifier_mapping[key]
 
     def _get_compiled_query(self, language: str, query_str: str) -> Query:
         """Get or compile a query for a language."""
@@ -138,11 +150,16 @@ class RuleEngine:
         return name, rule.params.get("value", "<LIT>")
 
     def _handle_anonymize(
-        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle ANONYMIZE action - anonymize identifiers."""
         prefix = rule.params.get("prefix", "VAR")
-        return name, self._get_anonymized_identifier(prefix)
+        # Extract the original node text to ensure consistent anonymization
+        if self._source is not None:
+            original_value = _extract_node_text(node, self._source)
+        else:
+            original_value = value or "unknown"
+        return name, self._get_anonymized_identifier(prefix, original_value)
 
     def _handle_canonicalize(
         self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
@@ -157,7 +174,7 @@ class RuleEngine:
         return name, value
 
     def _apply_action(
-        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
         """Apply a rule action."""
         if not rule.action:
@@ -165,7 +182,11 @@ class RuleEngine:
 
         handler = self._action_handlers.get(rule.action)
         if handler:
-            return handler(rule, node_type, language, name, value)
+            # ANONYMIZE handler needs the node to extract original text
+            if rule.action == RuleAction.ANONYMIZE:
+                return handler(rule, node, node_type, language, name, value)
+            else:
+                return handler(rule, node_type, language, name, value)
 
         return name, value
 
@@ -182,7 +203,7 @@ class RuleEngine:
         """Apply a rule if it matches the node."""
         capture_name = self._check_node_matches_query(node, rule, language, root_node)
         if capture_name:
-            return self._apply_action(rule, node_type, language, name, value)
+            return self._apply_action(rule, node, node_type, language, name, value)
         return name, value
 
     def apply_rules(
@@ -217,16 +238,25 @@ class RuleEngine:
         return name, value
 
     def reset_identifiers(self) -> None:
-        """Reset the identifier counter and query cache."""
+        """Reset the identifier counter, mapping, and query cache."""
         self._identifier_counters.clear()
+        self._identifier_mapping.clear()
         self._query_matches_cache.clear()
 
-    def precompute_queries(self, root_node: Node, language: str) -> None:
+    def precompute_queries(self, root_node: Node, language: str, source: bytes | None = None) -> None:
         """Pre-execute all queries for a root node to populate the cache.
 
         This executes all queries once and indexes matches by node ID for O(1) lookup.
         Call this once per region after reset_identifiers().
+
+        Args:
+            root_node: The root node to query
+            language: The language of the source code
+            source: Optional source bytes for extracting node text during anonymization
         """
+        # Store source for use in anonymization
+        self._source = source
+
         # Collect all query strings for this language
         query_strings = [
             rule.query for rule in self.rules if rule.matches_language(language)

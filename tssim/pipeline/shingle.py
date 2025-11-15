@@ -227,7 +227,7 @@ def _shingle_single_region(
     # Pre-execute all queries for this region to populate the cache upfront
     # This is a performance optimization to avoid lazy query execution during traversal
     shingler.rule_engine.precompute_queries(
-        extracted_region.node, extracted_region.region.language
+        extracted_region.node, extracted_region.region.language, source
     )
 
     return shingler.shingle_region(extracted_region, source)
