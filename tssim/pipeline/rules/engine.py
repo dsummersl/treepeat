@@ -1,6 +1,6 @@
 """Rule engine for applying tree-sitter query-based rules to syntax tree nodes."""
 
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from tree_sitter import Node, Query, QueryCursor
 from tree_sitter_language_pack import get_language
@@ -18,7 +18,7 @@ class RuleEngine:
         self._identifier_counters: dict[str, int] = {}
         self._action_handlers = self._build_action_handlers()
         self._compiled_queries: dict[tuple[str, str], Query] = {}
-        self._query_matches_cache: dict[int, list[dict]] = {}
+        self._query_matches_cache: dict[int, list[dict[str, Any]]] = {}
 
     def _build_action_handlers(
         self,
@@ -54,9 +54,28 @@ class RuleEngine:
             self._compiled_queries[key] = Query(lang, query_str)
         return self._compiled_queries[key]
 
+    def _index_query_captures(
+        self,
+        all_matches: dict[int, list[dict[str, Any]]],
+        query_str: str,
+        match_id: int,
+        captures_dict: dict[str, list[Node]],
+    ) -> None:
+        """Index captures from a single query match by node ID."""
+        for capture_name, nodes in captures_dict.items():
+            for node in nodes:
+                if node.id not in all_matches:
+                    all_matches[node.id] = []
+                all_matches[node.id].append({
+                    'query': query_str,
+                    'match_id': match_id,
+                    'captures': captures_dict,
+                    'capture_name': capture_name
+                })
+
     def _get_all_matches(
         self, root_node: Node, query_strings: list[str], language: str
-    ) -> dict[int, list[dict]]:
+    ) -> dict[int, list[dict[str, Any]]]:
         """Execute multiple queries and collect all matches indexed by node ID.
 
         Args:
@@ -67,23 +86,14 @@ class RuleEngine:
         Returns:
             Dictionary mapping node.id to list of match dictionaries
         """
-        all_matches: dict[int, list[dict]] = {}
+        all_matches: dict[int, list[dict[str, Any]]] = {}
 
         for query_str in query_strings:
             query = self._get_compiled_query(language, query_str)
             cursor = QueryCursor(query)
 
             for match_id, captures_dict in cursor.matches(root_node):
-                for capture_name, nodes in captures_dict.items():
-                    for node in nodes:
-                        if node.id not in all_matches:
-                            all_matches[node.id] = []
-                        all_matches[node.id].append({
-                            'query': query_str,
-                            'match_id': match_id,
-                            'captures': captures_dict,
-                            'capture_name': capture_name
-                        })
+                self._index_query_captures(all_matches, query_str, match_id, captures_dict)
 
         return all_matches
 
