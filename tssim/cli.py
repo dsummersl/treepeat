@@ -129,18 +129,28 @@ def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
             console.print(f"    [dim]{error}[/dim]")
 
 
-def _collect_format_statistics(similar_groups: list[SimilarRegionGroup]) -> dict[str, dict[str, int | set[Path]]]:
-    """Collect statistics by language/format from similar groups."""
+def _collect_format_statistics(result: SimilarityResult) -> dict[str, dict[str, int | set[Path]]]:
+    """Collect statistics by language/format from all processed files."""
     stats_by_format: dict[str, dict[str, int | set[Path]]] = {}
 
-    for group in similar_groups:
+    # First, collect all processed files from signatures
+    for signature in result.signatures:
+        region = signature.region
+        language = region.language
+        if language not in stats_by_format:
+            stats_by_format[language] = {"files": set(), "groups": 0, "lines": 0}
+
+        stats = stats_by_format[language]
+        stats["files"].add(region.path)  # type: ignore[union-attr]
+
+    # Then, add group counts and duplicate lines from similar groups
+    for group in result.similar_groups:
         for region in group.regions:
             language = region.language
             if language not in stats_by_format:
                 stats_by_format[language] = {"files": set(), "groups": 0, "lines": 0}
 
             stats = stats_by_format[language]
-            stats["files"].add(region.path)  # type: ignore[union-attr]
             stats["lines"] += region.end_line - region.start_line + 1  # type: ignore[operator]
 
         # Count group once per language (use first region's language)
@@ -153,10 +163,11 @@ def _collect_format_statistics(similar_groups: list[SimilarRegionGroup]) -> dict
 
 def display_summary_table(result: SimilarityResult) -> None:
     """Display summary table with statistics by format."""
-    if not result.similar_groups:
+    # Show stats even if no similar groups found (to show all processed files)
+    if not result.signatures:
         return
 
-    stats_by_format = _collect_format_statistics(result.similar_groups)
+    stats_by_format = _collect_format_statistics(result)
 
     # Create summary table
     table = Table(title="\n[bold cyan]Summary[/bold cyan]", show_header=True, header_style="bold")
