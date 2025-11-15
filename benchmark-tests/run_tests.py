@@ -95,9 +95,8 @@ class DuplicationTester:
             # Run tssim using uv run with SARIF output
             # Use configured ruleset (default or none)
             result = subprocess.run(
-                ['uv', 'run', 'tssim', str(repo_path), '--log-level', 'ERROR',
-                 '--format', 'sarif', '--output', str(sarif_output_file),
-                 '--ruleset', self.ruleset],
+                ['uv', 'run', 'tssim', '--log-level', 'ERROR', '--ruleset', self.ruleset,
+                 'detect', str(repo_path), '--format', 'sarif', '--output', str(sarif_output_file)],
                 capture_output=True,
                 text=True,
                 timeout=300,
