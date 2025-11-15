@@ -440,6 +440,51 @@ def detect(
         sys.exit(1)
 
 
+def _filter_regions_by_name(
+    extracted_regions: list[Any],
+    region: str,
+    parsed_file: Any,
+    rule_engine: Any,
+) -> list[Any]:
+    """Filter regions by name and show error if not found."""
+    filtered = [r for r in extracted_regions if r.region.region_name == region]
+    if not filtered:
+        from tssim.pipeline.region_extraction import extract_all_regions
+
+        console.print(f"[bold red]Error:[/bold red] Region '{region}' not found")
+        console.print("\nAvailable regions:")
+        all_regions = extract_all_regions([parsed_file], rule_engine, include_sections=False)
+        for r in all_regions:
+            console.print(f"  - {r.region.region_name} ({r.region.region_type})")
+        sys.exit(1)
+    return filtered
+
+
+def _display_region_shingles(
+    extracted_region: Any, shingler: Any, source: bytes
+) -> None:
+    """Display shingles for a single region."""
+    region_info = extracted_region.region
+    console.print(
+        f"\n[bold cyan]Region:[/bold cyan] {region_info.region_name} ({region_info.region_type})"
+    )
+    console.print(f"[dim]File: {region_info.path}[/dim]")
+    console.print(f"[dim]Lines: {region_info.start_line}-{region_info.end_line}[/dim]")
+
+    # Reset identifiers for consistent output
+    shingler.rule_engine.reset_identifiers()
+    shingler.rule_engine.precompute_queries(extracted_region.node, region_info.language)
+
+    # Extract shingles
+    shingled_region = shingler.shingle_region(extracted_region, source)
+
+    console.print(f"\n[bold green]Shingles ({len(shingled_region.shingles.shingles)}):[/bold green]")
+    for i, shingle in enumerate(shingled_region.shingles.shingles, 1):
+        console.print(f"  {i:3d}. {shingle}")
+
+    console.print()
+
+
 @main.command()
 @click.argument("file", type=click.Path(exists=True, path_type=Path))
 @click.pass_context
@@ -466,8 +511,6 @@ def preprocess(
     from tssim.pipeline.rules_factory import build_rule_engine
 
     ruleset = ctx.obj["ruleset"]
-
-    # Configure settings
     _configure_settings(ruleset, 1.0, 5, "", "**/.*ignore")
 
     # Parse the file
@@ -477,51 +520,23 @@ def preprocess(
         console.print(f"[bold red]Error:[/bold red] Failed to parse file: {e}")
         sys.exit(1)
 
-    # Build rule engine
+    # Extract and filter regions
     rule_engine = build_rule_engine(get_settings())
-
-    # Extract regions
     extracted_regions = extract_all_regions([parsed_file], rule_engine, include_sections=False)
 
     if not extracted_regions:
         console.print("[yellow]No regions found in file[/yellow]")
         sys.exit(0)
 
-    # Filter by region name if specified
     if region:
-        extracted_regions = [r for r in extracted_regions if r.region.region_name == region]
-        if not extracted_regions:
-            console.print(f"[bold red]Error:[/bold red] Region '{region}' not found")
-            console.print("\nAvailable regions:")
-            all_regions = extract_all_regions([parsed_file], rule_engine, include_sections=False)
-            for r in all_regions:
-                console.print(f"  - {r.region.region_name} ({r.region.region_type})")
-            sys.exit(1)
-
-    # Create shingler
-    shingler = ASTShingler(rule_engine=rule_engine, k=3)
-
-    # Process each region
-    for extracted_region in extracted_regions:
-        region_info = extracted_region.region
-        console.print(f"\n[bold cyan]Region:[/bold cyan] {region_info.region_name} ({region_info.region_type})")
-        console.print(f"[dim]File: {region_info.path}[/dim]")
-        console.print(f"[dim]Lines: {region_info.start_line}-{region_info.end_line}[/dim]")
-
-        # Reset identifiers for consistent output
-        shingler.rule_engine.reset_identifiers()
-        shingler.rule_engine.precompute_queries(
-            extracted_region.node, region_info.language
+        extracted_regions = _filter_regions_by_name(
+            extracted_regions, region, parsed_file, rule_engine
         )
 
-        # Extract shingles
-        shingled_region = shingler.shingle_region(extracted_region, parsed_file.source)
-
-        console.print(f"\n[bold green]Shingles ({len(shingled_region.shingles.shingles)}):[/bold green]")
-        for i, shingle in enumerate(shingled_region.shingles.shingles, 1):
-            console.print(f"  {i:3d}. {shingle}")
-
-        console.print()
+    # Display shingles for each region
+    shingler = ASTShingler(rule_engine=rule_engine, k=3)
+    for extracted_region in extracted_regions:
+        _display_region_shingles(extracted_region, shingler, parsed_file.source)
 
 
 if __name__ == "__main__":

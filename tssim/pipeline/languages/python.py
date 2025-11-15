@@ -52,6 +52,12 @@ class PythonConfig(LanguageConfig):
         return [
             *self.get_default_rules(),
             Rule(
+                name="Remove Python string content",
+                languages=["python"],
+                query="(string_content) @content",
+                action=RuleAction.REMOVE,
+            ),
+            Rule(
                 name="Anonymize Python identifiers",
                 languages=["python"],
                 query="(identifier) @var",
