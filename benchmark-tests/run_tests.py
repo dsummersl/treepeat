@@ -455,8 +455,8 @@ class DuplicationTester:
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description='Run duplication detection tests')
-    parser.add_argument('--ruleset', choices=['none', 'default'], default='default',
-                       help='Ruleset profile to use for tssim (default: default)')
+    parser.add_argument('--ruleset', choices=['none', 'default'], default='none',
+                       help='Ruleset profile to use for tssim (default: none)')
     args = parser.parse_args()
 
     base_dir = Path(__file__).parent
