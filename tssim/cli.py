@@ -313,6 +313,7 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 
 @click.group(invoke_without_command=True)
 @click.pass_context
+@click.argument("path", type=click.Path(exists=True, path_type=Path), required=False)
 @click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
@@ -333,6 +334,7 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 )
 def main(
     ctx: click.Context,
+    path: Path | None,
     log_level: str,
     ruleset: str,
     list_ruleset: str | None,
@@ -344,15 +346,16 @@ def main(
     ctx.ensure_object(dict)
     ctx.obj["log_level"] = log_level
     ctx.obj["ruleset"] = ruleset
+    ctx.obj["path"] = path
 
     # Handle --list-ruleset option
     if list_ruleset is not None:
         _print_rulesets(list_ruleset)
         sys.exit(0)
 
-    # If no subcommand specified, invoke detect by default
-    if ctx.invoked_subcommand is None:
-        ctx.invoke(detect)
+    # If no subcommand specified but path provided, invoke detect by default
+    if ctx.invoked_subcommand is None and path is not None:
+        ctx.invoke(detect, path=path)
 
 
 @main.command()
@@ -492,14 +495,14 @@ def _display_region_shingles(
     "--region",
     type=str,
     default=None,
-    help="Specific region name to preprocess (e.g., function name). If not specified, shows all regions.",
+    help="Specific region name to show tree-sitter output for (e.g., function name). If not specified, shows all regions.",
 )
-def preprocess(
+def treesitter(
     ctx: click.Context,
     file: Path,
     region: str | None,
 ) -> None:
-    """Show file after preprocessing rules are applied.
+    """Show file after tree-sitter normalization rules are applied.
 
     This command shows how the code looks after all normalization rules
     are applied, which is what gets compared during similarity detection.
