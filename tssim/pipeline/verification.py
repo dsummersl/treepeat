@@ -16,8 +16,12 @@ AST depths).
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tssim.models.shingle import ShingledRegion
+
+if TYPE_CHECKING:
+    from tssim.models.similarity import Region, SimilarRegionGroup
 
 
 logger = logging.getLogger(__name__)
@@ -116,8 +120,51 @@ def _build_region_lookup(
     return region_to_shingled
 
 
+def _compute_pair_similarity_with_verification(
+    r1: "Region",
+    r2: "Region",
+    region_lookup: dict[Path, dict[int, ShingledRegion]],
+) -> float:
+    """Compute similarity between two regions with signature verification."""
+    sr1 = region_lookup.get(r1.path, {}).get(r1.start_line)
+    sr2 = region_lookup.get(r2.path, {}).get(r2.start_line)
+
+    if sr1 is None or sr2 is None:
+        logger.warning(
+            "Could not find shingled regions for %s ↔ %s, using 0.0 similarity",
+            r1.region_name,
+            r2.region_name,
+        )
+        return 0.0
+
+    # Compute shingle-based similarity
+    shingle_similarity = _compute_ordered_similarity(
+        sr1.shingles.shingles,
+        sr2.shingles.shingles,
+    )
+
+    # For high similarity matches, verify that signatures (first lines) match
+    # This catches cases where function/class names differ but bodies are similar
+    if shingle_similarity >= SOURCE_VERIFICATION_THRESHOLD:
+        signatures_match = _check_signature_match(
+            r1.path, r1.start_line,
+            r2.path, r2.start_line
+        )
+
+        if not signatures_match:
+            # Penalize signature mismatch - treat as 0.0 similarity
+            logger.debug(
+                "Signature mismatch for %s ↔ %s, treating as 0%% similar",
+                r1.region_name,
+                r2.region_name,
+            )
+            return 0.0
+
+    return shingle_similarity
+
+
 def _verify_group_pairwise_similarity(
-    group_regions: list,
+    group_regions: list["Region"],
     region_lookup: dict[Path, dict[int, ShingledRegion]],
 ) -> float:
     """Calculate average pairwise order-sensitive similarity for a group."""
@@ -129,44 +176,7 @@ def _verify_group_pairwise_similarity(
 
     for i, r1 in enumerate(group_regions):
         for r2 in group_regions[i + 1 :]:
-            sr1 = region_lookup.get(r1.path, {}).get(r1.start_line)
-            sr2 = region_lookup.get(r2.path, {}).get(r2.start_line)
-
-            if sr1 is None or sr2 is None:
-                logger.warning(
-                    "Could not find shingled regions for %s ↔ %s, using 0.0 similarity",
-                    r1.region_name,
-                    r2.region_name,
-                )
-                similarity = 0.0
-            else:
-                # Compute shingle-based similarity
-                shingle_similarity = _compute_ordered_similarity(
-                    sr1.shingles.shingles,
-                    sr2.shingles.shingles,
-                )
-
-                # For high similarity matches, verify that signatures (first lines) match
-                # This catches cases where function/class names differ but bodies are similar
-                if shingle_similarity >= SOURCE_VERIFICATION_THRESHOLD:
-                    signatures_match = _check_signature_match(
-                        r1.path, r1.start_line,
-                        r2.path, r2.start_line
-                    )
-
-                    if not signatures_match:
-                        # Penalize signature mismatch - treat as 0.0 similarity
-                        similarity = 0.0
-                        logger.debug(
-                            "Signature mismatch for %s ↔ %s, treating as 0%% similar",
-                            r1.region_name,
-                            r2.region_name,
-                        )
-                    else:
-                        similarity = shingle_similarity
-                else:
-                    similarity = shingle_similarity
-
+            similarity = _compute_pair_similarity_with_verification(r1, r2, region_lookup)
             total_similarity += similarity
             pair_count += 1
 
@@ -174,9 +184,9 @@ def _verify_group_pairwise_similarity(
 
 
 def verify_similar_groups(
-    groups: list,
+    groups: list["SimilarRegionGroup"],
     shingled_regions: list[ShingledRegion],
-) -> list:
+) -> list["SimilarRegionGroup"]:
     """Verify candidate groups using order-sensitive similarity.
 
     For each group, recalculates similarity using pairwise LCS comparison

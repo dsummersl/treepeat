@@ -294,6 +294,36 @@ def find_similar_groups(
     return groups
 
 
+def _should_verify_groups(
+    verify_candidates: bool,
+    shingled_regions: list[ShingledRegion] | None,
+    candidate_groups: list[SimilarRegionGroup],
+) -> bool:
+    """Check if candidate groups should be verified."""
+    return verify_candidates and shingled_regions is not None and len(candidate_groups) > 0
+
+
+def _verify_and_filter_groups(
+    candidate_groups: list[SimilarRegionGroup],
+    shingled_regions: list[ShingledRegion],
+    threshold: float,
+) -> list[SimilarRegionGroup]:
+    """Verify candidate groups and filter by threshold."""
+    from tssim.pipeline.verification import verify_similar_groups
+
+    logger.info("Verifying %d candidate group(s)", len(candidate_groups))
+    verified_groups = verify_similar_groups(candidate_groups, shingled_regions)
+
+    # Filter groups that fall below threshold after verification
+    similar_groups = [g for g in verified_groups if g.similarity >= threshold]
+    if len(similar_groups) < len(verified_groups):
+        logger.info(
+            "Filtered %d group(s) below threshold after verification",
+            len(verified_groups) - len(similar_groups),
+        )
+    return similar_groups
+
+
 def detect_similarity(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
@@ -306,19 +336,10 @@ def detect_similarity(
     candidate_groups = find_similar_groups(signatures, threshold=threshold)
 
     # Verify groups using order-sensitive similarity if requested
-    if verify_candidates and shingled_regions is not None and len(candidate_groups) > 0:
-        from tssim.pipeline.verification import verify_similar_groups
-
-        logger.info("Verifying %d candidate group(s)", len(candidate_groups))
-        verified_groups = verify_similar_groups(candidate_groups, shingled_regions)
-
-        # Filter groups that fall below threshold after verification
-        similar_groups = [g for g in verified_groups if g.similarity >= threshold]
-        if len(similar_groups) < len(verified_groups):
-            logger.info(
-                "Filtered %d group(s) below threshold after verification",
-                len(verified_groups) - len(similar_groups),
-            )
+    if _should_verify_groups(verify_candidates, shingled_regions, candidate_groups):
+        similar_groups = _verify_and_filter_groups(
+            candidate_groups, shingled_regions, threshold  # type: ignore
+        )
     else:
         similar_groups = candidate_groups
 
