@@ -3,68 +3,31 @@
 import logging
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Literal
 
 from tree_sitter_language_pack import get_parser
 
 from tssim.config import get_settings
 from tssim.models import ParsedFile, ParseResult
+from tssim.pipeline.magic_detector import (
+    detect_language_with_magic,
+    EXTENSION_TO_LANGUAGE,
+    LanguageName,
+)
 
 logger = logging.getLogger(__name__)
 
-# Type alias for supported tree-sitter languages
-LanguageName = Literal[
-    "python",
-    "javascript",
-    "markdown",
-    "typescript",
-    "tsx",
-    "java",
-    "c",
-    "cpp",
-    "go",
-    "rust",
-    "ruby",
-    "php",
-    "csharp",
-    "swift",
-    "kotlin",
-    "scala",
-    "bash",
-]
-
-# Mapping of file extensions to tree-sitter language names
-LANGUAGE_MAP: dict[str, LanguageName] = {
-    ".py": "python",
-    ".js": "javascript",
-    ".md": "markdown",
-    ".ts": "typescript",
-    ".tsx": "tsx",
-    ".jsx": "javascript",
-    ".java": "java",
-    ".c": "c",
-    ".cpp": "cpp",
-    ".cc": "cpp",
-    ".cxx": "cpp",
-    ".h": "c",
-    ".hpp": "cpp",
-    ".go": "go",
-    ".rs": "rust",
-    ".rb": "ruby",
-    ".php": "php",
-    ".cs": "csharp",
-    ".swift": "swift",
-    ".kt": "kotlin",
-    ".scala": "scala",
-    ".sh": "bash",
-}
+# Use EXTENSION_TO_LANGUAGE from magic_detector for consistency
+# This ensures we only scan for files with extensions that are supported
+LANGUAGE_MAP = EXTENSION_TO_LANGUAGE
 
 
 def detect_language(file_path: Path) -> LanguageName | None:
-    """Detect programming language from file extension."""
-    # TODO support a more robust detection mechanism (something like enry maybe or pygments)
-    suffix = file_path.suffix.lower()
-    return LANGUAGE_MAP.get(suffix)
+    """
+    Detect programming language using python-magic with extension fallback.
+
+    Only returns languages that are supported in LANGUAGE_CONFIGS.
+    """
+    return detect_language_with_magic(file_path)
 
 
 def read_source_file(file_path: Path) -> bytes:
@@ -75,10 +38,10 @@ def read_source_file(file_path: Path) -> bytes:
         raise ValueError(f"Failed to read file {file_path}: {e}") from e
 
 
-def parse_source_code(source: bytes, language_name: LanguageName, file_path: Path) -> ParsedFile:
+def parse_source_code(source: bytes, language_name: str, file_path: Path) -> ParsedFile:
     """Parse source code using tree-sitter."""
     try:
-        parser = get_parser(language_name)
+        parser = get_parser(language_name)  # type: ignore[arg-type]
     except Exception as e:
         raise RuntimeError(f"Failed to get parser for {language_name}: {e}") from e
 
