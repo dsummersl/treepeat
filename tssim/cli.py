@@ -311,8 +311,8 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
         sys.exit(1)
 
 
-@click.command()
-@click.argument("path", type=click.Path(exists=True, path_type=Path), required=False)
+@click.group(invoke_without_command=True)
+@click.pass_context
 @click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
@@ -331,6 +331,33 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     default=None,
     help="List rules in the specified ruleset (none/default/loose)",
 )
+def main(
+    ctx: click.Context,
+    log_level: str,
+    ruleset: str,
+    list_ruleset: str | None,
+) -> None:
+    """Tree-sitter based similarity detection tool."""
+    setup_logging(log_level.upper())
+
+    # Store common options in context for subcommands
+    ctx.ensure_object(dict)
+    ctx.obj["log_level"] = log_level
+    ctx.obj["ruleset"] = ruleset
+
+    # Handle --list-ruleset option
+    if list_ruleset is not None:
+        _print_rulesets(list_ruleset)
+        sys.exit(0)
+
+    # If no subcommand specified, invoke detect by default
+    if ctx.invoked_subcommand is None:
+        ctx.invoke(detect)
+
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.pass_context
 @click.option(
     "--threshold",
     type=float,
@@ -381,11 +408,9 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     default=False,
     help="Exit with error code 1 if any similar blocks are detected",
 )
-def main(
-    path: Path | None,
-    log_level: str,
-    ruleset: str,
-    list_ruleset: str | None,
+def detect(
+    ctx: click.Context,
+    path: Path,
     threshold: float,
     min_lines: int,
     output_format: str,
@@ -395,18 +420,9 @@ def main(
     diff: bool,
     strict: bool,
 ) -> None:
-    """Analyze code similarity in a file or directory."""
-    setup_logging(log_level.upper())
-
-    # Handle --list-ruleset option
-    if list_ruleset is not None:
-        _print_rulesets(list_ruleset)
-        sys.exit(0)
-
-    if path is None:
-        console.print("[bold red]Error:[/bold red] PATH is required")
-        console.print("Try 'tssim --help' for more information.")
-        sys.exit(1)
+    """Detect similar code regions (default command)."""
+    log_level = ctx.obj["log_level"]
+    ruleset = ctx.obj["ruleset"]
 
     _configure_settings(
         ruleset,
@@ -422,6 +438,90 @@ def main(
     # Exit with error code 1 in strict mode if any similar blocks are detected
     if strict and result.similar_groups:
         sys.exit(1)
+
+
+@main.command()
+@click.argument("file", type=click.Path(exists=True, path_type=Path))
+@click.pass_context
+@click.option(
+    "--region",
+    type=str,
+    default=None,
+    help="Specific region name to preprocess (e.g., function name). If not specified, shows all regions.",
+)
+def preprocess(
+    ctx: click.Context,
+    file: Path,
+    region: str | None,
+) -> None:
+    """Show file after preprocessing rules are applied.
+
+    This command shows how the code looks after all normalization rules
+    are applied, which is what gets compared during similarity detection.
+    """
+    from tssim.config import get_settings
+    from tssim.pipeline.parse import parse_file
+    from tssim.pipeline.region_extraction import extract_all_regions
+    from tssim.pipeline.shingle import ASTShingler
+    from tssim.pipeline.rules_factory import build_rule_engine
+
+    ruleset = ctx.obj["ruleset"]
+
+    # Configure settings
+    _configure_settings(ruleset, 1.0, 5, "", "**/.*ignore")
+
+    # Parse the file
+    try:
+        parsed_file = parse_file(file)
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] Failed to parse file: {e}")
+        sys.exit(1)
+
+    # Build rule engine
+    rule_engine = build_rule_engine(get_settings())
+
+    # Extract regions
+    extracted_regions = extract_all_regions([parsed_file], rule_engine, include_sections=False)
+
+    if not extracted_regions:
+        console.print("[yellow]No regions found in file[/yellow]")
+        sys.exit(0)
+
+    # Filter by region name if specified
+    if region:
+        extracted_regions = [r for r in extracted_regions if r.region.region_name == region]
+        if not extracted_regions:
+            console.print(f"[bold red]Error:[/bold red] Region '{region}' not found")
+            console.print("\nAvailable regions:")
+            all_regions = extract_all_regions([parsed_file], rule_engine, include_sections=False)
+            for r in all_regions:
+                console.print(f"  - {r.region.region_name} ({r.region.region_type})")
+            sys.exit(1)
+
+    # Create shingler
+    shingler = ASTShingler(rule_engine=rule_engine, k=3)
+
+    # Process each region
+    for extracted_region in extracted_regions:
+        region_info = extracted_region.region
+        console.print(f"\n[bold cyan]Region:[/bold cyan] {region_info.region_name} ({region_info.region_type})")
+        console.print(f"[dim]File: {region_info.path}[/dim]")
+        console.print(f"[dim]Lines: {region_info.start_line}-{region_info.end_line}[/dim]")
+
+        # Reset identifiers for consistent output
+        shingler.rule_engine.reset_identifiers()
+        shingler.rule_engine.precompute_queries(
+            extracted_region.node, region_info.language
+        )
+
+        # Extract shingles
+        shingled_region = shingler.shingle_region(extracted_region, parsed_file.source)
+
+        console.print(f"\n[bold green]Shingles ({len(shingled_region.shingles.shingles)}):[/bold green]")
+        for i, shingle in enumerate(shingled_region.shingles.shingles, 1):
+            console.print(f"  {i:3d}. {shingle}")
+
+        console.print()
 
 
 if __name__ == "__main__":
