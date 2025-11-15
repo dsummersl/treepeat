@@ -12,7 +12,7 @@ from tssim.pipeline.rules import (
     parse_rules,
     parse_rules_file,
 )
-from tssim.pipeline.rules.engine import build_loose_rules
+from tssim.pipeline.rules.engine import build_loose_rules, build_region_extraction_rules
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +78,8 @@ def get_ruleset_with_descriptions(ruleset: str) -> list[tuple[Rule, str]]:
         return build_default_rules()
     elif ruleset == "loose":
         return build_loose_rules()
-    else:  # none
-        return []
+    else:  # none - only region extraction rules, no normalization
+        return build_region_extraction_rules()
 
 
 def _load_ruleset_rules(ruleset: str) -> list[Rule]:

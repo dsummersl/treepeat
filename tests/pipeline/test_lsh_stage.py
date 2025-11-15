@@ -1,4 +1,4 @@
-from ..conftest import parsed_fixture, fixture_path1, fixture_path2
+from ..conftest import parsed_fixture, fixture_path1, fixture_path2, default_rule_engine
 
 from tssim.pipeline.lsh_stage import detect_similarity
 from tssim.pipeline.minhash_stage import compute_region_signatures
@@ -10,8 +10,9 @@ from tssim.pipeline.shingle import shingle_regions
 def test_detect_similarity_1():
     """Test similarity regions from dataclass1.py fixture."""
     parsed_dataclass1 = parsed_fixture(fixture_path1)
+    engine = default_rule_engine()
     shingled_regions = shingle_regions(
-        extracted_regions=extract_all_regions([parsed_dataclass1]),
+        extracted_regions=extract_all_regions([parsed_dataclass1], engine),
         parsed_files=[parsed_dataclass1],
         rule_engine=RuleEngine([]),
     )
@@ -25,8 +26,9 @@ def test_detect_similarity_1():
 def test_detect_similarity_2():
     """Test similarity regions from dataclass1.py fixture."""
     parsed_dataclass2 = parsed_fixture(fixture_path2)
+    engine = default_rule_engine()
     shingled_regions = shingle_regions(
-        extracted_regions=extract_all_regions([parsed_dataclass2]),
+        extracted_regions=extract_all_regions([parsed_dataclass2], engine),
         parsed_files=[parsed_dataclass2],
         rule_engine=RuleEngine([]),
     )

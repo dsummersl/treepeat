@@ -13,6 +13,7 @@ class RuleOperation(Enum):
     REPLACE_VALUE = "replace_value"
     ANONYMIZE_IDENTIFIERS = "anonymize_identifiers"
     CANONICALIZE_TYPES = "canonicalize_types"
+    EXTRACT_REGION = "extract_region"
 
 
 @dataclass

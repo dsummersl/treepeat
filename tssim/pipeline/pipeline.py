@@ -40,11 +40,13 @@ def _run_parse_stage(target_path: Path) -> ParseResult:
 
 
 def _run_extract_stage(
-    parsed_files: list[ParsedFile], include_sections: bool = True
+    parsed_files: list[ParsedFile],
+    rule_engine: RuleEngine,
+    include_sections: bool = True
 ) -> list[ExtractedRegion]:
     """Run region extraction stage."""
     logger.info("Stage 2/5: Extracting regions...")
-    extracted_regions = extract_all_regions(parsed_files, include_sections)
+    extracted_regions = extract_all_regions(parsed_files, rule_engine, include_sections)
     logger.info("Extracted %d region(s) from %d file(s)", len(extracted_regions), len(parsed_files))
     return extracted_regions
 
@@ -161,7 +163,7 @@ def _run_level1_matching(
     logger.info("===== LEVEL 1: Region-Level Matching =====")
 
     # Extract only functions/classes (no section regions)
-    level1_regions = _run_extract_stage(parsed_files, include_sections=False)
+    level1_regions = _run_extract_stage(parsed_files, rule_engine, include_sections=False)
 
     # Shingle level 1 regions
     level1_shingled = _run_shingle_stage(level1_regions, parsed_files, rule_engine, settings)

@@ -1,4 +1,4 @@
-from ..conftest import parsed_fixture, fixture_path1, fixture_path2
+from ..conftest import parsed_fixture, fixture_path1, fixture_path2, default_rule_engine
 from tssim.pipeline.region_extraction import extract_all_regions
 from tssim.pipeline.rules import RuleEngine
 from tssim.pipeline.shingle import shingle_regions
@@ -7,8 +7,9 @@ from tssim.pipeline.shingle import shingle_regions
 def test_shingle_regions_basic():
     """Test shingling regions from dataclass1.py fixture."""
     parsed_dataclass1 = parsed_fixture(fixture_path1)
+    engine = default_rule_engine()
     shingled_regions = shingle_regions(
-        extracted_regions=extract_all_regions([parsed_dataclass1]),
+        extracted_regions=extract_all_regions([parsed_dataclass1], engine),
         parsed_files=[parsed_dataclass1],
         rule_engine=RuleEngine([]),
     )
@@ -31,8 +32,9 @@ def test_shingle_regions_basic():
 
 def test_identical_functions():
     parsed_dataclass2 = parsed_fixture(fixture_path2)
+    engine = default_rule_engine()
     shingled_regions = shingle_regions(
-        extracted_regions=extract_all_regions([parsed_dataclass2]),
+        extracted_regions=extract_all_regions([parsed_dataclass2], engine),
         parsed_files=[parsed_dataclass2],
         rule_engine=RuleEngine([]),
     )

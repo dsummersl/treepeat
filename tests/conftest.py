@@ -1,6 +1,8 @@
 from pathlib import Path
 from tree_sitter_language_pack import get_parser
 from tssim.models.ast import ParsedFile
+from tssim.pipeline.rules import RuleEngine
+from tssim.pipeline.rules.engine import build_default_rules
 
 
 fixture_path1 = Path(__file__).parent / "fixtures" / "python" / "dataclass1.py"
@@ -24,3 +26,9 @@ def parsed_fixture(path):
         tree=tree,
         source=fixture,
     )
+
+
+def default_rule_engine():
+    """Create a default rule engine for tests."""
+    rules = [rule for rule, _ in build_default_rules()]
+    return RuleEngine(rules)

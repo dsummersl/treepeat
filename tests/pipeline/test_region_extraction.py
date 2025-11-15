@@ -4,13 +4,15 @@ from ..conftest import (
     fixture_path2,
     fixture_nested,
     fixture_class_methods,
+    default_rule_engine,
 )
 from tssim.pipeline.region_extraction import extract_all_regions, get_matched_line_ranges
 
 
 def test_extract_regions_dataclass1():
     parsed = parsed_fixture(fixture_path1)
-    regions = extract_all_regions([parsed])
+    engine = default_rule_engine()
+    regions = extract_all_regions([parsed], engine)
 
     # Should have regions for the python classes
     # Note: lines_1_3 includes comment and CONSTANT_VALUE_42
@@ -55,7 +57,8 @@ def test_extract_regions_dataclass1():
 
 def test_extract_regions_dataclass2():
     parsed = parsed_fixture(fixture_path2)
-    regions = extract_all_regions([parsed])
+    engine = default_rule_engine()
+    regions = extract_all_regions([parsed], engine)
 
     # Should have 3 regions (comment + two functions)
     assert len(regions) == 3
@@ -90,7 +93,8 @@ def test_extract_regions_dataclass2():
 
 def test_region_nodes_include_all_children():
     parsed = parsed_fixture(fixture_path2)
-    regions = extract_all_regions([parsed])
+    engine = default_rule_engine()
+    regions = extract_all_regions([parsed], engine)
 
     # Filter to only function regions (skip the comment region)
     function_regions = [r for r in regions if r.region.region_type == "function"]
@@ -118,7 +122,8 @@ def test_extract_nested_functions():
     the outer function's AST node and included in the shingles for that region.
     """
     parsed = parsed_fixture(fixture_nested)
-    regions = extract_all_regions([parsed], include_sections=True)
+    engine = default_rule_engine()
+    regions = extract_all_regions([parsed], engine, include_sections=True)
 
     # Extract region names
     region_names = [r.region.region_name for r in regions]
@@ -152,7 +157,8 @@ def test_extract_nested_functions():
 def test_nested_function_included_in_outer():
     """Test that outer functions include nested functions in their AST node."""
     parsed = parsed_fixture(fixture_nested)
-    regions = extract_all_regions([parsed])
+    engine = default_rule_engine()
+    regions = extract_all_regions([parsed], engine)
 
     # Find outer_function region
     outer = next(r for r in regions if r.region.region_name == "outer_function")
@@ -175,7 +181,8 @@ def test_nested_function_included_in_outer():
 def test_matched_line_ranges_covers_entire_function():
     """Test that matching a function marks all its lines as matched (including nested code)."""
     parsed = parsed_fixture(fixture_nested)
-    regions = extract_all_regions([parsed])
+    engine = default_rule_engine()
+    regions = extract_all_regions([parsed], engine)
 
     # Find outer_function
     outer = next(r for r in regions if r.region.region_name == "outer_function")
@@ -205,9 +212,10 @@ def test_include_sections_false_extracts_all_recursively():
     of duplicate methods even when their containing classes differ.
     """
     parsed = parsed_fixture(fixture_nested)
+    engine = default_rule_engine()
 
     # Extract with include_sections=False (level 1 behavior)
-    regions = extract_all_regions([parsed], include_sections=False)
+    regions = extract_all_regions([parsed], engine, include_sections=False)
 
     region_names = [r.region.region_name for r in regions]
 
@@ -245,9 +253,10 @@ def test_class_methods_extracted_separately():
     methods can be matched even if the classes overall don't match.
     """
     parsed = parsed_fixture(fixture_class_methods)
+    engine = default_rule_engine()
 
     # Extract with include_sections=False (recursive extraction)
-    regions = extract_all_regions([parsed], include_sections=False)
+    regions = extract_all_regions([parsed], engine, include_sections=False)
 
     region_names = [r.region.region_name for r in regions]
     region_types = {r.region.region_name: r.region.region_type for r in regions}

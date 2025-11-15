@@ -18,6 +18,7 @@ from tssim.pipeline.pipeline import run_pipeline
 from tssim.pipeline.region_extraction import extract_all_regions
 from tssim.pipeline.rules import RuleEngine, parse_rule
 from tssim.pipeline.shingle import shingle_regions
+from ..conftest import default_rule_engine
 
 
 fixture_class_with_methods = (
@@ -37,8 +38,9 @@ fixture_path5 = Path(__file__).parent.parent / "fixtures" / "python" / "dataclas
 def test_dissimilar_files(rules):
     parsed_dataclass4 = parsed_fixture(fixture_path4)
     parsed_dataclass5 = parsed_fixture(fixture_path5)
+    engine = default_rule_engine()
 
-    extracted_regions = extract_all_regions([parsed_dataclass4, parsed_dataclass5])
+    extracted_regions = extract_all_regions([parsed_dataclass4, parsed_dataclass5], engine)
 
     shingled_regions = shingle_regions(
         extracted_regions=extracted_regions,

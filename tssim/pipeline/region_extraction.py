@@ -3,12 +3,16 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 from tree_sitter import Node
 
 from tssim.models.ast import ParsedFile
 from tssim.models.similarity import Region
+
+if TYPE_CHECKING:
+    from tssim.pipeline.rules import RuleEngine
 
 logger = logging.getLogger(__name__)
 
@@ -31,41 +35,13 @@ class RegionTypeMapping:
     region_type: str  # Region type label (e.g., "function")
 
 
-# Language-specific mappings of node types to region types
-LANGUAGE_REGION_MAPPINGS: dict[str, list[RegionTypeMapping]] = {
-    "python": [
-        RegionTypeMapping(types=["function_definition"], region_type="function"),
-        RegionTypeMapping(types=["class_definition"], region_type="class"),
-    ],
-    "javascript": [
-        RegionTypeMapping(
-            types=["function_declaration", "function", "arrow_function"],
-            region_type="function",
-        ),
-        RegionTypeMapping(types=["method_definition"], region_type="method"),
-        RegionTypeMapping(types=["class_declaration"], region_type="class"),
-    ],
-    "typescript": [
-        RegionTypeMapping(
-            types=["function_declaration", "function", "arrow_function"],
-            region_type="function",
-        ),
-        RegionTypeMapping(types=["method_definition"], region_type="method"),
-        RegionTypeMapping(types=["class_declaration"], region_type="class"),
-    ],
-    "markdown": [
-        RegionTypeMapping(
-            types=["atx_heading", "setext_heading", "section"], region_type="heading"
-        ),
-        RegionTypeMapping(
-            types=["fenced_code_block", "indented_code_block"], region_type="code_block"
-        ),
-    ],
-}
-
-# Copy typescript mappings for tsx and jsx
-LANGUAGE_REGION_MAPPINGS["tsx"] = LANGUAGE_REGION_MAPPINGS["typescript"]
-LANGUAGE_REGION_MAPPINGS["jsx"] = LANGUAGE_REGION_MAPPINGS["javascript"]
+def _get_region_mappings_from_engine(engine: "RuleEngine", language: str) -> list[RegionTypeMapping]:
+    """Get region extraction rules from the rule engine for a language."""
+    rules = engine.get_region_extraction_rules(language)
+    mappings = []
+    for node_types, region_type in rules:
+        mappings.append(RegionTypeMapping(types=node_types, region_type=region_type))
+    return mappings
 
 
 def _extract_node_name(node: Node, source: bytes) -> str:
@@ -127,9 +103,8 @@ def _create_section_region(
     )
 
 
-def _get_region_type_for_node(node_type: str, language: str) -> str:
+def _get_region_type_for_node(node_type: str, mappings: list[RegionTypeMapping]) -> str:
     """Get the region type label for a node type."""
-    mappings = LANGUAGE_REGION_MAPPINGS.get(language, [])
     for mapping in mappings:
         if node_type in mapping.types:
             return mapping.region_type
@@ -139,10 +114,11 @@ def _get_region_type_for_node(node_type: str, language: str) -> str:
 def _create_target_region(
     node: Node,
     parsed_file: ParsedFile,
+    mappings: list[RegionTypeMapping],
 ) -> ExtractedRegion:
     """Create a region for a target node such as a function or class."""
     name = _extract_node_name(node, parsed_file.source)
-    region_type = _get_region_type_for_node(node.type, parsed_file.language)
+    region_type = _get_region_type_for_node(node.type, mappings)
 
     region = Region(
         path=parsed_file.path,
@@ -179,6 +155,7 @@ def _partition_with_sections(
     nodes: list[Node],
     target_types: set[str],
     parsed_file: ParsedFile,
+    mappings: list[RegionTypeMapping],
 ) -> list[ExtractedRegion]:
     """Partition nodes into target regions and sections."""
     regions: list[ExtractedRegion] = []
@@ -187,7 +164,7 @@ def _partition_with_sections(
     for node in nodes:
         if node.type in target_types:
             _flush_pending_sections(pending_section_nodes, parsed_file, regions)
-            regions.append(_create_target_region(node, parsed_file))
+            regions.append(_create_target_region(node, parsed_file, mappings))
         else:
             pending_section_nodes.append(node)
 
@@ -199,22 +176,28 @@ def _partition_by_type(
     nodes: list[Node],
     target_types: set[str],
     parsed_file: ParsedFile,
+    mappings: list[RegionTypeMapping],
     include_sections: bool = True,
 ) -> list[ExtractedRegion]:
     """Partition nodes into target regions and optional section regions for non-target nodes."""
     if not include_sections:
-        return [_create_target_region(node, parsed_file) for node in nodes if node.type in target_types]
+        return [_create_target_region(node, parsed_file, mappings) for node in nodes if node.type in target_types]
 
-    return _partition_with_sections(nodes, target_types, parsed_file)
+    return _partition_with_sections(nodes, target_types, parsed_file, mappings)
 
 
-def extract_regions(parsed_file: ParsedFile, include_sections: bool = True) -> list[ExtractedRegion]:
-    """Extract code regions from a parsed file using language-specific mappings."""
+def extract_regions(
+    parsed_file: ParsedFile,
+    rule_engine: "RuleEngine",
+    include_sections: bool = True
+) -> list[ExtractedRegion]:
+    """Extract code regions from a parsed file using rules from the engine."""
     logger.info("Extracting regions from %s (%s)", parsed_file.path, parsed_file.language)
 
-    # Check if language has region mappings
-    mappings = LANGUAGE_REGION_MAPPINGS.get(parsed_file.language)
-    if mappings is None:
+    # Get region mappings from the rule engine
+    mappings = _get_region_mappings_from_engine(rule_engine, parsed_file.language)
+
+    if not mappings:
         # For unsupported languages, treat the entire file as one region
         logger.warning(
             "Language '%s' not supported for region extraction, treating entire file as one region",
@@ -238,25 +221,27 @@ def extract_regions(parsed_file: ParsedFile, include_sections: bool = True) -> l
         if include_sections:
             # Original behavior: top-level nodes with sections
             top_level_nodes = _collect_top_level_nodes(parsed_file.root_node)
-            regions = _partition_by_type(top_level_nodes, target_types, parsed_file, include_sections)
+            regions = _partition_by_type(top_level_nodes, target_types, parsed_file, mappings, include_sections)
         else:
             # Recursive extraction: find ALL matching nodes (methods, nested functions, etc.)
             matching_nodes = _collect_all_matching_nodes(parsed_file.root_node, target_types)
-            regions = [_create_target_region(node, parsed_file) for node in matching_nodes]
+            regions = [_create_target_region(node, parsed_file, mappings) for node in matching_nodes]
 
     logger.info("Extracted %d region(s) from %s", len(regions), parsed_file.path)
     return regions
 
 
 def extract_all_regions(
-    parsed_files: list[ParsedFile], include_sections: bool = True
+    parsed_files: list[ParsedFile],
+    rule_engine: "RuleEngine",
+    include_sections: bool = True
 ) -> list[ExtractedRegion]:
     """Extract regions from all parsed files."""
     all_regions: list[ExtractedRegion] = []
 
     for parsed_file in parsed_files:
         try:
-            regions = extract_regions(parsed_file, include_sections)
+            regions = extract_regions(parsed_file, rule_engine, include_sections)
             all_regions.extend(regions)
         except Exception as e:
             logger.error("Failed to extract regions from %s: %s", parsed_file.path, e)
