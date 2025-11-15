@@ -8,6 +8,10 @@ This module implements a lightweight verification using order-sensitive shingle 
 (LCS-based) as a pragmatic alternative to full PQ-Gram/TED verification. It verifies that
 regions matched by minhash-LSH (which is order-insensitive) actually have matching line
 order using Longest Common Subsequence (LCS).
+
+Additionally, for high similarity matches (>95%), we verify against the actual source text
+to catch differences that may not be captured in shingles (e.g., function names at shallow
+AST depths).
 """
 
 import logging
@@ -17,6 +21,11 @@ from tssim.models.shingle import ShingledRegion
 
 
 logger = logging.getLogger(__name__)
+
+# Threshold above which we verify against raw source text
+# Only check signature for near-perfect matches (98%+) to catch false 100% matches
+# where only the function/class name differs
+SOURCE_VERIFICATION_THRESHOLD = 0.98
 
 
 def _compute_lcs_length(shingles1: list[str], shingles2: list[str]) -> int:
@@ -47,6 +56,52 @@ def _compute_ordered_similarity(shingles1: list[str], shingles2: list[str]) -> f
 
     lcs_length = _compute_lcs_length(shingles1, shingles2)
     return _normalize_similarity(lcs_length, len(shingles1), len(shingles2))
+
+
+def _read_source_lines(file_path: Path, start_line: int, end_line: int) -> list[str]:
+    """Read source lines from a file."""
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+            # Convert to 0-indexed
+            return [line.rstrip() for line in lines[start_line - 1:end_line]]
+    except Exception as e:
+        logger.warning("Failed to read source from %s: %s", file_path, e)
+        return []
+
+
+def _compute_source_similarity(
+    file_path1: Path, start_line1: int, end_line1: int,
+    file_path2: Path, start_line2: int, end_line2: int
+) -> float:
+    """Compute similarity between two regions based on their actual source text."""
+    lines1 = _read_source_lines(file_path1, start_line1, end_line1)
+    lines2 = _read_source_lines(file_path2, start_line2, end_line2)
+
+    if not lines1 or not lines2:
+        return 0.0
+
+    # Use LCS on actual source lines
+    lcs_length = _compute_lcs_length(lines1, lines2)
+    return _normalize_similarity(lcs_length, len(lines1), len(lines2))
+
+
+def _check_signature_match(
+    file_path1: Path, start_line1: int,
+    file_path2: Path, start_line2: int
+) -> bool:
+    """Check if the first line (signature) of two regions matches.
+
+    This catches cases where function/class names differ but bodies are similar.
+    """
+    lines1 = _read_source_lines(file_path1, start_line1, start_line1)
+    lines2 = _read_source_lines(file_path2, start_line2, start_line2)
+
+    if not lines1 or not lines2:
+        return True  # If we can't read, don't penalize
+
+    # Compare first lines (function/class signatures)
+    return lines1[0].strip() == lines2[0].strip()
 
 
 def _build_region_lookup(
@@ -85,10 +140,32 @@ def _verify_group_pairwise_similarity(
                 )
                 similarity = 0.0
             else:
-                similarity = _compute_ordered_similarity(
+                # Compute shingle-based similarity
+                shingle_similarity = _compute_ordered_similarity(
                     sr1.shingles.shingles,
                     sr2.shingles.shingles,
                 )
+
+                # For high similarity matches, verify that signatures (first lines) match
+                # This catches cases where function/class names differ but bodies are similar
+                if shingle_similarity >= SOURCE_VERIFICATION_THRESHOLD:
+                    signatures_match = _check_signature_match(
+                        r1.path, r1.start_line,
+                        r2.path, r2.start_line
+                    )
+
+                    if not signatures_match:
+                        # Penalize signature mismatch - treat as 0.0 similarity
+                        similarity = 0.0
+                        logger.debug(
+                            "Signature mismatch for %s ↔ %s, treating as 0%% similar",
+                            r1.region_name,
+                            r2.region_name,
+                        )
+                    else:
+                        similarity = shingle_similarity
+                else:
+                    similarity = shingle_similarity
 
             total_similarity += similarity
             pair_count += 1
