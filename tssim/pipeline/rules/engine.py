@@ -18,7 +18,7 @@ class RuleEngine:
         self._identifier_counters: dict[str, int] = {}
         self._action_handlers = self._build_action_handlers()
         self._compiled_queries: dict[tuple[str, str], Query] = {}
-        self._query_node_cache: dict[tuple[int, int], set[str]] = {}
+        self._query_matches_cache: dict[int, list[dict]] = {}
 
     def _build_action_handlers(
         self,
@@ -54,30 +54,38 @@ class RuleEngine:
             self._compiled_queries[key] = Query(lang, query_str)
         return self._compiled_queries[key]
 
-    def _is_node_in_query_cache(
-        self, node_key: tuple[int, int], cache_key: str
-    ) -> bool:
-        """Check if a node is in the query cache."""
-        return (
-            node_key in self._query_node_cache
-            and cache_key in self._query_node_cache[node_key]
-        )
+    def _get_all_matches(
+        self, root_node: Node, query_strings: list[str], language: str
+    ) -> dict[int, list[dict]]:
+        """Execute multiple queries and collect all matches indexed by node ID.
 
-    def _cache_query_matches(
-        self, cache_key: str, root_node: Node, query_str: str, language: str
-    ) -> None:
-        """Execute query and cache all matched nodes."""
-        query = self._get_compiled_query(language, query_str)
-        cursor = QueryCursor(query)
-        matches = cursor.matches(root_node)
+        Args:
+            root_node: Root node to query
+            query_strings: List of query strings to execute
+            language: Language for the queries
 
-        for pattern_index, captures_dict in matches:
-            for capture_name, nodes in captures_dict.items():
-                for matched_node in nodes:
-                    matched_key = (matched_node.start_byte, matched_node.end_byte)
-                    if matched_key not in self._query_node_cache:
-                        self._query_node_cache[matched_key] = set()
-                    self._query_node_cache[matched_key].add(cache_key)
+        Returns:
+            Dictionary mapping node.id to list of match dictionaries
+        """
+        all_matches: dict[int, list[dict]] = {}
+
+        for query_str in query_strings:
+            query = self._get_compiled_query(language, query_str)
+            cursor = QueryCursor(query)
+
+            for match_id, captures_dict in cursor.matches(root_node):
+                for capture_name, nodes in captures_dict.items():
+                    for node in nodes:
+                        if node.id not in all_matches:
+                            all_matches[node.id] = []
+                        all_matches[node.id].append({
+                            'query': query_str,
+                            'match_id': match_id,
+                            'captures': captures_dict,
+                            'capture_name': capture_name
+                        })
+
+        return all_matches
 
     def _get_query_match_result(self, rule: Rule) -> str:
         """Get the result to return for a query match."""
@@ -90,16 +98,12 @@ class RuleEngine:
 
         Returns the capture name if matched, None otherwise.
         """
-        node_key = (node.start_byte, node.end_byte)
-        cache_key = f"{language}:{rule.query}"
-
-        # Check cache first, or execute query and cache results
-        if not self._is_node_in_query_cache(node_key, cache_key):
-            self._cache_query_matches(cache_key, root_node, rule.query, language)
-
-        # Return match result if found
-        if self._is_node_in_query_cache(node_key, cache_key):
-            return self._get_query_match_result(rule)
+        # Look up node in the pre-computed cache
+        if node.id in self._query_matches_cache:
+            # Check if any of the matches are for this rule's query
+            for match_info in self._query_matches_cache[node.id]:
+                if match_info['query'] == rule.query:
+                    return self._get_query_match_result(rule)
 
         return None
 
@@ -205,19 +209,23 @@ class RuleEngine:
     def reset_identifiers(self) -> None:
         """Reset the identifier counter and query cache."""
         self._identifier_counters.clear()
-        self._query_node_cache.clear()
+        self._query_matches_cache.clear()
 
     def precompute_queries(self, root_node: Node, language: str) -> None:
         """Pre-execute all queries for a root node to populate the cache.
 
-        This is an optimization to avoid lazy query execution during tree traversal.
+        This executes all queries once and indexes matches by node ID for O(1) lookup.
         Call this once per region after reset_identifiers().
         """
-        for rule in self.rules:
-            if rule.matches_language(language):
-                cache_key = f"{language}:{rule.query}"
-                # Execute query and cache all results upfront
-                self._cache_query_matches(cache_key, root_node, rule.query, language)
+        # Collect all query strings for this language
+        query_strings = [
+            rule.query for rule in self.rules if rule.matches_language(language)
+        ]
+
+        # Execute all queries once and cache results indexed by node.id
+        self._query_matches_cache = self._get_all_matches(
+            root_node, query_strings, language
+        )
 
     def _extract_region_rule_params(self, rule: Rule) -> Optional[tuple[list[str], str]]:
         """Extract region params from a rule if it's a region extraction rule."""
