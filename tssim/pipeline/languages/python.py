@@ -27,17 +27,23 @@ class PythonConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Anonymize Python identifiers",
+                name="Ignore Python docstrings",
                 languages=["python"],
-                query="(identifier) @var",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "VAR"},
+                query="(expression_statement (string))",
+                action=RuleAction.REMOVE,
             ),
         ]
 
     def get_loose_rules(self) -> list[Rule]:
         return [
             *self.get_default_rules(),
+            Rule(
+                name="Anonymize Python identifiers",
+                languages=["python"],
+                query="(identifier) @var",
+                action=RuleAction.ANONYMIZE,
+                params={"prefix": "VAR"},
+            ),
             Rule(
                 name="Replace Python literal values",
                 languages=["python"],

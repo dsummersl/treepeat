@@ -85,7 +85,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
         # Tests with ruleset=default (with normalization)
         # With normalization and identifier reset per region, classes become more similar
         ("default", class_with_methods_file, 0.1, 0, []),
-        ("default", class_with_methods_file, 0.3, 2, []),
+        ("default", class_with_methods_file, 0.3, 1, []),
         # With threshold 0.5, ClassA and ClassB match at ~82% (2 of 3 methods identical)
         ("default", class_with_methods_file, 0.5, 3, [(classA_region, classB_region)]),
         # Tests with entire fixture directory (ruleset=none) - verifies no self-overlapping false positives
