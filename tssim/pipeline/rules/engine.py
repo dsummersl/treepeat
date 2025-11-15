@@ -32,7 +32,7 @@ class RuleEngine:
     ) -> dict[
         RuleAction,
         Callable[
-            [Rule, str, str, Optional[str], Optional[str]],
+            [Rule, Node, str, str, Optional[str], Optional[str]],
             tuple[Optional[str], Optional[str]],
         ],
     ]:
@@ -130,7 +130,7 @@ class RuleEngine:
         return None
 
     def _handle_remove(
-        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle REMOVE action - skip/remove matched nodes."""
         raise SkipNodeException(
@@ -138,13 +138,13 @@ class RuleEngine:
         )
 
     def _handle_rename(
-        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle RENAME action - rename matched nodes."""
         return rule.params.get("token", "<NODE>"), value
 
     def _handle_replace_value(
-        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle REPLACE_VALUE action - replace node values."""
         return name, rule.params.get("value", "<LIT>")
@@ -162,13 +162,13 @@ class RuleEngine:
         return name, self._get_anonymized_identifier(prefix, original_value)
 
     def _handle_canonicalize(
-        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle CANONICALIZE action - canonicalize types."""
         return rule.params.get("token", "<TYPE>"), value
 
     def _handle_extract_region(
-        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle EXTRACT_REGION action - mark regions for extraction (no-op for normalization)."""
         return name, value
@@ -182,11 +182,7 @@ class RuleEngine:
 
         handler = self._action_handlers.get(rule.action)
         if handler:
-            # ANONYMIZE handler needs the node to extract original text
-            if rule.action == RuleAction.ANONYMIZE:
-                return handler(rule, node, node_type, language, name, value)
-            else:
-                return handler(rule, node_type, language, name, value)
+            return handler(rule, node, node_type, language, name, value)
 
         return name, value
 
