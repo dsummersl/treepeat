@@ -8,7 +8,8 @@ from tssim.models.ast import ParsedFile, ParseResult
 from tssim.models.normalization import NodeRepresentation, SkipNode
 from tssim.models.shingle import ShingledRegion, ShingleResult, ShingleList, ShingledFile
 from tssim.pipeline.region_extraction import ExtractedRegion
-from tssim.pipeline.rules import RuleEngine, SkipNodeException
+from tssim.pipeline.rules.engine import RuleEngine
+from tssim.pipeline.rules.models import SkipNodeException
 
 logger = logging.getLogger(__name__)
 

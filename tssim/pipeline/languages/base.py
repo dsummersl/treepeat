@@ -1,5 +1,3 @@
-"""Base interface for language-specific configuration."""
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 

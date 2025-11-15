@@ -3,7 +3,6 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 from tree_sitter import Node
@@ -11,8 +10,7 @@ from tree_sitter import Node
 from tssim.models.ast import ParsedFile
 from tssim.models.similarity import Region
 
-if TYPE_CHECKING:
-    from tssim.pipeline.rules import RuleEngine
+from tssim.pipeline.rules.engine import RuleEngine
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,3 @@
-"""Top-level pipeline orchestration.
-
-This module provides the main pipeline that orchestrates all stages:
-Parse → Extract Regions → Shingle Regions → MinHash → LSH
-"""
-
 import logging
 from pathlib import Path
 
@@ -20,7 +14,7 @@ from tssim.pipeline.region_extraction import (
     extract_all_regions,
     get_matched_line_ranges,
 )
-from tssim.pipeline.rules import RuleEngine
+from tssim.pipeline.rules.engine import RuleEngine
 from tssim.pipeline.rules_factory import build_rule_engine
 from tssim.pipeline.shingle import shingle_regions
 

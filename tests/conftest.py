@@ -1,8 +1,7 @@
 from pathlib import Path
 from tree_sitter_language_pack import get_parser
 from tssim.models.ast import ParsedFile
-from tssim.pipeline.rules import RuleEngine
-from tssim.pipeline.rules.engine import build_default_rules
+from tssim.pipeline.rules.engine import RuleEngine, build_default_rules
 
 
 fixture_path1 = Path(__file__).parent / "fixtures" / "python" / "dataclass1.py"

@@ -3,68 +3,23 @@
 import logging
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Literal
 
-from tree_sitter_language_pack import get_parser
+from tree_sitter_language_pack import get_parser, SupportedLanguage
 
 from tssim.config import get_settings
 from tssim.models import ParsedFile, ParseResult
+from tssim.pipeline.languages import LANGUAGE_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
-# Type alias for supported tree-sitter languages
-LanguageName = Literal[
-    "python",
-    "javascript",
-    "markdown",
-    "typescript",
-    "tsx",
-    "java",
-    "c",
-    "cpp",
-    "go",
-    "rust",
-    "ruby",
-    "php",
-    "csharp",
-    "swift",
-    "kotlin",
-    "scala",
-    "bash",
-]
 
-# Mapping of file extensions to tree-sitter language names
-LANGUAGE_MAP: dict[str, LanguageName] = {
-    ".py": "python",
-    ".js": "javascript",
-    ".md": "markdown",
-    ".ts": "typescript",
-    ".tsx": "tsx",
-    ".jsx": "javascript",
-    ".java": "java",
-    ".c": "c",
-    ".cpp": "cpp",
-    ".cc": "cpp",
-    ".cxx": "cpp",
-    ".h": "c",
-    ".hpp": "cpp",
-    ".go": "go",
-    ".rs": "rust",
-    ".rb": "ruby",
-    ".php": "php",
-    ".cs": "csharp",
-    ".swift": "swift",
-    ".kt": "kotlin",
-    ".scala": "scala",
-    ".sh": "bash",
-}
-
-
-def detect_language(file_path: Path) -> LanguageName | None:
+def detect_language(file_path: Path) -> SupportedLanguage | None:
     """Detect programming language from file extension."""
-    # TODO support a more robust detection mechanism (something like enry maybe or pygments)
     suffix = file_path.suffix.lower()
-    return LANGUAGE_MAP.get(suffix)
+    for lang, exts in LANGUAGE_EXTENSIONS.items():
+        if suffix in exts:
+            return lang
+    return None
 
 
 def read_source_file(file_path: Path) -> bytes:
@@ -75,7 +30,7 @@ def read_source_file(file_path: Path) -> bytes:
         raise ValueError(f"Failed to read file {file_path}: {e}") from e
 
 
-def parse_source_code(source: bytes, language_name: LanguageName, file_path: Path) -> ParsedFile:
+def parse_source_code(source: bytes, language_name: SupportedLanguage, file_path: Path) -> ParsedFile:
     """Parse source code using tree-sitter."""
     try:
         parser = get_parser(language_name)
@@ -126,9 +81,7 @@ def parse_ignore_file(ignore_file: Path) -> list[str]:
         return []
 
 
-def _process_ignore_file(
-    ignore_file: Path, ignore_files_map: dict[Path, list[str]]
-) -> None:
+def _process_ignore_file(ignore_file: Path, ignore_files_map: dict[Path, list[str]]) -> None:
     """Process a single ignore file and update the map."""
     patterns = parse_ignore_file(ignore_file)
     if not patterns:
@@ -224,9 +177,7 @@ def matches_pattern(file_path: Path, pattern: str, base_path: Path) -> bool:
     return _match_simple_pattern(rel_path_str, file_path.name, pattern)
 
 
-def _check_patterns_in_directory(
-    file_path: Path, directory: Path, patterns: list[str]
-) -> bool:
+def _check_patterns_in_directory(file_path: Path, directory: Path, patterns: list[str]) -> bool:
     """Check if file matches any patterns from a directory."""
     for pattern in patterns:
         if matches_pattern(file_path, pattern, directory):
@@ -304,10 +255,11 @@ def _collect_directory_files(
     ignore_files_map = find_ignore_files(target_path, ignore_file_patterns)
 
     files: list[Path] = []
-    for ext in LANGUAGE_MAP.keys():
-        for file in target_path.rglob(f"*{ext}"):
-            if not should_ignore_file(file, target_path, ignore_patterns, ignore_files_map):
-                files.append(file)
+    for lang, exts in LANGUAGE_EXTENSIONS.items():
+        for ext in exts:
+            for file in target_path.rglob(f"*{ext}"):
+                if not should_ignore_file(file, target_path, ignore_patterns, ignore_files_map):
+                    files.append(file)
 
     logger.info(f"Found {len(files)} source files in directory (after applying ignore patterns)")
     return files

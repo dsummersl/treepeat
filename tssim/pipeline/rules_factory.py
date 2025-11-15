@@ -3,7 +3,8 @@
 import logging
 
 from tssim.config import PipelineSettings
-from tssim.pipeline.rules import Rule, RuleEngine, build_default_rules
+from tssim.pipeline.rules.engine import RuleEngine, build_default_rules
+from tssim.pipeline.rules.models import Rule
 from tssim.pipeline.rules.engine import build_loose_rules, build_region_extraction_rules
 
 logger = logging.getLogger(__name__)

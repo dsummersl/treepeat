@@ -16,6 +16,7 @@ dependencies = [
     "datasketch>=1.6.5",
     "pydantic>=2.12.3",
     "pydantic-settings>=2.0.0",
+    "python-magic>=0.4.27",
     "rich>=14.2.0",
     "sarif-pydantic>=0.6.2",
     "tdqm>=0.0.1",

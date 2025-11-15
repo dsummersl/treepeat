@@ -48,4 +48,7 @@ class HTMLConfig(LanguageConfig):
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
-        return []
+        return [
+            RegionExtractionRule(node_types=["head"], region_type="head"),
+            RegionExtractionRule(node_types=["body"], region_type="body"),
+        ]
