@@ -49,6 +49,12 @@ class HTMLConfig(LanguageConfig):
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
         return [
-            RegionExtractionRule(node_types=["head"], region_type="head"),
-            RegionExtractionRule(node_types=["body"], region_type="body"),
+            RegionExtractionRule(
+                query="(element (start_tag (tag_name) @tag_name) (#eq? @tag_name \"head\")) @region",
+                region_type="head"
+            ),
+            RegionExtractionRule(
+                query="(element (start_tag (tag_name) @tag_name) (#eq? @tag_name \"body\")) @region",
+                region_type="body"
+            ),
         ]
