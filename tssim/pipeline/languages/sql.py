@@ -34,17 +34,12 @@ class SQLConfig(LanguageConfig):
             Rule(
                 name="Replace SQL literal values",
                 languages=["sql"],
-                query="[(string) (number)] @lit",
+                query="(literal) @lit",
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),
-            Rule(
-                name="Replace SQL keywords",
-                languages=["sql"],
-                query="(keyword) @kw",
-                action=RuleAction.RENAME,
-                params={"token": "<KW>"},
-            ),
+            # Note: SQL grammar doesn't have a generic (keyword) node type
+            # Keywords are specific types like keyword_insert, keyword_into, etc.
             Rule(
                 name="Replace SQL expressions",
                 languages=["sql"],
