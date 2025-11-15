@@ -1,45 +1,12 @@
 """Factory for building rule engines from settings."""
 
 import logging
-from pathlib import Path
 
 from tssim.config import PipelineSettings
-from tssim.pipeline.rules import (
-    Rule,
-    RuleEngine,
-    RuleParseError,
-    build_default_rules,
-    parse_yaml_rules_file,
-)
+from tssim.pipeline.rules import Rule, RuleEngine, build_default_rules
 from tssim.pipeline.rules.engine import build_loose_rules, build_region_extraction_rules
 
 logger = logging.getLogger(__name__)
-
-
-def _load_rules_from_file(rules_file_path: str, ruleset_name: str = "default") -> list[Rule]:
-    """Load rules from a YAML file with error handling.
-
-    Args:
-        rules_file_path: Path to the YAML rules file
-        ruleset_name: The ruleset to load (default: "default")
-
-    Returns:
-        List of rules
-
-    Raises:
-        FileNotFoundError: If file doesn't exist
-        RuleParseError: If parsing fails
-    """
-    path = Path(rules_file_path)
-    logger.info("Loading rules from YAML file: %s", path)
-
-    try:
-        rules = parse_yaml_rules_file(str(path), ruleset_name)
-        logger.info("Loaded %d rule(s) from YAML ruleset '%s' in %s", len(rules), ruleset_name, path)
-        return rules
-    except (FileNotFoundError, RuleParseError) as e:
-        logger.error("Failed to load rules file: %s", e)
-        raise
 
 
 def _log_active_rules(rules: list[Rule]) -> None:
@@ -102,14 +69,6 @@ def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
     Returns:
         Configured RuleEngine instance
     """
-    # Load rules based on priority: rules-file > built-in ruleset
-    if settings.rules.rules_file:
-        rules = _load_rules_from_file(
-            settings.rules.rules_file,
-            settings.rules.rules_file_ruleset,
-        )
-    else:
-        rules = _load_ruleset_rules(settings.rules.ruleset.lower())
-
+    rules = _load_ruleset_rules(settings.rules.ruleset.lower())
     _log_active_rules(rules)
     return RuleEngine(rules)
