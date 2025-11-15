@@ -203,8 +203,9 @@ class RuleEngine:
         return name, value
 
     def reset_identifiers(self) -> None:
-        """Reset the identifier counter."""
+        """Reset the identifier counter and query cache."""
         self._identifier_counters.clear()
+        self._query_node_cache.clear()
 
     def _extract_region_rule_params(self, rule: Rule) -> Optional[tuple[list[str], str]]:
         """Extract region params from a rule if it's a region extraction rule."""
