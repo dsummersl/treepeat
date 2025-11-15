@@ -2,9 +2,10 @@
 
 from typing import Callable, Optional
 
-from tree_sitter import Node
+from tree_sitter import Node, Query, QueryCursor
+from tree_sitter_language_pack import get_language
 
-from .models import Rule, RuleOperation, SkipNodeException
+from .models import Rule, RuleAction, RuleOperation, SkipNodeException
 from .parser import parse_rule
 from ..languages import LANGUAGE_CONFIGS
 
@@ -18,6 +19,9 @@ class RuleEngine:
         self.rules = rules
         self._identifier_counters: dict[str, int] = {}
         self._operation_handlers = self._build_operation_handlers()
+        self._compiled_queries: dict[tuple[str, str], Query] = {}  # (language, query_str) -> Query
+        # Cache using (start_byte, end_byte) as key instead of Python object id
+        self._query_node_cache: dict[tuple[int, int], set[str]] = {}  # (start, end) -> set of matched rules
 
     def _build_operation_handlers(
         self,
@@ -44,6 +48,54 @@ class RuleEngine:
             self._identifier_counters[prefix] = 0
         self._identifier_counters[prefix] += 1
         return f"{prefix}_{self._identifier_counters[prefix]}"
+
+    def _get_compiled_query(self, language: str, query_str: str) -> Query:
+        """Get or compile a query for a language."""
+        key = (language, query_str)
+        if key not in self._compiled_queries:
+            lang = get_language(language)
+            self._compiled_queries[key] = Query(lang, query_str)
+        return self._compiled_queries[key]
+
+    def _check_node_matches_query(
+        self, node: Node, rule: Rule, language: str, root_node: Node
+    ) -> Optional[str]:
+        """Check if a node matches a query-based rule.
+
+        Returns the capture name if matched, None otherwise.
+        """
+        if not rule.query:
+            return None
+
+        # Use node position as key (start_byte, end_byte)
+        node_key = (node.start_byte, node.end_byte)
+        cache_key = f"{language}:{rule.query}"
+
+        # Check cache first
+        if node_key in self._query_node_cache:
+            if cache_key in self._query_node_cache[node_key]:
+                return rule.target or "match"
+
+        # Execute query on root node to find all matches
+        query = self._get_compiled_query(language, rule.query)
+        cursor = QueryCursor(query)
+        matches = cursor.matches(root_node)
+
+        # Cache all matched nodes using their positions
+        for pattern_index, captures_dict in matches:
+            for capture_name, nodes in captures_dict.items():
+                for matched_node in nodes:
+                    matched_key = (matched_node.start_byte, matched_node.end_byte)
+                    if matched_key not in self._query_node_cache:
+                        self._query_node_cache[matched_key] = set()
+                    self._query_node_cache[matched_key].add(cache_key)
+
+        # Check if our node is in the cache now
+        if node_key in self._query_node_cache:
+            if cache_key in self._query_node_cache[node_key]:
+                return rule.target or "match"
+
+        return None
 
     def _handle_skip(
         self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
@@ -91,17 +143,69 @@ class RuleEngine:
         handler = self._operation_handlers[rule.operation]
         return handler(rule, node_type, language, name, value)
 
-    def apply_rules(
-        self, node: Node, language: str, node_name: Optional[str] = None
+    def _apply_query_action(
+        self, rule: Rule, node_type: str, language: str, name: Optional[str], value: Optional[str]
     ) -> tuple[Optional[str], Optional[str]]:
-        """Apply all matching rules to a node."""
+        """Apply a query-based rule action."""
+        if not rule.action:
+            return name, value
+
+        # Map action to legacy operation handlers
+        if rule.action == RuleAction.REMOVE:
+            return self._handle_skip(rule, node_type, language, name, value)
+        elif rule.action == RuleAction.RENAME:
+            return self._handle_replace_name(rule, node_type, language, name, value)
+        elif rule.action == RuleAction.REPLACE_VALUE:
+            return self._handle_replace_value(rule, node_type, language, name, value)
+        elif rule.action == RuleAction.ANONYMIZE:
+            return self._handle_anonymize(rule, node_type, language, name, value)
+        elif rule.action == RuleAction.CANONICALIZE:
+            return self._handle_canonicalize(rule, node_type, language, name, value)
+        elif rule.action == RuleAction.EXTRACT_REGION:
+            return self._handle_extract_region(rule, node_type, language, name, value)
+
+        return name, value
+
+    def apply_rules(
+        self,
+        node: Node,
+        language: str,
+        node_name: Optional[str] = None,
+        root_node: Optional[Node] = None,
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Apply all matching rules to a node.
+
+        Args:
+            node: The node to apply rules to
+            language: The language of the source code
+            node_name: Optional override for the node type name
+            root_node: Optional root node for query-based rules
+
+        Returns:
+            Tuple of (name, value) - either may be None
+        """
         node_type = node_name or node.type
         name = None
         value = None
 
+        # Use the node itself as root if not provided (for backward compatibility)
+        if root_node is None:
+            root_node = node
+
         for rule in self.rules:
-            if rule.matches_language(language) and rule.matches_node_type(node_type):
-                name, value = self._apply_single_rule(rule, node_type, language, name, value)
+            # Check if rule matches based on type (legacy) or query (new)
+            if rule.is_query_based():
+                # Query-based rule - check if node matches the query
+                if rule.matches_language(language):
+                    capture_name = self._check_node_matches_query(node, rule, language, root_node)
+                    if capture_name:
+                        # Apply the action
+                        name, value = self._apply_query_action(rule, node_type, language, name, value)
+            else:
+                # Legacy rule - check node type pattern
+                if rule.matches_language(language) and rule.matches_node_type(node_type):
+                    if rule.operation:
+                        name, value = self._apply_single_rule(rule, node_type, language, name, value)
 
         return name, value
 

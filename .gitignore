@@ -10,3 +10,7 @@ __pycache__/
 .htmlcov/
 .pytest_cache/
 .aider*
+
+# Test files
+test_*.py
+test_*.yaml

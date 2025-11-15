@@ -1,11 +1,12 @@
 """Rules system for tree-sitter node processing."""
 
 from .engine import RuleEngine, build_default_rules
-from .models import Rule, RuleOperation, RuleResult, SkipNodeException
-from .parser import RuleParseError, parse_rule, parse_rules, parse_rules_file
+from .models import Rule, RuleAction, RuleOperation, RuleResult, SkipNodeException
+from .parser import RuleParseError, parse_rule, parse_rules, parse_rules_file, parse_yaml_rules_file
 
 __all__ = [
     "Rule",
+    "RuleAction",
     "RuleEngine",
     "RuleOperation",
     "RuleParseError",
@@ -15,4 +16,5 @@ __all__ = [
     "parse_rule",
     "parse_rules",
     "parse_rules_file",
+    "parse_yaml_rules_file",
 ]

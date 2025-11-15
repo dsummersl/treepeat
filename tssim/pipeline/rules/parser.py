@@ -1,7 +1,11 @@
 """Parser for rule DSL."""
 
+from pathlib import Path
+from typing import Any
 
-from .models import Rule, RuleOperation
+import yaml
+
+from .models import Rule, RuleAction, RuleOperation
 
 
 class RuleParseError(Exception):
@@ -66,7 +70,7 @@ def _validate_rule_components(language: str, node_patterns: list[str]) -> None:
 
 def parse_rule(rule_string: str) -> Rule:
     """
-    Parse a rule string into a Rule object.
+    Parse a rule string into a Rule object (legacy format).
 
     Format: <lang|*> : <op> : nodes=<node1|node2|glob*> [,k=v ...]
 
@@ -79,7 +83,7 @@ def parse_rule(rule_string: str) -> Rule:
         rule_string: The rule string to parse
 
     Returns:
-        A Rule object
+        A Rule object with legacy fields populated
 
     Raises:
         RuleParseError: If the rule string is invalid
@@ -102,8 +106,10 @@ def parse_rule(rule_string: str) -> Rule:
     node_patterns, params = _parse_parameters(params_str)
     _validate_rule_components(language, node_patterns)
 
+    # Create rule with legacy fields
     return Rule(
-        language=language,
+        name=f"Legacy {operation_str} rule",
+        languages=["*"] if language == "*" else [language],
         operation=operation,
         node_patterns=node_patterns,
         params=params,
@@ -164,7 +170,7 @@ def parse_rules(rules_string: str) -> list[Rule]:
 
 def parse_rules_file(file_path: str) -> list[Rule]:
     """
-    Parse rules from a file (one rule per line).
+    Parse rules from a file (one rule per line, legacy format).
 
     Args:
         file_path: Path to the rules file
@@ -191,3 +197,120 @@ def parse_rules_file(file_path: str) -> list[Rule]:
                 raise RuleParseError(f"Error on line {line_num}: {e}")
 
     return rules
+
+
+def _parse_action(action_str: str) -> RuleAction:
+    """Parse action string into RuleAction enum."""
+    try:
+        return RuleAction(action_str)
+    except ValueError:
+        valid_actions = [action.value for action in RuleAction]
+        raise RuleParseError(
+            f"Invalid action '{action_str}'. Valid actions: {', '.join(valid_actions)}"
+        )
+
+
+def _parse_yaml_rule(rule_dict: dict[str, Any], ruleset_name: str) -> Rule:
+    """Parse a single rule from YAML dictionary."""
+    # Required fields
+    if "name" not in rule_dict:
+        raise RuleParseError("Rule missing required 'name' field")
+    if "languages" not in rule_dict:
+        raise RuleParseError(f"Rule '{rule_dict['name']}' missing required 'languages' field")
+    if "query" not in rule_dict:
+        raise RuleParseError(f"Rule '{rule_dict['name']}' missing required 'query' field")
+    if "action" not in rule_dict:
+        raise RuleParseError(f"Rule '{rule_dict['name']}' missing required 'action' field")
+
+    name = rule_dict["name"]
+    languages = rule_dict["languages"]
+    if isinstance(languages, str):
+        languages = [languages]
+    query = rule_dict["query"]
+    action = _parse_action(rule_dict["action"])
+    target = rule_dict.get("target")
+    params = rule_dict.get("params", {})
+
+    return Rule(
+        name=name,
+        languages=languages,
+        query=query,
+        action=action,
+        target=target,
+        params=params,
+    )
+
+
+def _resolve_extends(
+    rulesets: dict[str, Any],
+    ruleset_name: str,
+    resolved: set[str],
+) -> list[Rule]:
+    """Recursively resolve ruleset inheritance."""
+    if ruleset_name in resolved:
+        raise RuleParseError(f"Circular dependency detected in ruleset '{ruleset_name}'")
+
+    if ruleset_name not in rulesets:
+        raise RuleParseError(f"Ruleset '{ruleset_name}' not found (referenced by 'extends')")
+
+    resolved.add(ruleset_name)
+    ruleset = rulesets[ruleset_name]
+    rules = []
+
+    # First add rules from extended rulesets
+    if "extends" in ruleset:
+        extended_name = ruleset["extends"]
+        rules.extend(_resolve_extends(rulesets, extended_name, resolved))
+
+    # Then add rules from this ruleset
+    if "rules" in ruleset:
+        for rule_dict in ruleset["rules"]:
+            rules.append(_parse_yaml_rule(rule_dict, ruleset_name))
+
+    return rules
+
+
+def parse_yaml_rules_file(file_path: str, ruleset_name: str = "default") -> list[Rule]:
+    """
+    Parse rules from a YAML file with ruleset support.
+
+    Args:
+        file_path: Path to the YAML rules file
+        ruleset_name: Name of the ruleset to load (default: "default")
+
+    Returns:
+        List of Rule objects from the specified ruleset
+
+    Raises:
+        RuleParseError: If the YAML is invalid or rules are malformed
+        FileNotFoundError: If the file doesn't exist
+    """
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Rules file not found: {file_path}")
+
+    with open(path, "r") as f:
+        try:
+            data = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise RuleParseError(f"Invalid YAML: {e}")
+
+    if not isinstance(data, dict):
+        raise RuleParseError("YAML file must contain a dictionary")
+
+    if "rulesets" not in data:
+        raise RuleParseError("YAML file missing 'rulesets' key")
+
+    rulesets = data["rulesets"]
+    if not isinstance(rulesets, dict):
+        raise RuleParseError("'rulesets' must be a dictionary")
+
+    if ruleset_name not in rulesets:
+        available = ", ".join(rulesets.keys())
+        raise RuleParseError(
+            f"Ruleset '{ruleset_name}' not found. Available rulesets: {available}"
+        )
+
+    # Resolve rules with inheritance
+    resolved: set[str] = set()
+    return _resolve_extends(rulesets, ruleset_name, resolved)

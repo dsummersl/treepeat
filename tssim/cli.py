@@ -252,18 +252,20 @@ def _print_rulesets(ruleset_name: str) -> None:
         console.print(f"    [dim]{rule_spec}[/dim]\n")
 
 
-def _create_rules_settings(rules: str, rules_file: str, ruleset: str) -> RulesSettings:
+def _create_rules_settings(
+    rules_file: str, rules_file_ruleset: str, ruleset: str
+) -> RulesSettings:
     """Create RulesSettings with proper None handling."""
     return RulesSettings(
         ruleset=ruleset,
-        rules=rules or None,
         rules_file=rules_file or None,
+        rules_file_ruleset=rules_file_ruleset,
     )
 
 
 def _configure_settings(
-    rules: str,
     rules_file: str,
+    rules_file_ruleset: str,
     ruleset: str,
     threshold: float,
     min_lines: int,
@@ -272,7 +274,7 @@ def _configure_settings(
 ) -> None:
     """Configure pipeline settings."""
     settings = PipelineSettings(
-        rules=_create_rules_settings(rules, rules_file, ruleset),
+        rules=_create_rules_settings(rules_file, rules_file_ruleset, ruleset),
         shingle=ShingleSettings(),  # Uses default k=3
         minhash=MinHashSettings(),  # Uses default num_perm=128
         lsh=LSHSettings(threshold=threshold, min_lines=min_lines),
@@ -300,22 +302,22 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     help="Set the logging level",
 )
 @click.option(
-    "--rules",
-    type=str,
-    default="",
-    help="Comma-separated list of rule specifications (e.g., 'python:skip:nodes=import_statement')",
-)
-@click.option(
     "--rules-file",
     type=str,
     default="",
-    help="Path to file containing rule specifications (one per line)",
+    help="Path to YAML file containing rule specifications",
+)
+@click.option(
+    "--rules-file-ruleset",
+    type=str,
+    default="default",
+    help="Ruleset name to use from the rules file (default: default)",
 )
 @click.option(
     "--ruleset",
     type=click.Choice(["none", "default", "loose"], case_sensitive=False),
     default="default",
-    help="Ruleset profile to use (default: default)",
+    help="Built-in ruleset profile to use (default: default). Ignored if --rules-file is specified.",
 )
 @click.option(
     "--list-ruleset",
@@ -376,8 +378,8 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 def main(
     path: Path | None,
     log_level: str,
-    rules: str,
     rules_file: str,
+    rules_file_ruleset: str,
     ruleset: str,
     list_ruleset: str | None,
     threshold: float,
@@ -403,8 +405,8 @@ def main(
         sys.exit(1)
 
     _configure_settings(
-        rules,
         rules_file,
+        rules_file_ruleset,
         ruleset,
         threshold,
         min_lines,

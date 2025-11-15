@@ -15,17 +15,17 @@ class RulesSettings(BaseSettings):
 
     ruleset: str = Field(
         default="default",
-        description="Ruleset profile to use (none, default)",
-    )
-
-    rules: Optional[str] = Field(
-        default=None,
-        description="Comma-separated list of rule specifications",
+        description="Ruleset profile to use (none, default, loose)",
     )
 
     rules_file: Optional[str] = Field(
         default=None,
-        description="Path to file containing rule specifications (one per line)",
+        description="Path to YAML file containing rule specifications",
+    )
+
+    rules_file_ruleset: str = Field(
+        default="default",
+        description="Ruleset name to use from the rules file",
     )
 
 

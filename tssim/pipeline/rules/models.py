@@ -1,6 +1,6 @@
 """Data models for the rules system."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
@@ -16,21 +16,50 @@ class RuleOperation(Enum):
     EXTRACT_REGION = "extract_region"
 
 
+class RuleAction(Enum):
+    """Actions for query-based rules."""
+
+    REMOVE = "remove"  # Skip/remove matched nodes
+    RENAME = "rename"  # Rename matched nodes
+    REPLACE_VALUE = "replace_value"  # Replace node values
+    ANONYMIZE = "anonymize"  # Anonymize identifiers
+    CANONICALIZE = "canonicalize"  # Canonicalize types
+    EXTRACT_REGION = "extract_region"  # Mark regions for extraction
+
+
 @dataclass
 class Rule:
-    """Represents a single rule that can be applied to syntax tree nodes."""
+    """Represents a single rule that can be applied to syntax tree nodes.
 
-    language: str  # Language name or "*" for all languages
-    operation: RuleOperation
-    node_patterns: list[str]  # Node type patterns (can include wildcards)
-    params: dict[str, str]  # Additional parameters like value=<LIT>, prefix=VAR, etc.
+    Supports both legacy node-pattern matching and new treesitter query syntax.
+    """
+
+    # Common fields
+    name: str
+    languages: list[str]
+    params: dict[str, str] = field(default_factory=dict)
+
+    # New query-based fields
+    query: Optional[str] = None
+    action: Optional[RuleAction] = None
+    target: Optional[str] = None  # Capture name to target
+
+    # Legacy fields (for backward compatibility)
+    operation: Optional[RuleOperation] = None
+    node_patterns: Optional[list[str]] = None
+
+    def is_query_based(self) -> bool:
+        """Check if this is a query-based rule."""
+        return self.query is not None
 
     def matches_language(self, language: str) -> bool:
         """Check if this rule applies to the given language."""
-        return self.language == "*" or self.language == language
+        return "*" in self.languages or language in self.languages
 
     def matches_node_type(self, node_type: str) -> bool:
-        """Check if this rule applies to the given node type."""
+        """Check if this rule applies to the given node type (legacy only)."""
+        if self.node_patterns is None:
+            return False
         for pattern in self.node_patterns:
             if self._matches_pattern(node_type, pattern):
                 return True

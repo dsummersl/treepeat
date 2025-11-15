@@ -11,31 +11,43 @@ from tssim.pipeline.rules import (
     build_default_rules,
     parse_rules,
     parse_rules_file,
+    parse_yaml_rules_file,
 )
 from tssim.pipeline.rules.engine import build_loose_rules, build_region_extraction_rules
 
 logger = logging.getLogger(__name__)
 
 
-def _load_rules_from_string(rules_string: str) -> list[Rule]:
-    """Load rules from a string with error handling."""
-    logger.info("Loading rules from --rules parameter")
-    try:
-        rules = parse_rules(rules_string)
-        logger.info("Loaded %d rule(s) from --rules", len(rules))
-        return rules
-    except RuleParseError as e:
-        logger.error("Failed to parse rules: %s", e)
-        raise
+def _is_yaml_file(file_path: str) -> bool:
+    """Check if a file is a YAML file based on extension."""
+    path = Path(file_path)
+    return path.suffix.lower() in [".yaml", ".yml"]
 
 
-def _load_rules_from_file(rules_file_path: str) -> list[Rule]:
-    """Load rules from a file with error handling."""
+def _load_rules_from_file(rules_file_path: str, ruleset_name: str = "default") -> list[Rule]:
+    """Load rules from a file with error handling.
+
+    Args:
+        rules_file_path: Path to the rules file
+        ruleset_name: For YAML files, the ruleset to load (default: "default")
+
+    Returns:
+        List of rules
+
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        RuleParseError: If parsing fails
+    """
     path = Path(rules_file_path)
     logger.info("Loading rules from file: %s", path)
+
     try:
-        rules = parse_rules_file(str(path))
-        logger.info("Loaded %d rule(s) from %s", len(rules), path)
+        if _is_yaml_file(rules_file_path):
+            rules = parse_yaml_rules_file(str(path), ruleset_name)
+            logger.info("Loaded %d rule(s) from YAML ruleset '%s' in %s", len(rules), ruleset_name, path)
+        else:
+            rules = parse_rules_file(str(path))
+            logger.info("Loaded %d rule(s) from legacy rules file %s", len(rules), path)
         return rules
     except (FileNotFoundError, RuleParseError) as e:
         logger.error("Failed to load rules file: %s", e)
@@ -50,18 +62,30 @@ def _log_active_rules(rules: list[Rule]) -> None:
 
     logger.debug("Active rules:")
     for rule in rules:
-        params_str = (
-            f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
-            if rule.params
-            else ""
-        )
-        logger.debug(
-            "  %s:%s:nodes=%s%s",
-            rule.language,
-            rule.operation.value,
-            "|".join(rule.node_patterns),
-            params_str,
-        )
+        if rule.is_query_based():
+            # Query-based rule
+            logger.debug(
+                "  %s (languages=%s, action=%s, query=%s)",
+                rule.name,
+                ",".join(rule.languages),
+                rule.action.value if rule.action else "none",
+                rule.query[:50] + "..." if rule.query and len(rule.query) > 50 else rule.query,
+            )
+        else:
+            # Legacy rule
+            params_str = (
+                f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
+                if rule.params
+                else ""
+            )
+            logger.debug(
+                "  %s (languages=%s, operation=%s, nodes=%s%s)",
+                rule.name,
+                ",".join(rule.languages),
+                rule.operation.value if rule.operation else "none",
+                "|".join(rule.node_patterns) if rule.node_patterns else "",
+                params_str,
+            )
 
 
 def get_ruleset_with_descriptions(ruleset: str) -> list[tuple[Rule, str]]:
@@ -106,11 +130,12 @@ def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
     Returns:
         Configured RuleEngine instance
     """
-    # Load rules based on priority: rules-file > rules > ruleset
+    # Load rules based on priority: rules-file > built-in ruleset
     if settings.rules.rules_file:
-        rules = _load_rules_from_file(settings.rules.rules_file)
-    elif settings.rules.rules:
-        rules = _load_rules_from_string(settings.rules.rules)
+        rules = _load_rules_from_file(
+            settings.rules.rules_file,
+            settings.rules.rules_file_ruleset,
+        )
     else:
         rules = _load_ruleset_rules(settings.rules.ruleset.lower())
 

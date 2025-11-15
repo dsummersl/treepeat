@@ -102,9 +102,10 @@ class ASTShingler:
         value: str | None,
         language: str,
         source: bytes,
+        root: Node,
     ) -> tuple[str, str | None]:
         """Apply rules to a node and return the modified name and value."""
-        rule_name, rule_value = self.rule_engine.apply_rules(node, language, name)
+        rule_name, rule_value = self.rule_engine.apply_rules(node, language, name, root)
         if rule_name is not None:
             name = rule_name
         if rule_value is not None:
@@ -116,12 +117,13 @@ class ASTShingler:
         node: Node,
         language: str,
         source: bytes,
+        root: Node,
     ) -> NodeRepresentation:
         """Get the representation of a node with rules applied."""
         name = node.type
         value = self._extract_node_value(node, source)
         try:
-            name, value = self._apply_rules(node, name, value, language, source)
+            name, value = self._apply_rules(node, name, value, language, source, root)
         except SkipNodeException:
             # Convert to SkipNode for compatibility with existing code
             raise SkipNode(f"Node type '{name}' skipped by rule")
@@ -149,7 +151,7 @@ class ASTShingler:
 
             # Get normalized representation (may raise SkipNode)
             try:
-                node_repr = self._get_node_representation(node, language, source)
+                node_repr = self._get_node_representation(node, language, source, root)
             except SkipNode:
                 # Skip this node and its entire subtree
                 return
