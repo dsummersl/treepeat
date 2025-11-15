@@ -222,37 +222,12 @@ def _parse_patterns(pattern_string: str) -> list[str]:
     return [p.strip() for p in pattern_string.split(",") if p.strip()]
 
 
-def _format_query_rule(rule: Any) -> tuple[str, str]:
-    """Format a query-based rule for display."""
-    query_preview = rule.query[:60] + "..." if rule.query and len(rule.query) > 60 else rule.query
-    rule_spec = f"languages={','.join(rule.languages)}, action={rule.action.value if rule.action else 'none'}"
-    return rule_spec, f"query: {query_preview}"
-
-
-def _format_legacy_rule(rule: Any) -> str:
-    """Format a legacy rule for display."""
-    params_str = (
-        f",{','.join(f'{k}={v}' for k,v in rule.params.items())}"
-        if rule.params
-        else ""
-    )
-    node_patterns = "|".join(rule.node_patterns) if rule.node_patterns else ""
-    languages = ",".join(rule.languages)
-    return (
-        f"{languages}:{rule.operation.value if rule.operation else 'unknown'}:nodes="
-        f"{node_patterns}{params_str}"
-    )
-
-
 def _print_rule_spec(rule: Any) -> None:
     """Print rule specification."""
-    if rule.is_query_based():
-        rule_spec, query_line = _format_query_rule(rule)
-        console.print(f"    [dim]{rule_spec}[/dim]")
-        console.print(f"    [dim]{query_line}[/dim]\n")
-    else:
-        rule_spec = _format_legacy_rule(rule)
-        console.print(f"    [dim]{rule_spec}[/dim]\n")
+    query_preview = rule.query[:60] + "..." if len(rule.query) > 60 else rule.query
+    rule_spec = f"languages={','.join(rule.languages)}, action={rule.action.value if rule.action else 'none'}"
+    console.print(f"    [dim]{rule_spec}[/dim]")
+    console.print(f"    [dim]query: {query_preview}[/dim]\n")
 
 
 def _print_rulesets(ruleset_name: str) -> None:

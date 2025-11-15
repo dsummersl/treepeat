@@ -1,11 +1,8 @@
 """Markdown language configuration."""
 
-from typing import TYPE_CHECKING
+from tssim.pipeline.rules.models import Rule
 
 from .base import LanguageConfig, RegionExtractionRule
-
-if TYPE_CHECKING:
-    from tssim.pipeline.rules import Rule
 
 
 class MarkdownConfig(LanguageConfig):
@@ -14,10 +11,10 @@ class MarkdownConfig(LanguageConfig):
     def get_language_name(self) -> str:
         return "markdown"
 
-    def get_default_rules(self) -> list["Rule"]:
+    def get_default_rules(self) -> list[Rule]:
         return []
 
-    def get_loose_rules(self) -> list["Rule"]:
+    def get_loose_rules(self) -> list[Rule]:
         return []
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:

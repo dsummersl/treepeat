@@ -1,11 +1,8 @@
 """Ruby language configuration."""
 
-from typing import TYPE_CHECKING
+from tssim.pipeline.rules.models import Rule, RuleAction
 
 from .base import LanguageConfig, RegionExtractionRule
-
-if TYPE_CHECKING:
-    from tssim.pipeline.rules import Rule
 
 
 class RubyConfig(LanguageConfig):
@@ -14,9 +11,7 @@ class RubyConfig(LanguageConfig):
     def get_language_name(self) -> str:
         return "ruby"
 
-    def get_default_rules(self) -> list["Rule"]:
-        from tssim.pipeline.rules import Rule, RuleAction
-
+    def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
                 name="Skip Ruby comments",
@@ -33,9 +28,7 @@ class RubyConfig(LanguageConfig):
             ),
         ]
 
-    def get_loose_rules(self) -> list["Rule"]:
-        from tssim.pipeline.rules import Rule, RuleAction
-
+    def get_loose_rules(self) -> list[Rule]:
         return [
             *self.get_default_rules(),
             Rule(

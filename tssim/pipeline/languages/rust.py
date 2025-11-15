@@ -1,11 +1,8 @@
 """Rust language configuration."""
 
-from typing import TYPE_CHECKING
+from tssim.pipeline.rules.models import Rule, RuleAction
 
 from .base import LanguageConfig, RegionExtractionRule
-
-if TYPE_CHECKING:
-    from tssim.pipeline.rules import Rule
 
 
 class RustConfig(LanguageConfig):
@@ -14,9 +11,7 @@ class RustConfig(LanguageConfig):
     def get_language_name(self) -> str:
         return "rust"
 
-    def get_default_rules(self) -> list["Rule"]:
-        from tssim.pipeline.rules import Rule, RuleAction
-
+    def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
                 name="Skip Rust use declarations",
@@ -39,9 +34,7 @@ class RustConfig(LanguageConfig):
             ),
         ]
 
-    def get_loose_rules(self) -> list["Rule"]:
-        from tssim.pipeline.rules import Rule, RuleAction
-
+    def get_loose_rules(self) -> list[Rule]:
         return [
             *self.get_default_rules(),
             Rule(
