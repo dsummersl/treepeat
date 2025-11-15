@@ -1,21 +1,35 @@
-"""Verification stage for refining candidate similar pairs.
+"""Verification stage for refining candidate similar groups.
 
 This module implements the verification step that comes after LSH candidate detection.
 Per ADR 2, the full pipeline should be:
     Parse → Normalize → Shingles → MinHash → LSH → Candidates → PQ-Gram → TED
 
 This module implements a lightweight verification using order-sensitive shingle comparison
-as a pragmatic alternative to full PQ-Gram/TED verification.
+(LCS-based) as a pragmatic alternative to full PQ-Gram/TED verification. It verifies that
+regions matched by minhash-LSH (which is order-insensitive) actually have matching line
+order using Longest Common Subsequence (LCS).
+
+Additionally, for high similarity matches (>95%), we verify against the actual source text
+to catch differences that may not be captured in shingles (e.g., function names at shallow
+AST depths).
 """
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tssim.models.shingle import ShingledRegion
-from tssim.models.similarity import SimilarRegionPair
+
+if TYPE_CHECKING:
+    from tssim.models.similarity import Region, SimilarRegionGroup
 
 
 logger = logging.getLogger(__name__)
+
+# Threshold above which we verify against raw source text
+# Only check signature for near-perfect matches (98%+) to catch false 100% matches
+# where only the function/class name differs
+SOURCE_VERIFICATION_THRESHOLD = 0.98
 
 
 def _compute_lcs_length(shingles1: list[str], shingles2: list[str]) -> int:
@@ -48,6 +62,52 @@ def _compute_ordered_similarity(shingles1: list[str], shingles2: list[str]) -> f
     return _normalize_similarity(lcs_length, len(shingles1), len(shingles2))
 
 
+def _read_source_lines(file_path: Path, start_line: int, end_line: int) -> list[str]:
+    """Read source lines from a file."""
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+            # Convert to 0-indexed
+            return [line.rstrip() for line in lines[start_line - 1:end_line]]
+    except Exception as e:
+        logger.warning("Failed to read source from %s: %s", file_path, e)
+        return []
+
+
+def _compute_source_similarity(
+    file_path1: Path, start_line1: int, end_line1: int,
+    file_path2: Path, start_line2: int, end_line2: int
+) -> float:
+    """Compute similarity between two regions based on their actual source text."""
+    lines1 = _read_source_lines(file_path1, start_line1, end_line1)
+    lines2 = _read_source_lines(file_path2, start_line2, end_line2)
+
+    if not lines1 or not lines2:
+        return 0.0
+
+    # Use LCS on actual source lines
+    lcs_length = _compute_lcs_length(lines1, lines2)
+    return _normalize_similarity(lcs_length, len(lines1), len(lines2))
+
+
+def _check_signature_match(
+    file_path1: Path, start_line1: int,
+    file_path2: Path, start_line2: int
+) -> bool:
+    """Check if the first line (signature) of two regions matches.
+
+    This catches cases where function/class names differ but bodies are similar.
+    """
+    lines1 = _read_source_lines(file_path1, start_line1, start_line1)
+    lines2 = _read_source_lines(file_path2, start_line2, start_line2)
+
+    if not lines1 or not lines2:
+        return True  # If we can't read, don't penalize
+
+    # Compare first lines (function/class signatures)
+    return lines1[0].strip() == lines2[0].strip()
+
+
 def _build_region_lookup(
     shingled_regions: list[ShingledRegion],
 ) -> dict[Path, dict[int, ShingledRegion]]:
@@ -60,51 +120,104 @@ def _build_region_lookup(
     return region_to_shingled
 
 
-def _verify_single_pair(
-    pair: SimilarRegionPair,
+def _compute_pair_similarity_with_verification(
+    r1: "Region",
+    r2: "Region",
     region_lookup: dict[Path, dict[int, ShingledRegion]],
-) -> SimilarRegionPair:
-    """Verify a single candidate pair using order-sensitive similarity."""
-    sr1 = region_lookup.get(pair.region1.path, {}).get(pair.region1.start_line)
-    sr2 = region_lookup.get(pair.region2.path, {}).get(pair.region2.start_line)
+) -> float:
+    """Compute similarity between two regions with signature verification."""
+    sr1 = region_lookup.get(r1.path, {}).get(r1.start_line)
+    sr2 = region_lookup.get(r2.path, {}).get(r2.start_line)
 
     if sr1 is None or sr2 is None:
         logger.warning(
-            "Could not find shingled regions for pair %s ↔ %s, skipping verification",
-            pair.region1.region_name,
-            pair.region2.region_name,
+            "Could not find shingled regions for %s ↔ %s, using 0.0 similarity",
+            r1.region_name,
+            r2.region_name,
         )
-        return pair
+        return 0.0
 
-    ordered_similarity = _compute_ordered_similarity(
+    # Compute shingle-based similarity
+    shingle_similarity = _compute_ordered_similarity(
         sr1.shingles.shingles,
         sr2.shingles.shingles,
     )
 
-    logger.debug(
-        "Verified pair %s ↔ %s: LSH=%.1f%%, Ordered=%.1f%%",
-        pair.region1.region_name,
-        pair.region2.region_name,
-        pair.similarity * 100,
-        ordered_similarity * 100,
-    )
+    # For high similarity matches, verify that signatures (first lines) match
+    # This catches cases where function/class names differ but bodies are similar
+    if shingle_similarity >= SOURCE_VERIFICATION_THRESHOLD:
+        signatures_match = _check_signature_match(
+            r1.path, r1.start_line,
+            r2.path, r2.start_line
+        )
 
-    return SimilarRegionPair(
-        region1=pair.region1,
-        region2=pair.region2,
-        similarity=ordered_similarity,
-    )
+        if not signatures_match:
+            # Penalize signature mismatch - treat as 0.0 similarity
+            logger.debug(
+                "Signature mismatch for %s ↔ %s, treating as 0%% similar",
+                r1.region_name,
+                r2.region_name,
+            )
+            return 0.0
+
+    return shingle_similarity
 
 
-def verify_similar_pairs(
-    pairs: list[SimilarRegionPair],
+def _verify_group_pairwise_similarity(
+    group_regions: list["Region"],
+    region_lookup: dict[Path, dict[int, ShingledRegion]],
+) -> float:
+    """Calculate average pairwise order-sensitive similarity for a group."""
+    if len(group_regions) < 2:
+        return 1.0
+
+    total_similarity = 0.0
+    pair_count = 0
+
+    for i, r1 in enumerate(group_regions):
+        for r2 in group_regions[i + 1 :]:
+            similarity = _compute_pair_similarity_with_verification(r1, r2, region_lookup)
+            total_similarity += similarity
+            pair_count += 1
+
+    return total_similarity / pair_count if pair_count > 0 else 1.0
+
+
+def verify_similar_groups(
+    groups: list["SimilarRegionGroup"],
     shingled_regions: list[ShingledRegion],
-) -> list[SimilarRegionPair]:
-    """Verify candidate pairs using order-sensitive similarity."""
-    logger.info("Verifying %d candidate pair(s) with order-sensitive similarity", len(pairs))
+) -> list["SimilarRegionGroup"]:
+    """Verify candidate groups using order-sensitive similarity.
+
+    For each group, recalculates similarity using pairwise LCS comparison
+    to ensure matches respect line order (not just set similarity).
+    """
+    logger.info("Verifying %d candidate group(s) with order-sensitive similarity", len(groups))
 
     region_lookup = _build_region_lookup(shingled_regions)
-    verified_pairs = [_verify_single_pair(pair, region_lookup) for pair in pairs]
+    verified_groups = []
 
-    logger.info("Verification complete: %d pair(s) verified", len(verified_pairs))
-    return verified_pairs
+    for group in groups:
+        # Recalculate group similarity using order-sensitive verification
+        verified_similarity = _verify_group_pairwise_similarity(
+            group.regions, region_lookup
+        )
+
+        logger.debug(
+            "Verified group of %d regions: LSH=%.1f%%, Ordered=%.1f%%",
+            len(group.regions),
+            group.similarity * 100,
+            verified_similarity * 100,
+        )
+
+        # Import here to avoid circular dependency
+        from tssim.models.similarity import SimilarRegionGroup
+
+        verified_group = SimilarRegionGroup(
+            regions=group.regions,
+            similarity=verified_similarity,
+        )
+        verified_groups.append(verified_group)
+
+    logger.info("Verification complete: %d group(s) verified", len(verified_groups))
+    return verified_groups

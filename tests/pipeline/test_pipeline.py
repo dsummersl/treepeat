@@ -93,7 +93,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.7,
-            7,
+            6,  # Updated: verification filters out 1 group below order-sensitive threshold
             [
                 # Cross-file duplicate functions
                 (
@@ -132,7 +132,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.8,
-            5,
+            4,  # Updated: verification filters out 1 group below order-sensitive threshold
             [
                 # Cross-file duplicate functions
                 (
@@ -176,7 +176,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.9,
-            3,  # Updated: also finds test_template_filter functions
+            2,  # Updated: verification filters out 1 group below order-sensitive threshold
             [
                 # Cross-file duplicate functions
                 (
