@@ -311,9 +311,8 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
         sys.exit(1)
 
 
-@click.group(invoke_without_command=True)
+@click.group()
 @click.pass_context
-@click.argument("path", type=click.Path(exists=True, path_type=Path), required=False)
 @click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
@@ -334,7 +333,6 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 )
 def main(
     ctx: click.Context,
-    path: Path | None,
     log_level: str,
     ruleset: str,
     list_ruleset: str | None,
@@ -346,16 +344,11 @@ def main(
     ctx.ensure_object(dict)
     ctx.obj["log_level"] = log_level
     ctx.obj["ruleset"] = ruleset
-    ctx.obj["path"] = path
 
     # Handle --list-ruleset option
     if list_ruleset is not None:
         _print_rulesets(list_ruleset)
         sys.exit(0)
-
-    # If no subcommand specified but path provided, invoke detect by default
-    if ctx.invoked_subcommand is None and path is not None:
-        ctx.invoke(detect, path=path)
 
 
 @main.command()
@@ -476,7 +469,7 @@ def _display_region_shingles(
 
     # Reset identifiers for consistent output
     shingler.rule_engine.reset_identifiers()
-    shingler.rule_engine.precompute_queries(extracted_region.node, region_info.language)
+    shingler.rule_engine.precompute_queries(extracted_region.node, region_info.language, source)
 
     # Extract shingles
     shingled_region = shingler.shingle_region(extracted_region, source)
