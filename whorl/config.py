@@ -52,11 +52,32 @@ class LSHSettings(BaseSettings):
         env_prefix="LSH_",
     )
 
-    threshold: float = Field(
+    region_threshold: float = Field(
         default=0.5,
         ge=0.0,
         le=1.0,
-        description="Jaccard similarity threshold for candidate pairs (0.0 to 1.0)",
+        description="Jaccard similarity threshold for region matching (functions/classes) (0.0 to 1.0)",
+    )
+
+    line_threshold: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Jaccard similarity threshold for line matching (unmatched sections) - lower to find approximate windows (0.0 to 1.0)",
+    )
+
+    region_min_similarity: float = Field(
+        default=0.9,
+        ge=0.0,
+        le=1.0,
+        description="Minimum verified similarity for region matches - filters to high-quality matches (0.0 to 1.0)",
+    )
+
+    line_min_similarity: float = Field(
+        default=0.95,
+        ge=0.0,
+        le=1.0,
+        description="Minimum verified similarity for line matches - filters to near-exact matches within windows (0.0 to 1.0)",
     )
 
     min_lines: int = Field(
