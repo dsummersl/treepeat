@@ -166,7 +166,19 @@ def _run_region_matching(
     logger.info("===== REGION MATCHING: Functions and Classes =====")
 
     # Extract only functions/classes (no section regions)
-    region_regions = _run_extract_stage(parsed_files, rule_engine)
+    all_extracted = _run_extract_stage(parsed_files, rule_engine)
+
+    # Filter out "file" type regions - they should go through line matching instead
+    # to find granular similarities with sliding windows
+    region_regions = [r for r in all_extracted if r.region.region_type != "file"]
+    file_type_count = len(all_extracted) - len(region_regions)
+    if file_type_count > 0:
+        logger.info("Skipping %d 'file' type region(s) - will process with line matching", file_type_count)
+
+    # If no code regions (only file-type regions), skip region matching entirely
+    if len(region_regions) == 0:
+        logger.info("No code regions found, skipping region matching")
+        return [], []
 
     # Shingle region regions
     region_shingled = _run_shingle_stage(region_regions, parsed_files, rule_engine, settings)
