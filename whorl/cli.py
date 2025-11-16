@@ -178,6 +178,41 @@ def _collect_format_statistics(result: SimilarityResult) -> dict[str, dict[str, 
     return stats_by_format
 
 
+def _populate_summary_table(
+    table: Table,
+    stats_by_format: dict[str, dict[str, int | set[Path]]],
+) -> tuple[set[Path], int, int]:
+    """Populate summary table with format statistics and return totals."""
+    total_files: set[Path] = set()
+    total_groups = 0
+    total_lines = 0
+
+    for language in sorted(stats_by_format.keys()):
+        stats = stats_by_format[language]
+        files = stats["files"]
+        groups = stats["groups"]
+        lines = stats["lines"]
+
+        # Type narrowing assertions
+        assert isinstance(files, set)
+        assert isinstance(groups, int)
+        assert isinstance(lines, int)
+
+        table.add_row(
+            language,
+            str(len(files)),
+            str(groups),
+            str(lines),
+        )
+
+        # Accumulate totals
+        total_files.update(files)
+        total_groups += groups
+        total_lines += lines
+
+    return total_files, total_groups, total_lines
+
+
 def display_summary_table(result: SimilarityResult) -> None:
     """Display summary table with statistics by format."""
     # Show stats even if no similar groups found (to show all processed files)
@@ -193,29 +228,8 @@ def display_summary_table(result: SimilarityResult) -> None:
     table.add_column("Groups Found", justify="right")
     table.add_column("Lines", justify="right")
 
-    # Calculate totals
-    total_files: set[Path] = set()
-    total_groups = 0
-    total_lines = 0
-
-    # Sort by format name and add rows
-    for language in sorted(stats_by_format.keys()):
-        stats = stats_by_format[language]
-        files = stats["files"]  # type: ignore[assignment]
-        groups = stats["groups"]  # type: ignore[assignment]
-        lines = stats["lines"]  # type: ignore[assignment]
-
-        table.add_row(
-            language,
-            str(len(files)),
-            str(groups),
-            str(lines),
-        )
-
-        # Accumulate totals
-        total_files.update(files)
-        total_groups += groups
-        total_lines += lines
+    # Populate table and calculate totals
+    total_files, total_groups, total_lines = _populate_summary_table(table, stats_by_format)
 
     # Add totals row
     table.add_row(
