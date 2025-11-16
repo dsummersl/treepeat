@@ -120,6 +120,15 @@ def _build_region_lookup(
     return region_to_shingled
 
 
+def _should_verify_signatures(r1: "Region", r2: "Region", similarity: float) -> bool:
+    """Determine if signature verification should be performed for these regions."""
+    if similarity < SOURCE_VERIFICATION_THRESHOLD:
+        return False
+
+    code_region_types = ("function", "class", "method")
+    return r1.region_type in code_region_types and r2.region_type in code_region_types
+
+
 def _compute_pair_similarity_with_verification(
     r1: "Region",
     r2: "Region",
@@ -143,22 +152,24 @@ def _compute_pair_similarity_with_verification(
         sr2.shingles.shingles,
     )
 
-    # For high similarity matches, verify that signatures (first lines) match
+    # For high similarity code regions, verify that signatures match
     # This catches cases where function/class names differ but bodies are similar
-    if shingle_similarity >= SOURCE_VERIFICATION_THRESHOLD:
-        signatures_match = _check_signature_match(
-            r1.path, r1.start_line,
-            r2.path, r2.start_line
-        )
+    if not _should_verify_signatures(r1, r2, shingle_similarity):
+        return shingle_similarity
 
-        if not signatures_match:
-            # Penalize signature mismatch - treat as 0.0 similarity
-            logger.debug(
-                "Signature mismatch for %s ↔ %s, treating as 0%% similar",
-                r1.region_name,
-                r2.region_name,
-            )
-            return 0.0
+    signatures_match = _check_signature_match(
+        r1.path, r1.start_line,
+        r2.path, r2.start_line
+    )
+
+    if not signatures_match:
+        # Penalize signature mismatch - treat as 0.0 similarity
+        logger.debug(
+            "Signature mismatch for %s ↔ %s, treating as 0%% similar",
+            r1.region_name,
+            r2.region_name,
+        )
+        return 0.0
 
     return shingle_similarity
 
