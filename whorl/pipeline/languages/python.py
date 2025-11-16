@@ -17,7 +17,33 @@ class PythonConfig(LanguageConfig):
             Rule(
                 name="Skip Python import statements",
                 languages=["python"],
-                query="[(import_statement) (import_from_statement)] @import",
+                query="[(import_statement) (import_from_statement) (future_import_statement)] @import",
+                action=RuleAction.REMOVE,
+            ),
+            Rule(
+                name="Skip Python TYPE_CHECKING blocks",
+                languages=["python"],
+                query="""(if_statement
+                    condition: (attribute
+                        attribute: (identifier) @attr_name
+                        (#match? @attr_name "TYPE_CHECKING")
+                    )
+                ) @type_check""",
+                action=RuleAction.REMOVE,
+            ),
+            Rule(
+                name="Skip Python TypeVar declarations",
+                languages=["python"],
+                query="""(expression_statement
+                    (assignment
+                        right: (call
+                            function: (attribute
+                                attribute: (identifier) @func_name
+                                (#match? @func_name "TypeVar")
+                            )
+                        )
+                    )
+                ) @typevar""",
                 action=RuleAction.REMOVE,
             ),
             Rule(
