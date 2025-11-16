@@ -408,8 +408,8 @@ def main(
 @click.option(
     "--threshold",
     type=float,
-    default=1.0,
-    help="Filter threshold for similarity (default: 1.0)",
+    default=0.5,
+    help="Filter threshold for similarity (default: 0.5)",
 )
 @click.option(
     "--min-lines",
