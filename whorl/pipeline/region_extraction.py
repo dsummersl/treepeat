@@ -210,65 +210,38 @@ def _create_line_region(
     return ExtractedRegion(region=region, node=parsed_file.root_node)
 
 
-def _create_sliding_windows_for_range(
+def _create_unmatched_region(
     parsed_file: ParsedFile,
     range_start: int,
     range_end: int,
-    min_lines: int,
-    window_size: int,
-    stride: int,
-) -> list[ExtractedRegion]:
-    """Create sliding windows for an unmatched range."""
-    regions: list[ExtractedRegion] = []
-    window_start = range_start
+) -> ExtractedRegion:
+    """Create a single region for an entire unmatched range.
 
-    while window_start <= range_end:
-        window_end = min(window_start + window_size - 1, range_end)
-        window_length = window_end - window_start + 1
-
-        # Only create window if it meets minimum line requirement
-        if window_length >= min_lines:
-            extracted_region = _create_line_region(parsed_file, window_start, window_end)
-            regions.append(extracted_region)
-
-            logger.debug(
-                "Created sliding window region for %s: lines %d-%d (%d lines)",
-                parsed_file.path,
-                window_start,
-                window_end,
-                window_length,
-            )
-
-        # Move to next window
-        window_start += stride
-
-        # Stop if we've reached the end of the range
-        if window_end >= range_end:
-            break
-
-    return regions
+    This region will be shingled, and then windows will be created from the shingles.
+    """
+    return _create_line_region(parsed_file, range_start, range_end)
 
 
-def create_line_based_regions(
+def create_unmatched_regions(
     parsed_files: list[ParsedFile],
     matched_lines_by_file: dict[Path, set[int]],
     min_lines: int,
-    window_size: int = 20,
-    stride: int = 10,
 ) -> list[ExtractedRegion]:
-    """Create line-based regions using sliding windows for unmatched sections.
+    """Create regions for unmatched sections (to be shingled).
+
+    Unlike the old approach which created sliding windows of line ranges,
+    this creates ONE region per unmatched range. Windows will be created
+    from the shingles after shingling.
 
     Args:
         parsed_files: List of parsed files
         matched_lines_by_file: Lines already matched by region matching
         min_lines: Minimum lines for a region to be valid
-        window_size: Size of sliding window in lines
-        stride: Step size for sliding window
 
     Returns:
-        List of extracted regions using sliding windows
+        List of extracted regions for unmatched sections
     """
-    line_regions: list[ExtractedRegion] = []
+    unmatched_regions: list[ExtractedRegion] = []
 
     for parsed_file in parsed_files:
         matched_lines = matched_lines_by_file.get(parsed_file.path, set())
@@ -278,10 +251,15 @@ def create_line_based_regions(
         for range_start, range_end in unmatched_ranges:
             range_length = range_end - range_start + 1
             if range_length >= min_lines:
-                windows = _create_sliding_windows_for_range(
-                    parsed_file, range_start, range_end, min_lines, window_size, stride
+                region = _create_unmatched_region(parsed_file, range_start, range_end)
+                unmatched_regions.append(region)
+                logger.debug(
+                    "Created unmatched region for %s: lines %d-%d (%d lines)",
+                    parsed_file.path,
+                    range_start,
+                    range_end,
+                    range_length,
                 )
-                line_regions.extend(windows)
 
-    logger.info("Created %d sliding window region(s) for unmatched sections", len(line_regions))
-    return line_regions
+    logger.info("Created %d unmatched region(s) for shingling", len(unmatched_regions))
+    return unmatched_regions

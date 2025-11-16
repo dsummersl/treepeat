@@ -10,14 +10,14 @@ from whorl.pipeline.minhash_stage import compute_region_signatures
 from whorl.pipeline.parse import parse_path
 from whorl.pipeline.region_extraction import (
     ExtractedRegion,
-    create_line_based_regions,
+    create_unmatched_regions,
     extract_all_regions,
     get_matched_line_ranges,
 )
 from whorl.pipeline.boundary_detection import merge_similar_window_groups
 from whorl.pipeline.rules.engine import RuleEngine
 from whorl.pipeline.rules_factory import build_rule_engine
-from whorl.pipeline.shingle import shingle_regions
+from whorl.pipeline.shingle import shingle_regions, create_shingle_windows
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +203,11 @@ def _run_line_matching(
     rule_engine: RuleEngine,
     settings: PipelineSettings,
 ) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
-    """Run line matching for unmatched sections using window-based MinHash."""
+    """Run line matching for unmatched sections using shingle-based sliding windows.
+
+    This builds windows from the remaining shingles that were not matched
+    by the region matching process that preceded it.
+    """
     logger.info("===== LINE MATCHING: Unmatched Sections =====")
 
     # Track matched lines from region matching
@@ -211,25 +215,43 @@ def _run_line_matching(
     matched_lines_by_file = get_matched_line_ranges(region_matched_regions)
     logger.info("Tracked %d matched regions from region matching", len(region_matched_regions))
 
-    # Create line-based regions using sliding windows for unmatched sections
-    line_regions = create_line_based_regions(
+    # Step 1: Create regions for unmatched sections (one region per unmatched range)
+    unmatched_regions = create_unmatched_regions(
         parsed_files,
         matched_lines_by_file,
         settings.lsh.min_lines,
-        window_size=settings.lsh.window_size,
-        stride=settings.lsh.stride,
     )
 
-    if len(line_regions) == 0:
+    if len(unmatched_regions) == 0:
         logger.info("No unmatched sections found for line matching, skipping")
         return [], []
 
-    # Shingle, MinHash, LSH on line regions - use lower threshold for approximate window matching
-    line_shingled = _run_shingle_stage(line_regions, parsed_files, rule_engine, settings)
-    line_signatures = _run_minhash_stage(line_shingled, settings.minhash.num_perm)
+    # Step 2: Shingle the unmatched regions to get their shingles
+    logger.info("Shingling %d unmatched region(s)...", len(unmatched_regions))
+    unmatched_shingled = _run_shingle_stage(unmatched_regions, parsed_files, rule_engine, settings)
+
+    # Step 3: Create sliding windows from the shingles (not from line ranges)
+    # This builds windows from the remaining shingles, as intended
+    logger.info("Creating sliding windows from shingles (window_size=%d, stride=%d)...",
+                settings.lsh.window_size, settings.lsh.stride)
+    # Estimate min_shingles from min_lines (rough heuristic: 1 line ≈ k shingles)
+    min_shingles = max(1, settings.lsh.min_lines // settings.shingle.k)
+    windowed_shingled = create_shingle_windows(
+        unmatched_shingled,
+        window_size=settings.lsh.window_size,
+        stride=settings.lsh.stride,
+        min_shingles=min_shingles,
+    )
+
+    if len(windowed_shingled) == 0:
+        logger.info("No valid shingle windows created, skipping line matching")
+        return [], []
+
+    # Step 4: MinHash and LSH on shingle windows
+    line_signatures = _run_minhash_stage(windowed_shingled, settings.minhash.num_perm)
     line_result = _run_lsh_stage(
         line_signatures,
-        line_shingled,
+        windowed_shingled,
         settings.lsh.line_threshold,
         settings.lsh.line_min_similarity,
         {},
