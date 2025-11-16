@@ -128,13 +128,23 @@ def _run_lsh_stage(
     signatures: list[RegionSignature],
     shingled_regions: list[ShingledRegion],
     threshold: float,
+    min_similarity: float,
     failed_files: dict[Path, str],
 ) -> SimilarityResult:
-    """Run LSH similarity detection stage."""
+    """Run LSH similarity detection stage.
+
+    Args:
+        signatures: Region signatures to compare
+        shingled_regions: Shingled regions for verification
+        threshold: LSH threshold for finding approximate matches
+        min_similarity: Minimum verified similarity to keep after verification
+        failed_files: Dictionary of failed files
+    """
     logger.info("Stage 5/5: Finding similar pairs...")
     similarity_result = detect_similarity(
         signatures,
         threshold=threshold,
+        min_similarity=min_similarity,
         failed_files=failed_files,
         shingled_regions=shingled_regions,
         verify_candidates=True,
@@ -147,82 +157,94 @@ def _run_lsh_stage(
     return similarity_result
 
 
-def _run_level1_matching(
+def _run_region_matching(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
     settings: PipelineSettings,
 ) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
-    """Run Level 1 region-level matching for functions and classes."""
-    logger.info("===== LEVEL 1: Region-Level Matching =====")
+    """Run region matching for functions and classes."""
+    logger.info("===== REGION MATCHING: Functions and Classes =====")
 
     # Extract only functions/classes (no section regions)
-    level1_regions = _run_extract_stage(parsed_files, rule_engine)
+    region_regions = _run_extract_stage(parsed_files, rule_engine)
 
-    # Shingle level 1 regions
-    level1_shingled = _run_shingle_stage(level1_regions, parsed_files, rule_engine, settings)
+    # Shingle region regions
+    region_shingled = _run_shingle_stage(region_regions, parsed_files, rule_engine, settings)
 
-    # MinHash level 1
-    level1_signatures = _run_minhash_stage(level1_shingled, settings.minhash.num_perm)
+    # MinHash region
+    region_signatures = _run_minhash_stage(region_shingled, settings.minhash.num_perm)
 
-    # LSH level 1
-    level1_result = _run_lsh_stage(level1_signatures, level1_shingled, settings.lsh.threshold, {})
+    # LSH region - use higher threshold for region matching
+    region_result = _run_lsh_stage(
+        region_signatures,
+        region_shingled,
+        settings.lsh.region_threshold,
+        settings.lsh.region_min_similarity,
+        {},
+    )
 
     # Filter by min_lines
-    logger.debug("Level 1: Filtering %d groups by min_lines=%d", len(level1_result.similar_groups), settings.lsh.min_lines)
-    for group in level1_result.similar_groups:
+    logger.debug("Region matching: Filtering %d groups by min_lines=%d", len(region_result.similar_groups), settings.lsh.min_lines)
+    for group in region_result.similar_groups:
         logger.debug("  Group: %d regions, similarity=%.2f%%", len(group.regions), group.similarity * 100)
         for region in group.regions:
             lines = region.end_line - region.start_line + 1
             logger.debug("    - %s [%d:%d] (%d lines)", region.region_name, region.start_line, region.end_line, lines)
-    level1_filtered_groups = _filter_groups_by_min_lines(level1_result.similar_groups, settings.lsh.min_lines)
-    logger.info("Level 1 complete: %d groups after filtering (was %d)",
-                len(level1_filtered_groups), len(level1_result.similar_groups))
+    region_filtered_groups = _filter_groups_by_min_lines(region_result.similar_groups, settings.lsh.min_lines)
+    logger.info("Region matching complete: %d groups after filtering (was %d)",
+                len(region_filtered_groups), len(region_result.similar_groups))
 
-    return level1_filtered_groups, level1_signatures
+    return region_filtered_groups, region_signatures
 
 
-def _run_level2_matching(
+def _run_line_matching(
     parsed_files: list[ParsedFile],
-    level1_filtered_groups: list[SimilarRegionGroup],
+    region_filtered_groups: list[SimilarRegionGroup],
     rule_engine: RuleEngine,
     settings: PipelineSettings,
 ) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
-    """Run Level 2 line-level matching for unmatched sections."""
-    logger.info("===== LEVEL 2: Line-Level Matching =====")
+    """Run line matching for unmatched sections using window-based MinHash."""
+    logger.info("===== LINE MATCHING: Unmatched Sections =====")
 
-    # Track matched lines from level 1
-    level1_matched_regions = _get_matched_regions_from_groups(level1_filtered_groups)
-    matched_lines_by_file = get_matched_line_ranges(level1_matched_regions)
-    logger.info("Tracked %d matched regions from level 1", len(level1_matched_regions))
+    # Track matched lines from region matching
+    region_matched_regions = _get_matched_regions_from_groups(region_filtered_groups)
+    matched_lines_by_file = get_matched_line_ranges(region_matched_regions)
+    logger.info("Tracked %d matched regions from region matching", len(region_matched_regions))
 
     # Create line-based regions for unmatched sections
-    level2_regions = create_line_based_regions(
+    line_regions = create_line_based_regions(
         parsed_files,
         matched_lines_by_file,
         settings.lsh.min_lines,
     )
 
-    if len(level2_regions) == 0:
-        logger.info("No unmatched sections found for level 2, skipping")
+    if len(line_regions) == 0:
+        logger.info("No unmatched sections found for line matching, skipping")
         return [], []
 
-    # Shingle, MinHash, LSH on level 2 regions
-    level2_shingled = _run_shingle_stage(level2_regions, parsed_files, rule_engine, settings)
-    level2_signatures = _run_minhash_stage(level2_shingled, settings.minhash.num_perm)
-    level2_result = _run_lsh_stage(level2_signatures, level2_shingled, settings.lsh.threshold, {})
+    # Shingle, MinHash, LSH on line regions - use lower threshold for approximate window matching
+    line_shingled = _run_shingle_stage(line_regions, parsed_files, rule_engine, settings)
+    line_signatures = _run_minhash_stage(line_shingled, settings.minhash.num_perm)
+    line_result = _run_lsh_stage(
+        line_signatures,
+        line_shingled,
+        settings.lsh.line_threshold,
+        settings.lsh.line_min_similarity,
+        {},
+    )
 
     # Filter by min_lines
-    level2_filtered_groups = _filter_groups_by_min_lines(level2_result.similar_groups, settings.lsh.min_lines)
-    logger.info("Level 2 complete: %d groups after filtering (was %d)",
-                len(level2_filtered_groups), len(level2_result.similar_groups))
+    line_filtered_groups = _filter_groups_by_min_lines(line_result.similar_groups, settings.lsh.min_lines)
+    logger.info("Line matching complete: %d groups after filtering (was %d)",
+                len(line_filtered_groups), len(line_result.similar_groups))
 
-    return level2_filtered_groups, level2_signatures
+    return line_filtered_groups, line_signatures
 
 
 def run_pipeline(target_path: str | Path) -> SimilarityResult:
-    """Run the full two-level pipeline on a target path."""
+    """Run the full two-stage pipeline on a target path."""
     settings = get_settings()
-    logger.info("Starting two-level pipeline for: %s (min_lines=%d)", target_path, settings.lsh.min_lines)
+    logger.info("Starting two-stage pipeline for: %s (min_lines=%d)", target_path, settings.lsh.min_lines)
 
     if isinstance(target_path, str):
         target_path = Path(target_path)
@@ -235,21 +257,21 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
         logger.warning("No files successfully parsed, returning empty result")
         return SimilarityResult(failed_files=parse_result.failed_files)
 
-    # Run Level 1: Region-Level Matching (functions/classes)
-    level1_filtered_groups, level1_signatures = _run_level1_matching(
+    # Run Region Matching (functions/classes)
+    region_filtered_groups, region_signatures = _run_region_matching(
         parse_result.parsed_files, rule_engine, settings
     )
 
-    # Run Level 2: Line-Level Matching (unmatched sections)
-    level2_filtered_groups, level2_signatures = _run_level2_matching(
-        parse_result.parsed_files, level1_filtered_groups, rule_engine, settings
+    # Run Line Matching (unmatched sections)
+    line_filtered_groups, line_signatures = _run_line_matching(
+        parse_result.parsed_files, region_filtered_groups, rule_engine, settings
     )
 
     # Combine results
-    all_groups = level1_filtered_groups + level2_filtered_groups
-    all_signatures = level1_signatures + level2_signatures if level2_signatures else level1_signatures
-    logger.info("Combined results: %d total groups (%d from level 1, %d from level 2)",
-                len(all_groups), len(level1_filtered_groups), len(level2_filtered_groups))
+    all_groups = region_filtered_groups + line_filtered_groups
+    all_signatures = region_signatures + line_signatures if line_signatures else region_signatures
+    logger.info("Combined results: %d total groups (%d from region matching, %d from line matching)",
+                len(all_groups), len(region_filtered_groups), len(line_filtered_groups))
 
     # Create final result
     final_result = SimilarityResult(

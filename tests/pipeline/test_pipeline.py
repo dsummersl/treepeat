@@ -217,7 +217,12 @@ def test_match_counts(ruleset, path, threshold, similar_groups, expected_regions
             rules=RulesSettings(ruleset=ruleset),
             shingle=ShingleSettings(),
             minhash=MinHashSettings(),
-            lsh=LSHSettings(threshold=threshold),
+            lsh=LSHSettings(
+                region_threshold=threshold,
+                line_threshold=threshold,
+                region_min_similarity=threshold,
+                line_min_similarity=threshold,
+            ),
         )
     )
     result = run_pipeline(path)

@@ -306,20 +306,21 @@ def _should_verify_groups(
 def _verify_and_filter_groups(
     candidate_groups: list[SimilarRegionGroup],
     shingled_regions: list[ShingledRegion],
-    threshold: float,
+    min_similarity: float,
 ) -> list[SimilarRegionGroup]:
-    """Verify candidate groups and filter by threshold."""
+    """Verify candidate groups and filter by minimum similarity threshold."""
     from whorl.pipeline.verification import verify_similar_groups
 
     logger.info("Verifying %d candidate group(s)", len(candidate_groups))
     verified_groups = verify_similar_groups(candidate_groups, shingled_regions)
 
-    # Filter groups that fall below threshold after verification
-    similar_groups = [g for g in verified_groups if g.similarity >= threshold]
+    # Filter groups that fall below minimum similarity after verification
+    similar_groups = [g for g in verified_groups if g.similarity >= min_similarity]
     if len(similar_groups) < len(verified_groups):
         logger.info(
-            "Filtered %d group(s) below threshold after verification",
+            "Filtered %d group(s) below min_similarity threshold (%.1f%%) after verification",
             len(verified_groups) - len(similar_groups),
+            min_similarity * 100,
         )
     return similar_groups
 
@@ -327,18 +328,32 @@ def _verify_and_filter_groups(
 def detect_similarity(
     signatures: list[RegionSignature],
     threshold: float = 0.5,
+    min_similarity: float | None = None,
     failed_files: dict[Path, str] | None = None,
     shingled_regions: list[ShingledRegion] | None = None,
     verify_candidates: bool = True,
 ) -> SimilarityResult:
-    """Detect similar regions using LSH."""
+    """Detect similar regions using LSH.
+
+    Args:
+        signatures: Region signatures to compare
+        threshold: LSH threshold for finding approximate matches (0.0 to 1.0)
+        min_similarity: Minimum verified similarity to keep (defaults to threshold if not specified)
+        failed_files: Dictionary of failed files
+        shingled_regions: Shingled regions for verification
+        verify_candidates: Whether to verify candidates with order-sensitive similarity
+    """
+    # Use threshold as min_similarity if not specified
+    if min_similarity is None:
+        min_similarity = threshold
+
     # Find groups of similar regions
     candidate_groups = find_similar_groups(signatures, threshold=threshold)
 
     # Verify groups using order-sensitive similarity if requested
     if _should_verify_groups(verify_candidates, shingled_regions, candidate_groups):
         similar_groups = _verify_and_filter_groups(
-            candidate_groups, shingled_regions, threshold  # type: ignore
+            candidate_groups, shingled_regions, min_similarity  # type: ignore
         )
     else:
         similar_groups = candidate_groups
