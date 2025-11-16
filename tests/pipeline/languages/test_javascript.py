@@ -33,18 +33,14 @@ def parse_javascript_fixture(path: Path) -> ParsedFile:
     )
 
 
-@pytest.mark.parametrize("rule_type", ["no_rules", "default_rules", "loose_rules"])
-def test_javascript_rules_extract(rule_type):
+@pytest.mark.parametrize("rules", [
+    [],
+    [rule for rule, _ in build_default_rules()],
+    [rule for rule, _ in build_loose_rules()]
+])
+def test_javascript_rules_extract(rules):
     """Test that JavaScript files can be processed with different rule sets."""
     parsed = parse_javascript_fixture(fixture_comprehensive)
-
-    if rule_type == "no_rules":
-        rules = []
-    elif rule_type == "default_rules":
-        rules = [rule for rule, _ in build_default_rules()]
-    else:  # loose_rules
-        rules = [rule for rule, _ in build_loose_rules()]
-
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine, include_sections=False)
 
