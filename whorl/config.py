@@ -1,5 +1,7 @@
 """Configuration using pydantic-settings."""
 
+from typing import Any
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -67,7 +69,7 @@ class LSHSettings(BaseSettings):
     line_threshold: float = 0.3
     line_min_similarity: float = 0.95
 
-    def __init__(self, threshold: float | None = None, **data):
+    def __init__(self, threshold: float | None = None, **data: Any) -> None:
         """Initialize LSH settings, optionally overriding thresholds with a single value."""
         # If threshold is provided, use it for all thresholds (backward compatibility)
         if threshold is not None:
