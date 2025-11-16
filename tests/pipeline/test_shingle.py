@@ -14,20 +14,15 @@ def test_shingle_regions_basic():
         rule_engine=RuleEngine([]),
     )
 
-    assert len(shingled_regions) == 4
+    # With recursive extraction, we get 3 regions (no section regions)
+    assert len(shingled_regions) == 3
     assert [r.region.region_name for r in shingled_regions] == [
-        "lines_1_3",
         "Model1",
         "Model2",
         "my_adapted_one",
     ]
     assert {r.region.path for r in shingled_regions} == {fixture_path1}
     assert {r.region.language for r in shingled_regions} == {"python"}
-    assert shingled_regions[0].shingles.shingles == [
-        "expression_statement→assignment→identifier(CONSTANT_VALUE_42)",
-        "expression_statement→assignment→=(=)",
-        "expression_statement→assignment→integer(42)",
-    ]
 
 
 def test_identical_functions():
@@ -38,10 +33,11 @@ def test_identical_functions():
         parsed_files=[parsed_dataclass2],
         rule_engine=RuleEngine([]),
     )
-    assert len(shingled_regions) == 3
-    assert [r.region.region_name for r in shingled_regions] == ["lines_1_1", "one", "one_prime"]
+    # With recursive extraction, we get 2 regions (no section regions)
+    assert len(shingled_regions) == 2
+    assert [r.region.region_name for r in shingled_regions] == ["one", "one_prime"]
     assert {r.region.path for r in shingled_regions} == {fixture_path2}
     assert {r.region.language for r in shingled_regions} == {"python"}
     # The first function's first shingle starts at depth 3 in the tree traversal
     # function_definition → parameters → (
-    assert shingled_regions[1].shingles.shingles[0] == "function_definition→parameters→((()"
+    assert shingled_regions[0].shingles.shingles[0] == "function_definition→parameters→((()"

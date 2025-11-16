@@ -51,15 +51,6 @@ def _extract_node_name(node: Node, source: bytes) -> str:
     return "anonymous"
 
 
-def _collect_top_level_nodes(root_node: Node) -> list[Node]:
-    """Collect all top-level nodes that are direct children of the root."""
-    # For most languages, the root is a "program" or "module" node
-    # We want its direct children as top-level nodes
-    if root_node.type in ("module", "program", "source_file"):
-        return list(root_node.children)
-    return [root_node]
-
-
 def _collect_all_matching_nodes(
     root_node: Node, mappings: list[RegionTypeMapping], language: str, engine: "RuleEngine"
 ) -> list[tuple[Node, str]]:
@@ -74,30 +65,6 @@ def _collect_all_matching_nodes(
     # Sort by start position to maintain document order
     matching_nodes.sort(key=lambda x: (x[0].start_byte, x[0].end_byte))
     return matching_nodes
-
-
-def _create_section_region(
-    pending_nodes: list[Node],
-    parsed_file: ParsedFile,
-) -> ExtractedRegion:
-    """Create a section region from a list of pending nodes."""
-    first_node = pending_nodes[0]
-    last_node = pending_nodes[-1]
-    start_line = first_node.start_point[0] + 1
-    end_line = last_node.end_point[0] + 1
-
-    region = Region(
-        path=parsed_file.path,
-        language=parsed_file.language,
-        region_type="lines",
-        region_name=f"lines_{start_line}_{end_line}",
-        start_line=start_line,
-        end_line=end_line,
-    )
-    # Store all nodes for sections so shingling can process them all
-    return ExtractedRegion(
-        region=region, node=first_node, nodes=pending_nodes if len(pending_nodes) > 1 else None
-    )
 
 
 def _create_target_region(
@@ -128,42 +95,9 @@ def _create_target_region(
     return ExtractedRegion(region=region, node=node)
 
 
-def _flush_pending_sections(
-    pending_nodes: list[Node],
-    parsed_file: ParsedFile,
-    regions: list[ExtractedRegion],
-) -> None:
-    """Flush pending section nodes to regions list."""
-    if pending_nodes:
-        regions.append(_create_section_region(pending_nodes, parsed_file))
-        pending_nodes.clear()
-
-
-def _partition_with_sections(
-    nodes: list[Node],
-    matched_nodes: dict[int, str],
-    parsed_file: ParsedFile,
-) -> list[ExtractedRegion]:
-    """Partition nodes into target regions and sections."""
-    regions: list[ExtractedRegion] = []
-    pending_section_nodes: list[Node] = []
-
-    for node in nodes:
-        if node.id in matched_nodes:
-            _flush_pending_sections(pending_section_nodes, parsed_file, regions)
-            region_type = matched_nodes[node.id]
-            regions.append(_create_target_region(node, region_type, parsed_file))
-        else:
-            pending_section_nodes.append(node)
-
-    _flush_pending_sections(pending_section_nodes, parsed_file, regions)
-    return regions
-
-
 def extract_regions(
     parsed_file: ParsedFile,
     rule_engine: "RuleEngine",
-    include_sections: bool = True
 ) -> list[ExtractedRegion]:
     """Extract code regions from a parsed file using rules from the engine."""
     logger.info("Extracting regions from %s (%s)", parsed_file.path, parsed_file.language)
@@ -187,25 +121,11 @@ def extract_regions(
         )
         regions = [ExtractedRegion(region=region, node=parsed_file.root_node)]
     else:
-        # Execute queries to get all matching nodes
-        if include_sections:
-            # Original behavior: top-level nodes with sections
-            # Execute queries to find all matching nodes
-            matching_nodes_list = _collect_all_matching_nodes(
-                parsed_file.root_node, mappings, parsed_file.language, rule_engine
-            )
-            # Create lookup dict: node.id -> region_type
-            matched_nodes_dict = {node.id: region_type for node, region_type in matching_nodes_list}
-
-            # Get top-level nodes
-            top_level_nodes = _collect_top_level_nodes(parsed_file.root_node)
-            regions = _partition_with_sections(top_level_nodes, matched_nodes_dict, parsed_file)
-        else:
-            # Recursive extraction: find ALL matching nodes (methods, nested functions, etc.)
-            matching_nodes_list = _collect_all_matching_nodes(
-                parsed_file.root_node, mappings, parsed_file.language, rule_engine
-            )
-            regions = [_create_target_region(node, region_type, parsed_file) for node, region_type in matching_nodes_list]
+        # Recursive extraction: find ALL matching nodes (methods, nested functions, etc.)
+        matching_nodes_list = _collect_all_matching_nodes(
+            parsed_file.root_node, mappings, parsed_file.language, rule_engine
+        )
+        regions = [_create_target_region(node, region_type, parsed_file) for node, region_type in matching_nodes_list]
 
     logger.info("Extracted %d region(s) from %s", len(regions), parsed_file.path)
     return regions
@@ -214,14 +134,13 @@ def extract_regions(
 def extract_all_regions(
     parsed_files: list[ParsedFile],
     rule_engine: "RuleEngine",
-    include_sections: bool = True
 ) -> list[ExtractedRegion]:
     """Extract regions from all parsed files."""
     all_regions: list[ExtractedRegion] = []
 
     for parsed_file in parsed_files:
         try:
-            regions = extract_regions(parsed_file, rule_engine, include_sections)
+            regions = extract_regions(parsed_file, rule_engine)
             all_regions.extend(regions)
         except Exception as e:
             logger.error("Failed to extract regions from %s: %s", parsed_file.path, e)
