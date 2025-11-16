@@ -4,27 +4,43 @@ from whorl.models.ast import ParsedFile
 from whorl.pipeline.rules.engine import RuleEngine, build_default_rules
 
 
+# Legacy fixture paths (for backward compatibility)
 fixture_path1 = Path(__file__).parent / "fixtures" / "python" / "dataclass1.py"
 fixture_path2 = Path(__file__).parent / "fixtures" / "python" / "dataclass2.py"
 fixture_nested = Path(__file__).parent / "fixtures" / "python" / "nested_functions.py"
 fixture_class_methods = Path(__file__).parent / "fixtures" / "python" / "class_with_methods.py"
 
 
-def load_fixture(path):
+def load_fixture(path: Path) -> bytes:
+    """Load a fixture file as bytes."""
     with open(path, "rb") as f:
         return f.read()
 
 
-def parsed_fixture(path):
-    parser = get_parser("python")
+def parse_fixture(path: Path, language: str) -> ParsedFile:
+    """Parse a fixture file for any language.
+
+    Args:
+        path: Path to the fixture file
+        language: Language name (e.g., "python", "javascript", "html")
+
+    Returns:
+        ParsedFile object with parsed tree
+    """
+    parser = get_parser(language)
     fixture = load_fixture(path)
     tree = parser.parse(fixture)
     return ParsedFile(
         path=path,
-        language="python",
+        language=language,
         tree=tree,
         source=fixture,
     )
+
+
+def parsed_fixture(path):
+    """Legacy function for backward compatibility - parses Python files."""
+    return parse_fixture(path, "python")
 
 
 def default_rule_engine():

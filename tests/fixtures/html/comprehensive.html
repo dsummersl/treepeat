@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive HTML Test</title>
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main container -->
+    <div class="container">
+        <header>
+            <h1 id="main-title">Welcome to Test Page</h1>
+            <nav>
+                <ul>
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            <section id="content">
+                <article>
+                    <h2>Article Title</h2>
+                    <p>This is a comprehensive HTML fixture for testing.</p>
+                    <p>It includes various HTML elements and attributes.</p>
+
+                    <form action="/submit" method="post">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" name="username" required>
+
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+
+                        <button type="submit">Submit</button>
+                    </form>
+                </article>
+
+                <aside>
+                    <h3>Related Content</h3>
+                    <ul>
+                        <li>Item 1</li>
+                        <li>Item 2</li>
+                        <li>Item 3</li>
+                    </ul>
+                </aside>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Test Company. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        function initPage() {
+            console.log('Page initialized');
+        }
+        initPage();
+    </script>
+</body>
+</html>
