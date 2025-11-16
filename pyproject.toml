@@ -1,5 +1,5 @@
 [project]
-name = "tssim"
+name = "whorl"
 version = "0.1.0"
 description = "Treesitter-based CLI tool to detect similarity detection"
 readme = "README.md"
@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.scripts]
-tssim = "tssim.cli:main"
+whorl = "whorl.cli:main"
 
 [dependency-groups]
 dev = [
@@ -50,8 +50,8 @@ exclude = ["benchmark-tests"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["tssim"]
+packages = ["whorl"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=tssim  --cov-report=term-missing"
+addopts = "--cov=whorl  --cov-report=term-missing"
 norecursedirs = "benchmark-tests"

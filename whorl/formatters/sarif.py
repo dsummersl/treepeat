@@ -1,4 +1,4 @@
-"""SARIF (Static Analysis Results Interchange Format) formatter for tssim.
+"""SARIF (Static Analysis Results Interchange Format) formatter for whorl.
 
 SARIF is a standard format for static analysis tool output.
 Specification: https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html
@@ -19,7 +19,7 @@ from sarif_pydantic import (  # type: ignore[import-untyped]
     ToolDriver,
 )
 
-from tssim.models.similarity import SimilarRegionGroup, SimilarityResult
+from whorl.models.similarity import SimilarRegionGroup, SimilarityResult
 
 
 def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:
@@ -62,8 +62,8 @@ def _create_tool() -> Tool:
     """Create the SARIF tool descriptor."""
     return Tool(
         driver=ToolDriver(
-            name="tssim",
-            informationUri="https://github.com/dsummersl/tssim",
+            name="whorl",
+            informationUri="https://github.com/dsummersl/whorl",
             version="1.0.0",
             semanticVersion="1.0.0",
             rules=[

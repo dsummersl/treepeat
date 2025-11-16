@@ -4,8 +4,8 @@ import logging
 
 from datasketch import MinHash  # type: ignore[import-untyped]
 
-from tssim.models.shingle import ShingledRegion
-from tssim.models.similarity import RegionSignature
+from whorl.models.shingle import ShingledRegion
+from whorl.models.similarity import RegionSignature
 
 logger = logging.getLogger(__name__)
 

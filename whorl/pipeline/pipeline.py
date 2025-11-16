@@ -1,22 +1,22 @@
 import logging
 from pathlib import Path
 
-from tssim.config import PipelineSettings, get_settings
-from tssim.models.ast import ParsedFile, ParseResult
-from tssim.models.shingle import ShingledRegion
-from tssim.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
-from tssim.pipeline.lsh_stage import detect_similarity
-from tssim.pipeline.minhash_stage import compute_region_signatures
-from tssim.pipeline.parse import parse_path
-from tssim.pipeline.region_extraction import (
+from whorl.config import PipelineSettings, get_settings
+from whorl.models.ast import ParsedFile, ParseResult
+from whorl.models.shingle import ShingledRegion
+from whorl.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
+from whorl.pipeline.lsh_stage import detect_similarity
+from whorl.pipeline.minhash_stage import compute_region_signatures
+from whorl.pipeline.parse import parse_path
+from whorl.pipeline.region_extraction import (
     ExtractedRegion,
     create_line_based_regions,
     extract_all_regions,
     get_matched_line_ranges,
 )
-from tssim.pipeline.rules.engine import RuleEngine
-from tssim.pipeline.rules_factory import build_rule_engine
-from tssim.pipeline.shingle import shingle_regions
+from whorl.pipeline.rules.engine import RuleEngine
+from whorl.pipeline.rules_factory import build_rule_engine
+from whorl.pipeline.shingle import shingle_regions
 
 logger = logging.getLogger(__name__)
 

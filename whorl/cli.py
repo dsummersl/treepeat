@@ -1,4 +1,4 @@
-"""CLI interface for tssim."""
+"""CLI interface for whorl."""
 
 import logging
 import sys
@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.table import Table
 
-from tssim.config import (
+from whorl.config import (
     LSHSettings,
     MinHashSettings,
     PipelineSettings,
@@ -18,10 +18,10 @@ from tssim.config import (
     ShingleSettings,
     set_settings,
 )
-from tssim.diff import display_diff
-from tssim.formatters import format_as_sarif
-from tssim.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
-from tssim.pipeline.pipeline import run_pipeline
+from whorl.diff import display_diff
+from whorl.formatters import format_as_sarif
+from whorl.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
+from whorl.pipeline.pipeline import run_pipeline
 
 console = Console()
 
@@ -217,7 +217,7 @@ def _write_output(text: str, output_path: Path | None) -> None:
 def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
     """Run the pipeline with appropriate UI feedback based on output format."""
     if output_format.lower() == "console":
-        from tssim.config import get_settings
+        from whorl.config import get_settings
         settings = get_settings()
         console.print(f"\nRuleset: [cyan]{settings.rules.ruleset}[/cyan]")
         console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
@@ -260,7 +260,7 @@ def _print_rule_spec(rule: Any) -> None:
 
 def _print_rulesets(ruleset_name: str) -> None:
     """Print rules in the specified ruleset."""
-    from tssim.pipeline.rules_factory import get_ruleset_with_descriptions
+    from whorl.pipeline.rules_factory import get_ruleset_with_descriptions
 
     rules_with_descriptions = get_ruleset_with_descriptions(ruleset_name)
 
@@ -445,7 +445,7 @@ def _filter_regions_by_name(
     """Filter regions by name and show error if not found."""
     filtered = [r for r in extracted_regions if r.region.region_name == region]
     if not filtered:
-        from tssim.pipeline.region_extraction import extract_all_regions
+        from whorl.pipeline.region_extraction import extract_all_regions
 
         console.print(f"[bold red]Error:[/bold red] Region '{region}' not found")
         console.print("\nAvailable regions:")
@@ -461,7 +461,7 @@ def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> list[str]:
 
     Returns a list of token representations (node types with values).
     """
-    from tssim.models.normalization import SkipNode
+    from whorl.models.normalization import SkipNode
 
     tokens: list[str] = []
     source = parsed_file.source
@@ -558,10 +558,10 @@ def treesitter(
     tree-sitter token representations on the right, showing how the code is
     transformed during similarity detection.
     """
-    from tssim.config import get_settings
-    from tssim.pipeline.parse import parse_file
-    from tssim.pipeline.shingle import ASTShingler
-    from tssim.pipeline.rules_factory import build_rule_engine
+    from whorl.config import get_settings
+    from whorl.pipeline.parse import parse_file
+    from whorl.pipeline.shingle import ASTShingler
+    from whorl.pipeline.rules_factory import build_rule_engine
 
     ruleset = ctx.obj["ruleset"]
     _configure_settings(ruleset, 1.0, 5, "", "**/.*ignore")

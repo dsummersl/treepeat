@@ -4,12 +4,12 @@ from pathlib import Path
 
 from tree_sitter import Node
 
-from tssim.models.ast import ParsedFile, ParseResult
-from tssim.models.normalization import NodeRepresentation, SkipNode
-from tssim.models.shingle import ShingledRegion, ShingleResult, ShingleList, ShingledFile
-from tssim.pipeline.region_extraction import ExtractedRegion
-from tssim.pipeline.rules.engine import RuleEngine
-from tssim.pipeline.rules.models import SkipNodeException
+from whorl.models.ast import ParsedFile, ParseResult
+from whorl.models.normalization import NodeRepresentation, SkipNode
+from whorl.models.shingle import ShingledRegion, ShingleResult, ShingleList, ShingledFile
+from whorl.pipeline.region_extraction import ExtractedRegion
+from whorl.pipeline.rules.engine import RuleEngine
+from whorl.pipeline.rules.models import SkipNodeException
 
 logger = logging.getLogger(__name__)
 

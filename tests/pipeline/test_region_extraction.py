@@ -6,7 +6,7 @@ from ..conftest import (
     fixture_class_methods,
     default_rule_engine,
 )
-from tssim.pipeline.region_extraction import extract_all_regions, get_matched_line_ranges
+from whorl.pipeline.region_extraction import extract_all_regions, get_matched_line_ranges
 
 
 def test_extract_regions_dataclass1():

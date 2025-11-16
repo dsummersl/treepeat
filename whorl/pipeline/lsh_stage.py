@@ -6,8 +6,8 @@ from typing import Hashable
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
 
-from tssim.models.shingle import ShingledRegion
-from tssim.models.similarity import (
+from whorl.models.shingle import ShingledRegion
+from whorl.models.similarity import (
     Region,
     RegionSignature,
     SimilarRegionGroup,
@@ -309,7 +309,7 @@ def _verify_and_filter_groups(
     threshold: float,
 ) -> list[SimilarRegionGroup]:
     """Verify candidate groups and filter by threshold."""
-    from tssim.pipeline.verification import verify_similar_groups
+    from whorl.pipeline.verification import verify_similar_groups
 
     logger.info("Verifying %d candidate group(s)", len(candidate_groups))
     verified_groups = verify_similar_groups(candidate_groups, shingled_regions)

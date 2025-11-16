@@ -155,7 +155,7 @@ Example: Different implementations of similar algorithms
 
 ### For Advanced Scenarios:
 To detect duplicates with different values or names, consider:
-- **tssim** (if available) - designed for flexible matching
+- **whorl** (if available) - designed for flexible matching
 - **Simian** with relaxed settings
 - **PMD CPD** with token normalization
 - Custom AST-based tools
@@ -220,7 +220,7 @@ To address these limitations:
 
 ## Next Steps
 
-1. **Add tssim integration**: Test user's tool with flexible matching
+1. **Add whorl integration**: Test user's tool with flexible matching
 2. **Implement AST-based detector**: For semantic duplication
 3. **Create visualization**: Chart duplication hotspots
 4. **Benchmark against Simian/PMD**: When available
@@ -234,7 +234,7 @@ To address these limitations:
 - ✓ Custom line detector: Implemented
 - ✗ Simian: Not available (download restricted)
 - ✗ PMD CPD: Not available (download restricted)
-- ✗ tssim: Repository not accessible
+- ✗ whorl: Repository not accessible
 - ✗ cloc: Not installed (permission issues)
 
 ## Files Generated

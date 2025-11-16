@@ -1,6 +1,6 @@
 """SQL language configuration."""
 
-from tssim.pipeline.rules.models import Rule, RuleAction
+from whorl.pipeline.rules.models import Rule, RuleAction
 
 from .base import LanguageConfig, RegionExtractionRule
 

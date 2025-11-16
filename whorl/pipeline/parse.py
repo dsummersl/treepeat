@@ -1,4 +1,4 @@
-"""Parse stage of the tssim pipeline."""
+"""Parse stage of the whorl pipeline."""
 
 import logging
 from fnmatch import fnmatch
@@ -6,9 +6,9 @@ from pathlib import Path
 
 from tree_sitter_language_pack import get_parser, SupportedLanguage
 
-from tssim.config import get_settings
-from tssim.models import ParsedFile, ParseResult
-from tssim.pipeline.languages import LANGUAGE_EXTENSIONS
+from whorl.config import get_settings
+from whorl.models import ParsedFile, ParseResult
+from whorl.pipeline.languages import LANGUAGE_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 

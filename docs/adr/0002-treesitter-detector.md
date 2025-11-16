@@ -18,7 +18,7 @@ The tool's purpose:
 
 ## Decision
 
-We will build a new CLI tool called `tssim`:
+We will build a new CLI tool called `whorl`:
 - use Tree-sitter ASTs to identify structurally similar code blocks.
 - Implement MinHash and Locality Sensitive Hashing (LSH) to efficiently find similar AST subtrees - use the datasketch library.
 - For each supported language, create language specific normalization of ASTs to strip away identifiers, literals, and other non-structural elements (eg, imports, comments).

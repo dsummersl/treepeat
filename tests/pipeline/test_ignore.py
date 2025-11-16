@@ -4,8 +4,8 @@ import tempfile
 from pathlib import Path
 
 
-from tssim.config import PipelineSettings, set_settings
-from tssim.pipeline.parse import (
+from whorl.config import PipelineSettings, set_settings
+from whorl.pipeline.parse import (
     collect_source_files,
     find_ignore_files,
     matches_pattern,

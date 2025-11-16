@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from tssim.pipeline.rules.models import Rule
+from whorl.pipeline.rules.models import Rule
 
 
 @dataclass

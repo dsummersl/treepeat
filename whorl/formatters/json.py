@@ -1,9 +1,9 @@
-"""JSON formatter for tssim results."""
+"""JSON formatter for whorl results."""
 
 import json
 from typing import Any
 
-from tssim.models.similarity import Region, SimilarRegionGroup, SimilarityResult
+from whorl.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 
 
 def _region_to_dict(region: Region) -> dict[str, Any]:

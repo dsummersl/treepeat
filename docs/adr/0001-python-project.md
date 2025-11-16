@@ -21,7 +21,7 @@ Use the following layout for the python project:
 
 ```plaintext
 project-root/
-├── tssim/
+├── whorl/
 ├── tests/
 └── docs/
 ```

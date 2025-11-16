@@ -7,10 +7,10 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from tree_sitter import Node
 
-from tssim.models.ast import ParsedFile
-from tssim.models.similarity import Region
+from whorl.models.ast import ParsedFile
+from whorl.models.similarity import Region
 
-from tssim.pipeline.rules.engine import RuleEngine
+from whorl.pipeline.rules.engine import RuleEngine
 
 logger = logging.getLogger(__name__)
 

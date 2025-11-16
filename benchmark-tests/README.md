@@ -1,6 +1,6 @@
 # Duplication Detection Testing Framework
 
-A comprehensive framework for testing and comparing code duplication detection tools, including **tssim**, across multiple open-source codebases.
+A comprehensive framework for testing and comparing code duplication detection tools, including **whorl**, across multiple open-source codebases.
 
 ## 🎯 Quick Start
 
@@ -19,7 +19,7 @@ python3 add_codebase.py add myproject https://github.com/user/project.git Python
 
 This framework compares multiple duplication detection tools:
 
-- **tssim** ⭐ - Tree-sitter based similarity detection (from this repo!)
+- **whorl** ⭐ - Tree-sitter based similarity detection (from this repo!)
 - **jscpd** - Industry-standard token-based copy-paste detector
 - **hash_detector** - Fast exact duplicate finder
 - **line_detector** - Line-sequence matcher (planned)
@@ -96,7 +96,7 @@ benchmark-tests/
 
 ## 🔧 Tools Tested
 
-### tssim ⭐
+### whorl ⭐
 - Tree-sitter based AST analysis
 - Supports Python, JavaScript, TypeScript
 - MinHash + LSH for similarity detection
@@ -157,8 +157,8 @@ python3 add_codebase.py add myproject https://github.com/user/repo.git Python "D
 - Python 3.7+
 - Git
 
-### For tssim
-Already included! Tests will run `uv run tssim` from the parent directory.
+### For whorl
+Already included! Tests will run `uv run whorl` from the parent directory.
 
 ### For jscpd
 ```bash
@@ -171,7 +171,7 @@ From a typical run:
 
 | Tool | Avg Duration | Total Duplicates |
 |------|--------------|-----------------|
-| tssim | ~30s | Varies by threshold |
+| whorl | ~30s | Varies by threshold |
 | jscpd | ~18s | 1000s on large codebases |
 | hash_detector | ~1s | Only exact matches |
 
