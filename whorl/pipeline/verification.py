@@ -143,9 +143,16 @@ def _compute_pair_similarity_with_verification(
         sr2.shingles.shingles,
     )
 
-    # For high similarity matches, verify that signatures (first lines) match
+    # For high similarity matches in function/class/method regions, verify that signatures match
     # This catches cases where function/class names differ but bodies are similar
-    if shingle_similarity >= SOURCE_VERIFICATION_THRESHOLD:
+    # Skip signature verification for file-level and line-based regions
+    should_verify_signature = (
+        shingle_similarity >= SOURCE_VERIFICATION_THRESHOLD
+        and r1.region_type in ("function", "class", "method")
+        and r2.region_type in ("function", "class", "method")
+    )
+
+    if should_verify_signature:
         signatures_match = _check_signature_match(
             r1.path, r1.start_line,
             r2.path, r2.start_line

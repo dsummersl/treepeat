@@ -99,13 +99,102 @@ def _merge_overlapping_regions_for_file(regions: list[Region]) -> list[Region]:
     return merged
 
 
+def _groups_have_overlapping_regions(g1: SimilarRegionGroup, g2: SimilarRegionGroup) -> bool:
+    """Check if two groups have overlapping regions in any common files."""
+    # Get files in each group
+    files_g1 = {r.path for r in g1.regions}
+    files_g2 = {r.path for r in g2.regions}
+
+    # Check if they share any files
+    common_files = files_g1 & files_g2
+    if not common_files:
+        return False
+
+    # Check if regions from common files overlap
+    for file_path in common_files:
+        regions_g1 = [r for r in g1.regions if r.path == file_path]
+        regions_g2 = [r for r in g2.regions if r.path == file_path]
+
+        # Check if any regions from g1 overlap with any from g2
+        for r1 in regions_g1:
+            for r2 in regions_g2:
+                if _regions_are_adjacent_or_overlapping(r1, r2):
+                    return True
+
+    return False
+
+
+def _merge_group_list(groups: list[SimilarRegionGroup]) -> SimilarRegionGroup:
+    """Merge a list of groups into a single group."""
+    all_regions = []
+    total_similarity = 0.0
+
+    for group in groups:
+        all_regions.extend(group.regions)
+        total_similarity += group.similarity
+
+    # Average similarity across merged groups
+    avg_similarity = total_similarity / len(groups) if groups else 1.0
+
+    return SimilarRegionGroup(
+        regions=all_regions,
+        similarity=avg_similarity,
+    )
+
+
+def _merge_overlapping_groups(groups: list[SimilarRegionGroup]) -> list[SimilarRegionGroup]:
+    """Merge groups that have overlapping regions in common files.
+
+    Args:
+        groups: List of similar region groups
+
+    Returns:
+        List of merged groups where overlapping groups are combined
+    """
+    if not groups:
+        return []
+
+    # Track which groups have been merged
+    merged_group_lists: list[list[SimilarRegionGroup]] = []
+
+    for group in groups:
+        # Find if this group should be merged with any existing merged group
+        merged_into_existing = False
+        for merged_list in merged_group_lists:
+            # Check if this group overlaps with any group in this merged list
+            if any(_groups_have_overlapping_regions(group, g) for g in merged_list):
+                merged_list.append(group)
+                merged_into_existing = True
+                break
+
+        if not merged_into_existing:
+            # Start a new merged group list
+            merged_group_lists.append([group])
+
+    # Convert merged lists into single groups
+    result = []
+    for merged_list in merged_group_lists:
+        if len(merged_list) == 1:
+            result.append(merged_list[0])
+        else:
+            merged_group = _merge_group_list(merged_list)
+            logger.debug(
+                "Merged %d overlapping groups into one (avg similarity: %.1f%%)",
+                len(merged_list),
+                merged_group.similarity * 100,
+            )
+            result.append(merged_group)
+
+    return result
+
+
 def merge_similar_window_groups(
     groups: list[SimilarRegionGroup],
 ) -> list[SimilarRegionGroup]:
     """Merge overlapping windows in similar groups to find contiguous boundaries.
 
-    For each group, merge overlapping or adjacent windows from the same file
-    to produce clean boundary ranges.
+    First merges groups that have overlapping regions in common files,
+    then merges overlapping or adjacent windows within each group.
 
     Args:
         groups: Similar region groups with potentially overlapping windows
@@ -113,9 +202,17 @@ def merge_similar_window_groups(
     Returns:
         Groups with merged regions showing clean boundaries
     """
+    # First, merge groups that have overlapping regions
+    coalesced_groups = _merge_overlapping_groups(groups)
+    logger.debug(
+        "Coalesced %d groups with overlapping regions into %d groups",
+        len(groups),
+        len(coalesced_groups),
+    )
+
     merged_groups: list[SimilarRegionGroup] = []
 
-    for group in groups:
+    for group in coalesced_groups:
         # Group regions by file
         regions_by_file: dict[Path, list[Region]] = defaultdict(list)
         for region in group.regions:
