@@ -6,7 +6,14 @@ A tool for detecting code duplication and similarity across codebases.
 
 ### detect
 
-Scan a codebase for similar or duplicate code blocks using tree-sitter AST analysis and locality-sensitive hashing. The `--threshold` option controls similarity matching (0.0-1.0, default 1.0 for exact duplicates), while `--min-lines` sets the minimum block size to consider. Use `--diff` to see side-by-side comparisons of similar blocks, and `--format sarif` to output results in SARIF format for CI integration.
+Scan a codebase for similar or duplicate code blocks using tree-sitter AST analysis and locality-sensitive hashing.
+
+Key flags:
+- `--ruleset`: Normalization ruleset to use (`none`, `default`, `loose`) - controls how code is normalized before comparison
+- `--threshold`: Similarity threshold from 0.0-1.0 (default: 1.0 for exact duplicates)
+- `--min-lines`: Minimum number of lines for a match (default: 5)
+- `--diff`: Show side-by-side comparisons of similar blocks
+- `--format`: Output format - `console` (default) or `sarif` for CI integration
 
 ```bash
 # Find exact duplicates (default threshold=1.0)
@@ -24,7 +31,10 @@ whorl detect --format sarif -o results.sarif /path/to/codebase
 
 ### treesitter
 
-Display how whorl normalizes source code into tree-sitter tokens for similarity detection. Shows the original source code side-by-side with the normalized token representation, useful for understanding why certain blocks are or aren't detected as similar.
+Display how whorl normalizes source code into tree-sitter tokens for similarity detection. Shows the original source code side-by-side with the normalized token representation.
+
+Key flags:
+- `--ruleset`: Normalization ruleset to use (`none`, `default`, `loose`) - useful for debugging why blocks match or don't match
 
 ```bash
 # View how a file is tokenized
