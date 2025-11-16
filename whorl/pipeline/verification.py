@@ -1,19 +1,3 @@
-"""Verification stage for refining candidate similar groups.
-
-This module implements the verification step that comes after LSH candidate detection.
-Per ADR 2, the full pipeline should be:
-    Parse → Normalize → Shingles → MinHash → LSH → Candidates → PQ-Gram → TED
-
-This module implements a lightweight verification using order-sensitive shingle comparison
-(LCS-based) as a pragmatic alternative to full PQ-Gram/TED verification. It verifies that
-regions matched by minhash-LSH (which is order-insensitive) actually have matching line
-order using Longest Common Subsequence (LCS).
-
-Additionally, for high similarity matches (>95%), we verify against the actual source text
-to catch differences that may not be captured in shingles (e.g., function names at shallow
-AST depths).
-"""
-
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING

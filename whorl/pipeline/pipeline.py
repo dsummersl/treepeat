@@ -148,7 +148,6 @@ def _run_lsh_stage(
         min_similarity=min_similarity,
         failed_files=failed_files,
         shingled_regions=shingled_regions,
-        verify_candidates=True,
     )
     logger.info(
         "Similarity detection complete: found %d similar group(s) (%d self-similar)",

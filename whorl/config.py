@@ -68,7 +68,7 @@ class LSHSettings(BaseSettings):
     )
 
     stride: int = Field(
-        default=10,
+        default=5,
         ge=1,
         description="Stride (step size) for sliding window in lines",
     )
