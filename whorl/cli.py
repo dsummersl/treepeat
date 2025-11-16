@@ -187,22 +187,46 @@ def display_summary_table(result: SimilarityResult) -> None:
     stats_by_format = _collect_format_statistics(result)
 
     # Create summary table
-    table = Table(title="\n[bold cyan]Summary[/bold cyan]", show_header=True, header_style="bold")
+    table = Table(show_header=True, header_style="bold")
     table.add_column("Format", style="cyan")
     table.add_column("# Files", justify="right")
     table.add_column("Groups Found", justify="right")
     table.add_column("Lines", justify="right")
 
-    # Sort by format name
+    # Calculate totals
+    total_files: set[Path] = set()
+    total_groups = 0
+    total_lines = 0
+
+    # Sort by format name and add rows
     for language in sorted(stats_by_format.keys()):
         stats = stats_by_format[language]
+        files = stats["files"]  # type: ignore[assignment]
+        groups = stats["groups"]  # type: ignore[assignment]
+        lines = stats["lines"]  # type: ignore[assignment]
+
         table.add_row(
             language,
-            str(len(stats["files"])),  # type: ignore[arg-type]
-            str(stats["groups"]),
-            str(stats["lines"]),
+            str(len(files)),
+            str(groups),
+            str(lines),
         )
 
+        # Accumulate totals
+        total_files.update(files)
+        total_groups += groups
+        total_lines += lines
+
+    # Add totals row
+    table.add_row(
+        "[bold]Totals[/bold]",
+        f"[bold]{len(total_files)}[/bold]",
+        f"[bold]{total_groups}[/bold]",
+        f"[bold]{total_lines}[/bold]",
+        end_section=True,
+    )
+
+    console.print("\n")
     console.print(table)
 
 
