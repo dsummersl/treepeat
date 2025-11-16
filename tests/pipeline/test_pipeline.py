@@ -93,7 +93,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.7,
-            7,  # Updated: includes line-based matches from sliding window approach
+            6,  # Shingle-based windows find precise code duplicates
             [
                 # Cross-file duplicate functions
                 (
@@ -132,7 +132,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.8,
-            5,  # Updated: includes line-based matches from sliding window approach
+            4,  # Shingle-based windows find precise code duplicates
             [
                 # Cross-file duplicate functions
                 (

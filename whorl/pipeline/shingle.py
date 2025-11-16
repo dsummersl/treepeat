@@ -275,3 +275,101 @@ def shingle_regions(
         filtered_count
     )
     return shingled_regions
+
+
+def _create_window_region(
+    shingled_region: ShingledRegion, window_idx: int, window_shingles: list[str]
+) -> ShingledRegion:
+    """Create a window region from a parent shingled region."""
+    from whorl.models.similarity import Region
+
+    window_region = Region(
+        path=shingled_region.region.path,
+        language=shingled_region.region.language,
+        region_type="shingle_window",
+        region_name=f"{shingled_region.region.region_name}_window_{window_idx}",
+        start_line=shingled_region.region.start_line,
+        end_line=shingled_region.region.end_line,
+    )
+
+    return ShingledRegion(
+        region=window_region,
+        shingles=ShingleList(shingles=window_shingles),
+    )
+
+
+def _create_windows_from_region(
+    shingled_region: ShingledRegion,
+    window_size: int,
+    stride: int,
+    min_shingles: int,
+) -> list[ShingledRegion]:
+    """Create sliding windows from a single shingled region."""
+    shingles = shingled_region.shingles.shingles
+    total_shingles = len(shingles)
+
+    # If the region has fewer shingles than window_size, use it as one window
+    if total_shingles <= window_size:
+        return [shingled_region] if total_shingles >= min_shingles else []
+
+    # Create sliding windows of shingles
+    windows = []
+    window_idx = 0
+    start_idx = 0
+
+    while start_idx < total_shingles:
+        end_idx = min(start_idx + window_size, total_shingles)
+        window_shingles = shingles[start_idx:end_idx]
+
+        if len(window_shingles) >= min_shingles:
+            window = _create_window_region(shingled_region, window_idx, window_shingles)
+            windows.append(window)
+            logger.debug(
+                "Created shingle window %d for %s: shingles [%d:%d] (%d shingles)",
+                window_idx,
+                shingled_region.region.region_name,
+                start_idx,
+                end_idx,
+                len(window_shingles),
+            )
+            window_idx += 1
+
+        start_idx += stride
+
+    return windows
+
+
+def create_shingle_windows(
+    shingled_regions: list[ShingledRegion],
+    window_size: int,
+    stride: int,
+    min_shingles: int,
+) -> list[ShingledRegion]:
+    """Create sliding windows from shingled regions.
+
+    This creates overlapping windows of shingles from each shingled region,
+    allowing for similarity detection at a finer granularity than full regions.
+
+    Args:
+        shingled_regions: Regions that have been shingled
+        window_size: Number of shingles per window
+        stride: Step size for sliding window (in number of shingles)
+        min_shingles: Minimum number of shingles for a window to be valid
+
+    Returns:
+        List of shingled regions representing windows
+    """
+    windowed_regions: list[ShingledRegion] = []
+
+    for shingled_region in shingled_regions:
+        windows = _create_windows_from_region(
+            shingled_region, window_size, stride, min_shingles
+        )
+        windowed_regions.extend(windows)
+
+    logger.info(
+        "Created %d shingle window(s) from %d shingled region(s)",
+        len(windowed_regions),
+        len(shingled_regions),
+    )
+    return windowed_regions

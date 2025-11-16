@@ -60,17 +60,19 @@ class LSHSettings(BaseSettings):
         description="Minimum number of lines for a match to be considered valid",
     )
 
-    # Window/stride settings for line matching
+    # Window/stride settings for line matching (shingle-based windows)
+    # A typical line of code generates ~5-10 shingles depending on AST depth
+    # So window_size=100 ≈ 10-20 lines of code
     window_size: int = Field(
-        default=20,
+        default=100,
         ge=1,
-        description="Size of sliding window in lines for line-based similarity detection",
+        description="Size of sliding window in number of shingles for line-based similarity detection",
     )
 
     stride: int = Field(
-        default=5,
+        default=25,
         ge=1,
-        description="Stride (step size) for sliding window in lines",
+        description="Stride (step size) for sliding window in number of shingles",
     )
 
     # Internal thresholds (not exposed as environment variables or CLI options)
