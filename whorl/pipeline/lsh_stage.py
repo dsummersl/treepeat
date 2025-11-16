@@ -28,8 +28,9 @@ def _create_lsh_index(
     lsh = MinHashLSH(lsh_threshold, num_perm)
 
     for sig in signatures:
-        # Create a unique key for each region (path + line range)
-        key = f"{sig.region.path}:{sig.region.start_line}-{sig.region.end_line}"
+        # Create a unique key for each region
+        # Include region_name to handle shingle windows which may share line ranges
+        key = f"{sig.region.path}:{sig.region.region_name}:{sig.region.start_line}-{sig.region.end_line}"
         lsh.insert(key, sig.minhash)
 
     logger.debug(
@@ -50,7 +51,7 @@ def _find_signature_by_key(
         (
             s
             for s in signatures
-            if f"{s.region.path}:{s.region.start_line}-{s.region.end_line}" == key
+            if f"{s.region.path}:{s.region.region_name}:{s.region.start_line}-{s.region.end_line}" == key
         ),
         None,
     )
@@ -183,7 +184,8 @@ def _build_union_find_from_lsh(
     key_to_sig: dict[str, RegionSignature] = {}
 
     for sig in signatures:
-        current_key = f"{sig.region.path}:{sig.region.start_line}-{sig.region.end_line}"
+        # Use same key format as LSH index
+        current_key = f"{sig.region.path}:{sig.region.region_name}:{sig.region.start_line}-{sig.region.end_line}"
         key_to_sig[current_key] = sig
 
         similar_keys = lsh.query(sig.minhash)
