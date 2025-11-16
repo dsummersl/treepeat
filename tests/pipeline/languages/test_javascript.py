@@ -42,6 +42,6 @@ def test_javascript_rules_extract(rules):
     """Test that JavaScript files can be processed with different rule sets."""
     parsed = parse_javascript_fixture(fixture_comprehensive)
     engine = RuleEngine(rules)
-    regions = extract_all_regions([parsed], engine, include_sections=False)
+    regions = extract_all_regions([parsed], engine)
 
     assert len(regions) > 0
