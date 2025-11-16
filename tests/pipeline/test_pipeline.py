@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from tssim.models.similarity import Region, SimilarRegionGroup, SimilarityResult
+from whorl.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 from ..conftest import parsed_fixture
 import pytest
 
-from tssim.config import (
+from whorl.config import (
     LSHSettings,
     MinHashSettings,
     PipelineSettings,
@@ -12,11 +12,11 @@ from tssim.config import (
     ShingleSettings,
     set_settings,
 )
-from tssim.pipeline.lsh_stage import detect_similarity
-from tssim.pipeline.minhash_stage import compute_region_signatures
-from tssim.pipeline.pipeline import run_pipeline
-from tssim.pipeline.region_extraction import extract_all_regions
-from tssim.pipeline.shingle import shingle_regions
+from whorl.pipeline.lsh_stage import detect_similarity
+from whorl.pipeline.minhash_stage import compute_region_signatures
+from whorl.pipeline.pipeline import run_pipeline
+from whorl.pipeline.region_extraction import extract_all_regions
+from whorl.pipeline.shingle import shingle_regions
 from ..conftest import default_rule_engine
 
 

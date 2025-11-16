@@ -18,10 +18,10 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from tssim.models.shingle import ShingledRegion
+from whorl.models.shingle import ShingledRegion
 
 if TYPE_CHECKING:
-    from tssim.models.similarity import Region, SimilarRegionGroup
+    from whorl.models.similarity import Region, SimilarRegionGroup
 
 
 logger = logging.getLogger(__name__)
@@ -211,7 +211,7 @@ def verify_similar_groups(
         )
 
         # Import here to avoid circular dependency
-        from tssim.models.similarity import SimilarRegionGroup
+        from whorl.models.similarity import SimilarRegionGroup
 
         verified_group = SimilarRegionGroup(
             regions=group.regions,

@@ -11,7 +11,7 @@ make test
 
 ## Testing & Benchmarks
 
-tssim includes a comprehensive testing framework for comparing duplication detection tools against real-world codebases.
+whorl includes a comprehensive testing framework for comparing duplication detection tools against real-world codebases.
 
 ### Running Benchmarks
 

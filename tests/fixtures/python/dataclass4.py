@@ -3,9 +3,9 @@
 import logging
 from typing import Callable
 
-from tssim.config import PipelineSettings
-from tssim.pipeline.normalizers import Normalizer
-from tssim.pipeline.normalizers.python import PythonImportNormalizer
+from whorl.config import PipelineSettings
+from whorl.pipeline.normalizers import Normalizer
+from whorl.pipeline.normalizers.python import PythonImportNormalizer
 
 logger = logging.getLogger(__name__)
 

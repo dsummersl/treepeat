@@ -1,6 +1,6 @@
 """Markdown language configuration."""
 
-from tssim.pipeline.rules.models import Rule
+from whorl.pipeline.rules.models import Rule
 
 from .base import LanguageConfig, RegionExtractionRule
 

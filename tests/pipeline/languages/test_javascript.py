@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from tree_sitter_language_pack import get_parser
 
-from tssim.models.ast import ParsedFile
-from tssim.pipeline.region_extraction import extract_all_regions
-from tssim.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
+from whorl.models.ast import ParsedFile
+from whorl.pipeline.region_extraction import extract_all_regions
+from whorl.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
 
 # Fixture path

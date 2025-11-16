@@ -1,10 +1,10 @@
 from ..conftest import parsed_fixture, fixture_path1, fixture_path2, default_rule_engine
 
-from tssim.pipeline.lsh_stage import detect_similarity
-from tssim.pipeline.minhash_stage import compute_region_signatures
-from tssim.pipeline.region_extraction import extract_all_regions
-from tssim.pipeline.rules.engine import RuleEngine
-from tssim.pipeline.shingle import shingle_regions
+from whorl.pipeline.lsh_stage import detect_similarity
+from whorl.pipeline.minhash_stage import compute_region_signatures
+from whorl.pipeline.region_extraction import extract_all_regions
+from whorl.pipeline.rules.engine import RuleEngine
+from whorl.pipeline.shingle import shingle_regions
 
 
 def test_detect_similarity_1():

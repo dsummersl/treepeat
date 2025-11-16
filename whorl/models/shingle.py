@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from tssim.models.similarity import Region
+from whorl.models.similarity import Region
 
 
 class ShingleList(BaseModel):

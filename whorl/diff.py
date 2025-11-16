@@ -5,8 +5,8 @@ from collections.abc import Sequence
 
 from rich.console import Console
 
-from tssim.models.similarity import Region
-from tssim.terminal_detect import get_diff_colors
+from whorl.models.similarity import Region
+from whorl.terminal_detect import get_diff_colors
 
 console = Console()
 
