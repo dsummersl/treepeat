@@ -10,7 +10,7 @@ import json
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 import csv
 from datetime import datetime
 import hashlib
@@ -32,14 +32,14 @@ class DuplicationTester:
 
         self.results = []
 
-    def load_codebases_config(self) -> List[Dict[str, str]]:
+    def load_codebases_config(self) -> list[dict[str, str]]:
         """Load codebase configuration from JSON file."""
         config_file = self.base_dir / "codebases.json"
         with open(config_file, 'r') as f:
             config = json.load(f)
         return config['codebases']
 
-    def clone_codebase(self, codebase: Dict[str, str]) -> bool:
+    def clone_codebase(self, codebase: dict[str, str]) -> bool:
         """Clone a codebase if it doesn't exist."""
         repo_path = self.codebases_dir / codebase['name']
 
@@ -64,14 +64,14 @@ class DuplicationTester:
             print(f"  ✗ Failed to clone {codebase['name']}: {e.stderr.decode() if e.stderr else 'Unknown error'}")
             return False
 
-    def get_file_count(self, repo_path: Path, extensions: List[str]) -> int:
+    def get_file_count(self, repo_path: Path, extensions: list[str]) -> int:
         """Count files with specific extensions."""
         count = 0
         for ext in extensions:
             count += len(list(repo_path.rglob(f'*{ext}')))
         return count
 
-    def get_line_count(self, repo_path: Path, extensions: List[str]) -> int:
+    def get_line_count(self, repo_path: Path, extensions: list[str]) -> int:
         """Count lines of code."""
         total_lines = 0
         for ext in extensions:
@@ -83,7 +83,7 @@ class DuplicationTester:
                     pass
         return total_lines
 
-    def run_whorl(self, repo_path: Path, codebase_name: str, language: str) -> Dict[str, Any]:
+    def run_whorl(self, repo_path: Path, codebase_name: str, language: str) -> dict[str, Any]:
         """Run whorl on a codebase."""
         print(f"    Running whorl on {codebase_name}...")
         output_dir = self.results_dir / f"{codebase_name}_whorl"
@@ -176,7 +176,7 @@ class DuplicationTester:
                 'duplicates_found': 0
             }
 
-    def run_jscpd(self, repo_path: Path, codebase_name: str, language: str) -> Dict[str, Any]:
+    def run_jscpd(self, repo_path: Path, codebase_name: str, language: str) -> dict[str, Any]:
         """Run jscpd on a codebase."""
         print(f"    Running jscpd on {codebase_name}...")
         output_dir = self.results_dir / f"{codebase_name}_jscpd"
@@ -260,7 +260,7 @@ class DuplicationTester:
                 'duplicates_found': 0
             }
 
-    def run_basic_hash_detector(self, repo_path: Path, codebase_name: str, language: str) -> Dict[str, Any]:
+    def run_basic_hash_detector(self, repo_path: Path, codebase_name: str, language: str) -> dict[str, Any]:
         """Run a basic hash-based duplication detector (exact file duplicates)."""
         print(f"    Running hash detector on {codebase_name}...")
 
@@ -273,7 +273,7 @@ class DuplicationTester:
 
         start_time = time.time()
         try:
-            file_hashes: Dict[str, List[Path]] = defaultdict(list)
+            file_hashes: dict[str, list[Path]] = defaultdict(list)
 
             for ext in extensions:
                 for file_path in repo_path.rglob(f'*{ext}'):
@@ -308,7 +308,7 @@ class DuplicationTester:
                 'duplicates_found': 0
             }
 
-    def test_codebase(self, codebase: Dict[str, str]) -> None:
+    def test_codebase(self, codebase: dict[str, str]) -> None:
         """Test a single codebase with all available tools."""
         repo_path = self.codebases_dir / codebase['name']
 
@@ -405,7 +405,7 @@ class DuplicationTester:
         print("="*80)
 
         # Group by tool
-        by_tool: Dict[str, List[Dict]] = defaultdict(list)
+        by_tool: dict[str, list[dict]] = defaultdict(list)
         for result in self.results:
             by_tool[result['tool']].append(result)
 
