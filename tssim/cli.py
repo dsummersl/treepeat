@@ -456,53 +456,110 @@ def _filter_regions_by_name(
     return filtered
 
 
-def _display_region_shingles(
-    extracted_region: Any, shingler: Any, source: bytes
-) -> None:
-    """Display shingles for a single region."""
-    region_info = extracted_region.region
-    console.print(
-        f"\n[bold cyan]Region:[/bold cyan] {region_info.region_name} ({region_info.region_type})"
-    )
-    console.print(f"[dim]File: {region_info.path}[/dim]")
-    console.print(f"[dim]Lines: {region_info.start_line}-{region_info.end_line}[/dim]")
+def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> list[str]:
+    """Extract individual normalized tokens from a file's AST.
+
+    Returns a list of token representations (node types with values).
+    """
+    from tssim.models.normalization import SkipNode
+
+    tokens: list[str] = []
+    source = parsed_file.source
+    language = parsed_file.language
+    root = parsed_file.root_node
 
     # Reset identifiers for consistent output
     shingler.rule_engine.reset_identifiers()
-    shingler.rule_engine.precompute_queries(extracted_region.node, region_info.language, source)
+    shingler.rule_engine.precompute_queries(root, language, source)
 
-    # Extract shingles
-    shingled_region = shingler.shingle_region(extracted_region, source)
+    def traverse(node: Any) -> None:
+        """Traverse AST and collect normalized token representations."""
+        try:
+            node_repr = shingler._get_node_representation(node, language, source, root)
+            tokens.append(str(node_repr))
+        except SkipNode:
+            # Skip this node but continue with children
+            pass
 
-    console.print(f"\n[bold green]Shingles ({len(shingled_region.shingles.shingles)}):[/bold green]")
-    for i, shingle in enumerate(shingled_region.shingles.shingles, 1):
-        console.print(f"  {i:3d}. {shingle}")
+        # Recursively traverse children
+        for child in node.children:
+            traverse(child)
 
+    traverse(root)
+    return tokens
+
+
+def _truncate_if_needed(text: str, max_width: int) -> str:
+    """Truncate text if it exceeds max_width."""
+    if len(text) > max_width - 1:
+        return text[:max_width - 4] + "..."
+    return text
+
+
+def _get_line_at_index(lines: list[str], index: int, max_width: int) -> str:
+    """Get a line at the given index, or empty string if out of bounds."""
+    if index < len(lines):
+        return _truncate_if_needed(lines[index], max_width)
+    return ""
+
+
+def _print_side_by_side_header(file_path: Any, language: str, col_width: int) -> None:
+    """Print the header for side-by-side display."""
+    console.print("\n[bold]TreeSitter Side-by-Side View:[/bold]")
+    console.print(f"[bold cyan]File:[/bold cyan] {file_path}")
+    console.print(f"[dim]Language: {language}[/dim]")
+    header_left = "Original Source"
+    header_right = "TreeSitter Tokens"
+    console.print(f"\n[bold]{header_left:<{col_width}}[/bold]│[bold]{header_right:<{col_width}}[/bold]")
+    console.print(f"{'-' * col_width}│{'-' * col_width}")
+
+
+def _display_file_side_by_side(parsed_file: Any, shingler: Any) -> None:
+    """Display original file content side-by-side with treesitter tokens."""
+    # Get original file lines
+    try:
+        source_lines = parsed_file.source.decode("utf-8", errors="ignore").splitlines()
+    except Exception:
+        console.print("[bold red]Error:[/bold red] Failed to decode file content")
+        return
+
+    # Extract normalized tokens
+    tokens = _extract_tokens_from_file(parsed_file, shingler)
+
+    # Calculate column widths
+    terminal_width = console.width
+    col_width = terminal_width // 2
+
+    # Print header
+    _print_side_by_side_header(parsed_file.path, parsed_file.language, col_width)
+
+    # Display content side-by-side
+    max_lines = max(len(source_lines), len(tokens))
+    for i in range(max_lines):
+        left_line = _get_line_at_index(source_lines, i, col_width)
+        right_line = _get_line_at_index(tokens, i, col_width)
+        console.print(f"{left_line:<{col_width}}│{right_line:<{col_width}}")
+
+    console.print(f"\n[dim]Total source lines: {len(source_lines)}[/dim]")
+    console.print(f"[dim]Total tokens: {len(tokens)}[/dim]")
     console.print()
 
 
 @main.command()
 @click.argument("file", type=click.Path(exists=True, path_type=Path))
 @click.pass_context
-@click.option(
-    "--region",
-    type=str,
-    default=None,
-    help="Specific region name to show tree-sitter output for (e.g., function name). If not specified, shows all regions.",
-)
 def treesitter(
     ctx: click.Context,
     file: Path,
-    region: str | None,
 ) -> None:
-    """Show file after tree-sitter normalization rules are applied.
+    """Show file with side-by-side view of original source and tree-sitter tokens.
 
-    This command shows how the code looks after all normalization rules
-    are applied, which is what gets compared during similarity detection.
+    This command displays the original source code on the left and the normalized
+    tree-sitter token representations on the right, showing how the code is
+    transformed during similarity detection.
     """
     from tssim.config import get_settings
     from tssim.pipeline.parse import parse_file
-    from tssim.pipeline.region_extraction import extract_all_regions
     from tssim.pipeline.shingle import ASTShingler
     from tssim.pipeline.rules_factory import build_rule_engine
 
@@ -516,23 +573,12 @@ def treesitter(
         console.print(f"[bold red]Error:[/bold red] Failed to parse file: {e}")
         sys.exit(1)
 
-    # Extract and filter regions
+    # Build rule engine and shingler
     rule_engine = build_rule_engine(get_settings())
-    extracted_regions = extract_all_regions([parsed_file], rule_engine, include_sections=False)
-
-    if not extracted_regions:
-        console.print("[yellow]No regions found in file[/yellow]")
-        sys.exit(0)
-
-    if region:
-        extracted_regions = _filter_regions_by_name(
-            extracted_regions, region, parsed_file, rule_engine
-        )
-
-    # Display shingles for each region
     shingler = ASTShingler(rule_engine=rule_engine, k=3)
-    for extracted_region in extracted_regions:
-        _display_region_shingles(extracted_region, shingler, parsed_file.source)
+
+    # Display side-by-side view
+    _display_file_side_by_side(parsed_file, shingler)
 
 
 if __name__ == "__main__":
