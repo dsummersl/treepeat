@@ -456,14 +456,14 @@ def _filter_regions_by_name(
     return filtered
 
 
-def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> list[str]:
-    """Extract individual normalized tokens from a file's AST.
+def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> dict[int, list[str]]:
+    """Extract individual normalized tokens from a file's AST, grouped by line number.
 
-    Returns a list of token representations (node types with values).
+    Returns a dictionary mapping line numbers (1-indexed) to lists of token representations.
     """
     from whorl.models.normalization import SkipNode
 
-    tokens: list[str] = []
+    tokens_by_line: dict[int, list[str]] = {}
     source = parsed_file.source
     language = parsed_file.language
     root = parsed_file.root_node
@@ -473,10 +473,14 @@ def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> list[str]:
     shingler.rule_engine.precompute_queries(root, language, source)
 
     def traverse(node: Any) -> None:
-        """Traverse AST and collect normalized token representations."""
+        """Traverse AST and collect normalized token representations by line."""
         try:
             node_repr = shingler._get_node_representation(node, language, source, root)
-            tokens.append(str(node_repr))
+            # Get the line number for this node (1-indexed)
+            line_num = node.start_point[0] + 1
+            if line_num not in tokens_by_line:
+                tokens_by_line[line_num] = []
+            tokens_by_line[line_num].append(str(node_repr))
         except SkipNode:
             # Skip this node but continue with children
             pass
@@ -486,7 +490,7 @@ def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> list[str]:
             traverse(child)
 
     traverse(root)
-    return tokens
+    return tokens_by_line
 
 
 def _truncate_if_needed(text: str, max_width: int) -> str:
@@ -494,13 +498,6 @@ def _truncate_if_needed(text: str, max_width: int) -> str:
     if len(text) > max_width - 1:
         return text[:max_width - 4] + "..."
     return text
-
-
-def _get_line_at_index(lines: list[str], index: int, max_width: int) -> str:
-    """Get a line at the given index, or empty string if out of bounds."""
-    if index < len(lines):
-        return _truncate_if_needed(lines[index], max_width)
-    return ""
 
 
 def _print_side_by_side_header(file_path: Any, language: str, col_width: int) -> None:
@@ -523,8 +520,8 @@ def _display_file_side_by_side(parsed_file: Any, shingler: Any) -> None:
         console.print("[bold red]Error:[/bold red] Failed to decode file content")
         return
 
-    # Extract normalized tokens
-    tokens = _extract_tokens_from_file(parsed_file, shingler)
+    # Extract normalized tokens grouped by line
+    tokens_by_line = _extract_tokens_from_file(parsed_file, shingler)
 
     # Calculate column widths
     terminal_width = console.width
@@ -534,14 +531,22 @@ def _display_file_side_by_side(parsed_file: Any, shingler: Any) -> None:
     _print_side_by_side_header(parsed_file.path, parsed_file.language, col_width)
 
     # Display content side-by-side
-    max_lines = max(len(source_lines), len(tokens))
-    for i in range(max_lines):
-        left_line = _get_line_at_index(source_lines, i, col_width)
-        right_line = _get_line_at_index(tokens, i, col_width)
+    total_tokens = 0
+    for line_num in range(1, len(source_lines) + 1):
+        # Get source line (0-indexed array, but line_num is 1-indexed)
+        source_line = source_lines[line_num - 1] if line_num <= len(source_lines) else ""
+        left_line = _truncate_if_needed(source_line, col_width)
+
+        # Get all tokens for this line and concatenate them with spaces
+        line_tokens = tokens_by_line.get(line_num, [])
+        total_tokens += len(line_tokens)
+        tokens_str = " ".join(line_tokens)
+        right_line = _truncate_if_needed(tokens_str, col_width)
+
         console.print(f"{left_line:<{col_width}}│{right_line:<{col_width}}")
 
     console.print(f"\n[dim]Total source lines: {len(source_lines)}[/dim]")
-    console.print(f"[dim]Total tokens: {len(tokens)}[/dim]")
+    console.print(f"[dim]Total tokens: {total_tokens}[/dim]")
     console.print()
 
 
