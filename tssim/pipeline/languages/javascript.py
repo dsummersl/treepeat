@@ -64,7 +64,7 @@ class JavaScriptConfig(LanguageConfig):
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
         return [
             RegionExtractionRule(
-                query="[(function_declaration) (function) (arrow_function)] @region",
+                query="[(function_declaration) (function_expression) (arrow_function)] @region",
                 region_type="function",
             ),
             RegionExtractionRule(
