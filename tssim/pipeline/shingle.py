@@ -263,7 +263,10 @@ def shingle_regions(
                 filtered_count += 1
         except Exception as e:
             logger.error(
-                "Failed to shingle region %s: %s", extracted_region.region.region_name, e
+                "Failed to shingle region %s in %s: %s",
+                extracted_region.region.region_name,
+                extracted_region.region.path,
+                e,
             )
 
     logger.info(
