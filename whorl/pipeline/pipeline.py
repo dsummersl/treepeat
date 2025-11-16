@@ -14,6 +14,7 @@ from whorl.pipeline.region_extraction import (
     extract_all_regions,
     get_matched_line_ranges,
 )
+from whorl.pipeline.boundary_detection import merge_similar_window_groups
 from whorl.pipeline.rules.engine import RuleEngine
 from whorl.pipeline.rules_factory import build_rule_engine
 from whorl.pipeline.shingle import shingle_regions
@@ -211,11 +212,13 @@ def _run_line_matching(
     matched_lines_by_file = get_matched_line_ranges(region_matched_regions)
     logger.info("Tracked %d matched regions from region matching", len(region_matched_regions))
 
-    # Create line-based regions for unmatched sections
+    # Create line-based regions using sliding windows for unmatched sections
     line_regions = create_line_based_regions(
         parsed_files,
         matched_lines_by_file,
         settings.lsh.min_lines,
+        window_size=settings.lsh.window_size,
+        stride=settings.lsh.stride,
     )
 
     if len(line_regions) == 0:
@@ -233,10 +236,17 @@ def _run_line_matching(
         {},
     )
 
-    # Filter by min_lines
-    line_filtered_groups = _filter_groups_by_min_lines(line_result.similar_groups, settings.lsh.min_lines)
-    logger.info("Line matching complete: %d groups after filtering (was %d)",
-                len(line_filtered_groups), len(line_result.similar_groups))
+    # Merge overlapping windows to find clean boundaries
+    if len(line_result.similar_groups) > 0:
+        logger.info("Merging %d overlapping window groups to find boundaries", len(line_result.similar_groups))
+        merged_groups = merge_similar_window_groups(line_result.similar_groups)
+    else:
+        merged_groups = line_result.similar_groups
+
+    # Filter by min_lines after merging
+    line_filtered_groups = _filter_groups_by_min_lines(merged_groups, settings.lsh.min_lines)
+    logger.info("Line matching complete: %d groups after merging and filtering (was %d windows in %d groups)",
+                len(line_filtered_groups), len(line_result.similar_groups), len(line_result.similar_groups))
 
     return line_filtered_groups, line_signatures
 

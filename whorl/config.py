@@ -60,6 +60,19 @@ class LSHSettings(BaseSettings):
         description="Minimum number of lines for a match to be considered valid",
     )
 
+    # Window/stride settings for line matching
+    window_size: int = Field(
+        default=20,
+        ge=1,
+        description="Size of sliding window in lines for line-based similarity detection",
+    )
+
+    stride: int = Field(
+        default=10,
+        ge=1,
+        description="Stride (step size) for sliding window in lines",
+    )
+
     # Internal thresholds (not exposed as environment variables or CLI options)
     # Region matching uses higher thresholds for exact matches
     region_threshold: float = 0.5

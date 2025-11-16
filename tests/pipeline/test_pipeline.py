@@ -93,7 +93,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.7,
-            6,  # Updated: verification filters out 1 group below order-sensitive threshold
+            7,  # Updated: includes line-based matches from sliding window approach
             [
                 # Cross-file duplicate functions
                 (
@@ -132,7 +132,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.8,
-            4,  # Updated: verification filters out 1 group below order-sensitive threshold
+            5,  # Updated: includes line-based matches from sliding window approach
             [
                 # Cross-file duplicate functions
                 (
