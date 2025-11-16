@@ -1,6 +1,11 @@
-# Code similarity detection
+# Whorl - where branches and flowers spring forth
 
-A tool for detecting code duplication and similarity across codebases.
+`whorl` is a CLI tool that detects similar code using treesitter AST analysis with locality-sensitive hashing:
+- Find **duplicate** code blocks meaningful to the language (classes/functions), not just lines.
+- near-duplicates
+- structurally similar text.
+
+Helpers: This is very much an proof of concept - I'm happy with it, but I haven't supported very many languages at present. PRs welcome!
 
 ## Usage
 
@@ -29,23 +34,15 @@ whorl --ruleset loose detect --diff --min-lines 10 /path/to/codebase
 whorl detect --format sarif -o results.sarif /path/to/codebase
 ```
 
-### treesitter
+### Other sub commands
 
-Display how whorl normalizes source code into tree-sitter tokens for similarity detection. Shows the original source code side-by-side with the normalized token representation.
+#### list-ruleset
 
-Key flags:
-- `--ruleset`: Normalization ruleset to use (`none`, `default`, `loose`) - useful for debugging why blocks match or don't match
+List all rules in a ruleset, along with their descriptions. Use `--language` to see which rules apply to a specific language.
 
-```bash
-# View how a file is tokenized
-whorl treesitter src/main.py
+#### treesitter
 
-# Use different normalization ruleset
-whorl --ruleset loose treesitter src/main.py
-
-# See raw AST without normalization
-whorl --ruleset none treesitter src/main.py
-```
+Display how whorl normalizes source code into tree-sitter tokens for similarity detection -- helpful for debugging why a certain section of a file might be similar to another. Shows the original source code side-by-side with the normalized token representation.
 
 ## Dev setup
 
