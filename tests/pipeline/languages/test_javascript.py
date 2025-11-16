@@ -6,6 +6,7 @@ import pytest
 from tree_sitter_language_pack import get_parser
 
 from whorl.models.ast import ParsedFile
+from whorl.pipeline.languages.javascript import JavaScriptConfig
 from whorl.pipeline.region_extraction import extract_all_regions
 from whorl.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
@@ -45,3 +46,6 @@ def test_javascript_rules_extract(rules):
     regions = extract_all_regions([parsed], engine)
 
     assert len(regions) > 0
+
+def test_language_name():
+    assert JavaScriptConfig().get_language_name() == "javascript"
