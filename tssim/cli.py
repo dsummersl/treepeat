@@ -449,7 +449,7 @@ def _filter_regions_by_name(
 
         console.print(f"[bold red]Error:[/bold red] Region '{region}' not found")
         console.print("\nAvailable regions:")
-        all_regions = extract_all_regions([parsed_file], rule_engine, include_sections=False)
+        all_regions = extract_all_regions([parsed_file], rule_engine)
         for r in all_regions:
             console.print(f"  - {r.region.region_name} ({r.region.region_type})")
         sys.exit(1)

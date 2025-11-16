@@ -14,41 +14,34 @@ def test_extract_regions_dataclass1():
     engine = default_rule_engine()
     regions = extract_all_regions([parsed], engine)
 
-    # Should have regions for the python classes
-    # Note: lines_1_3 includes comment and CONSTANT_VALUE_42
+    # Should have regions for the python classes (no section regions)
+    # With recursive extraction, we get all classes and functions
     assert [r.region.region_name for r in regions] == [
-        "lines_1_3",
         "Model1",
         "Model2",
         "my_adapted_one",
     ]
 
-    assert [r.region.region_type for r in regions] == ["lines", "class", "class", "function"]
+    assert [r.region.region_type for r in regions] == ["class", "class", "function"]
 
-    # Note: lines_1_3 node type is comment (the first node in that range)
     assert [r.node.type for r in regions] == [
-        "comment",
         "class_definition",
         "class_definition",
         "function_definition",
     ]
 
-    # Check that nodes are included
-    # First region should be a comment
-    assert regions[0].node.type == "comment"
-
-    # Second region should be the class definition node
-    assert regions[1].node.type == "class_definition"
+    # First region should be the class definition node
+    assert regions[0].node.type == "class_definition"
     # Verify the node includes the entire class definition
-    class_text = parsed.source[regions[1].node.start_byte : regions[1].node.end_byte].decode(
+    class_text = parsed.source[regions[0].node.start_byte : regions[0].node.end_byte].decode(
         "utf-8"
     )
     assert class_text.startswith("class Model1")
     assert "region: Region" in class_text
 
-    # Third region should be the class definition node
-    assert regions[2].node.type == "class_definition"
-    class_text = parsed.source[regions[2].node.start_byte : regions[2].node.end_byte].decode(
+    # Second region should be the class definition node
+    assert regions[1].node.type == "class_definition"
+    class_text = parsed.source[regions[1].node.start_byte : regions[1].node.end_byte].decode(
         "utf-8"
     )
     assert class_text.startswith("class Model2")
@@ -60,33 +53,31 @@ def test_extract_regions_dataclass2():
     engine = default_rule_engine()
     regions = extract_all_regions([parsed], engine)
 
-    # Should have 3 regions (comment + two functions)
-    assert len(regions) == 3
+    # Should have 2 regions (two functions, no section regions)
+    assert len(regions) == 2
 
     # Check region names
     region_names = [r.region.region_name for r in regions]
-    assert region_names == ["lines_1_1", "one", "one_prime"]
+    assert region_names == ["one", "one_prime"]
 
     # Check region types
     region_types = [r.region.region_type for r in regions]
-    assert region_types == ["lines", "function", "function"]
+    assert region_types == ["function", "function"]
 
-    # Check line ranges (comment is line 1, functions start at line 2 and 9)
-    assert regions[0].region.start_line == 1
-    assert regions[0].region.end_line == 1
-    assert regions[1].region.start_line == 2
-    assert regions[1].region.end_line == 7
-    assert regions[2].region.start_line == 9
-    assert regions[2].region.end_line == 14
+    # Check line ranges (functions start at line 2 and 9)
+    assert regions[0].region.start_line == 2
+    assert regions[0].region.end_line == 7
+    assert regions[1].region.start_line == 9
+    assert regions[1].region.end_line == 14
 
     # Verify function nodes are function_definition and include the entire function
-    assert regions[1].node.type == "function_definition"
-    func_text = parsed.source[regions[1].node.start_byte : regions[1].node.end_byte].decode("utf-8")
+    assert regions[0].node.type == "function_definition"
+    func_text = parsed.source[regions[0].node.start_byte : regions[0].node.end_byte].decode("utf-8")
     assert func_text.startswith("def one()")
     assert "return total" in func_text
 
-    assert regions[2].node.type == "function_definition"
-    func_text = parsed.source[regions[2].node.start_byte : regions[2].node.end_byte].decode("utf-8")
+    assert regions[1].node.type == "function_definition"
+    func_text = parsed.source[regions[1].node.start_byte : regions[1].node.end_byte].decode("utf-8")
     assert func_text.startswith("def one_prime()")
     assert "return sum" in func_text
 
@@ -113,45 +104,6 @@ def test_region_nodes_include_all_children():
                 name = parsed.source[child.start_byte : child.end_byte].decode("utf-8")
                 assert name == region.region.region_name
                 break
-
-
-def test_extract_nested_functions():
-    """Test that with include_sections=True, only top-level functions are extracted.
-
-    With include_sections=True (original behavior), nested functions are part of
-    the outer function's AST node and included in the shingles for that region.
-    """
-    parsed = parsed_fixture(fixture_nested)
-    engine = default_rule_engine()
-    regions = extract_all_regions([parsed], engine, include_sections=True)
-
-    # Extract region names
-    region_names = [r.region.region_name for r in regions]
-
-    # Should only have top-level regions:
-    # - lines_1_3 (module docstring and blanks)
-    # - outer_function (contains inner_function_1 and inner_function_2 in its AST)
-    # - another_outer (contains process and transform in its AST)
-    # - ClassWithMethods (class with methods)
-
-    # Verify we have top-level functions
-    assert "outer_function" in region_names
-    assert "another_outer" in region_names
-    assert "ClassWithMethods" in region_names
-
-    # Nested functions should NOT be separate regions when include_sections=True
-    assert "inner_function_1" not in region_names
-    assert "inner_function_2" not in region_names
-    assert "process" not in region_names
-    assert "transform" not in region_names
-    assert "helper" not in region_names
-
-    # Verify types
-    function_regions = [r for r in regions if r.region.region_type == "function"]
-    class_regions = [r for r in regions if r.region.region_type == "class"]
-
-    assert len(function_regions) == 2  # outer_function and another_outer
-    assert len(class_regions) == 1  # ClassWithMethods
 
 
 def test_nested_function_included_in_outer():
@@ -205,7 +157,7 @@ def test_matched_line_ranges_covers_entire_function():
 
 
 def test_include_sections_false_extracts_all_recursively():
-    """Test that include_sections=False recursively extracts ALL functions/methods/classes.
+    """Test that recursive extraction gets ALL functions/methods/classes.
 
     This is the Level 1 behavior - extract everything that could potentially match,
     including nested functions, methods within classes, etc. This allows detection
@@ -214,8 +166,8 @@ def test_include_sections_false_extracts_all_recursively():
     parsed = parsed_fixture(fixture_nested)
     engine = default_rule_engine()
 
-    # Extract with include_sections=False (level 1 behavior)
-    regions = extract_all_regions([parsed], engine, include_sections=False)
+    # Extract with recursive behavior (level 1 behavior)
+    regions = extract_all_regions([parsed], engine)
 
     region_names = [r.region.region_name for r in regions]
 
@@ -255,8 +207,8 @@ def test_class_methods_extracted_separately():
     parsed = parsed_fixture(fixture_class_methods)
     engine = default_rule_engine()
 
-    # Extract with include_sections=False (recursive extraction)
-    regions = extract_all_regions([parsed], engine, include_sections=False)
+    # Extract with recursive extraction
+    regions = extract_all_regions([parsed], engine)
 
     region_names = [r.region.region_name for r in regions]
     region_types = {r.region.region_name: r.region.region_type for r in regions}
