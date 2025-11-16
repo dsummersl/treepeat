@@ -5,10 +5,9 @@ description = "Treesitter-based CLI tool to detect similarity detection"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Dane Summers", email = "dsummersl@gmail.com" }]
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 classifiers = [
 "Programming Language :: Python :: 3",
-"License :: OSI Approved",
 "Typing :: Typed",
 ]
 dependencies = [
