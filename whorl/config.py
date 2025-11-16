@@ -52,39 +52,30 @@ class LSHSettings(BaseSettings):
         env_prefix="LSH_",
     )
 
-    region_threshold: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=1.0,
-        description="Jaccard similarity threshold for region matching (functions/classes) (0.0 to 1.0)",
-    )
-
-    line_threshold: float = Field(
-        default=0.3,
-        ge=0.0,
-        le=1.0,
-        description="Jaccard similarity threshold for line matching (unmatched sections) - lower to find approximate windows (0.0 to 1.0)",
-    )
-
-    region_min_similarity: float = Field(
-        default=0.9,
-        ge=0.0,
-        le=1.0,
-        description="Minimum verified similarity for region matches - filters to high-quality matches (0.0 to 1.0)",
-    )
-
-    line_min_similarity: float = Field(
-        default=0.95,
-        ge=0.0,
-        le=1.0,
-        description="Minimum verified similarity for line matches - filters to near-exact matches within windows (0.0 to 1.0)",
-    )
-
     min_lines: int = Field(
         default=5,
         ge=1,
         description="Minimum number of lines for a match to be considered valid",
     )
+
+    # Internal thresholds (not exposed as environment variables or CLI options)
+    # Region matching uses higher thresholds for exact matches
+    region_threshold: float = 0.5
+    region_min_similarity: float = 0.9
+
+    # Line matching uses lower threshold to find approximate windows, then filters to exact matches
+    line_threshold: float = 0.3
+    line_min_similarity: float = 0.95
+
+    def __init__(self, threshold: float | None = None, **data):
+        """Initialize LSH settings, optionally overriding thresholds with a single value."""
+        # If threshold is provided, use it for all thresholds (backward compatibility)
+        if threshold is not None:
+            data.setdefault('region_threshold', threshold)
+            data.setdefault('line_threshold', threshold)
+            data.setdefault('region_min_similarity', threshold)
+            data.setdefault('line_min_similarity', threshold)
+        super().__init__(**data)
 
 
 class PipelineSettings(BaseSettings):
