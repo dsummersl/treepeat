@@ -19,7 +19,7 @@ from sarif_pydantic import (  # type: ignore[import-untyped]
     ToolDriver,
 )
 
-from whorl.models.similarity import SimilarRegionGroup, SimilarityResult
+from covey.models.similarity import SimilarRegionGroup, SimilarityResult
 
 
 def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:

@@ -1,7 +1,7 @@
 [project]
-name = "whorl"
+name = "covey"
 version = "0.0.1+slop"
-description = "whorl: a treesitter-based CLI tool to detect similar code"
+description = "covey: a treesitter-based CLI tool to detect similar code"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Dane Summers", email = "dsummersl@gmail.com" }]
@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-whorl = "whorl.cli:main"
+covey = "covey.cli:main"
 
 [dependency-groups]
 dev = [
@@ -49,8 +49,8 @@ exclude = ["benchmark-tests"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["whorl"]
+packages = ["covey"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=whorl  --cov-report=term-missing"
+addopts = "--cov=covey  --cov-report=term-missing"
 norecursedirs = "benchmark-tests"

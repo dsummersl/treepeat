@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.table import Table
 
-from whorl.config import (
+from covey.config import (
     LSHSettings,
     MinHashSettings,
     PipelineSettings,
@@ -18,10 +18,10 @@ from whorl.config import (
     ShingleSettings,
     set_settings,
 )
-from whorl.diff import display_diff
-from whorl.formatters import format_as_sarif
-from whorl.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
-from whorl.pipeline.pipeline import run_pipeline
+from covey.diff import display_diff
+from covey.formatters import format_as_sarif
+from covey.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
+from covey.pipeline.pipeline import run_pipeline
 
 console = Console()
 
@@ -255,7 +255,7 @@ def _write_output(text: str, output_path: Path | None) -> None:
 def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
     """Run the pipeline with appropriate UI feedback based on output format."""
     if output_format.lower() == "console":
-        from whorl.config import get_settings
+        from covey.config import get_settings
         settings = get_settings()
         console.print(f"\nRuleset: [cyan]{settings.rules.ruleset}[/cyan]")
         console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
@@ -323,7 +323,7 @@ def _filter_rules_by_language(
 
 def _print_rulesets(ruleset_name: str, language_filter: str | None = None) -> None:
     """Print rules in the specified ruleset, optionally filtered by language."""
-    from whorl.pipeline.rules_factory import get_ruleset_with_descriptions
+    from covey.pipeline.rules_factory import get_ruleset_with_descriptions
 
     rules_with_descriptions = get_ruleset_with_descriptions(ruleset_name)
     rules_with_descriptions = _filter_rules_by_language(rules_with_descriptions, language_filter)
@@ -502,7 +502,7 @@ def _filter_regions_by_name(
     """Filter regions by name and show error if not found."""
     filtered = [r for r in extracted_regions if r.region.region_name == region]
     if not filtered:
-        from whorl.pipeline.region_extraction import extract_all_regions
+        from covey.pipeline.region_extraction import extract_all_regions
 
         console.print(f"[bold red]Error:[/bold red] Region '{region}' not found")
         console.print("\nAvailable regions:")
@@ -518,7 +518,7 @@ def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> dict[int, list
 
     Returns a dictionary mapping line numbers (1-indexed) to lists of token representations.
     """
-    from whorl.models.normalization import SkipNode
+    from covey.models.normalization import SkipNode
 
     tokens_by_line: dict[int, list[str]] = {}
     source = parsed_file.source
@@ -620,10 +620,10 @@ def treesitter(
     tree-sitter token representations on the right, showing how the code is
     transformed during similarity detection.
     """
-    from whorl.config import get_settings
-    from whorl.pipeline.parse import parse_file
-    from whorl.pipeline.shingle import ASTShingler
-    from whorl.pipeline.rules_factory import build_rule_engine
+    from covey.config import get_settings
+    from covey.pipeline.parse import parse_file
+    from covey.pipeline.shingle import ASTShingler
+    from covey.pipeline.rules_factory import build_rule_engine
 
     ruleset = ctx.obj["ruleset"]
     _configure_settings(ruleset, 1.0, 5, "", "**/.*ignore")

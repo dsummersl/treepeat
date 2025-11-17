@@ -1,6 +1,6 @@
 """SQL language configuration."""
 
-from whorl.pipeline.rules.models import Rule, RuleAction
+from covey.pipeline.rules.models import Rule, RuleAction
 
 from .base import LanguageConfig, RegionExtractionRule
 

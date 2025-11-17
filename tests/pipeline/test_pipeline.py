@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from whorl.models.similarity import Region, SimilarRegionGroup, SimilarityResult
+from covey.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 from ..conftest import parsed_fixture, assert_regions_in_same_group
 import pytest
 
-from whorl.config import (
+from covey.config import (
     LSHSettings,
     MinHashSettings,
     PipelineSettings,
@@ -12,11 +12,11 @@ from whorl.config import (
     ShingleSettings,
     set_settings,
 )
-from whorl.pipeline.lsh_stage import detect_similarity
-from whorl.pipeline.minhash_stage import compute_region_signatures
-from whorl.pipeline.pipeline import run_pipeline
-from whorl.pipeline.region_extraction import extract_all_regions
-from whorl.pipeline.shingle import shingle_regions
+from covey.pipeline.lsh_stage import detect_similarity
+from covey.pipeline.minhash_stage import compute_region_signatures
+from covey.pipeline.pipeline import run_pipeline
+from covey.pipeline.region_extraction import extract_all_regions
+from covey.pipeline.shingle import shingle_regions
 from ..conftest import default_rule_engine
 
 

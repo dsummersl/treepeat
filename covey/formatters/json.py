@@ -3,7 +3,7 @@
 import json
 from typing import Any
 
-from whorl.models.similarity import Region, SimilarRegionGroup, SimilarityResult
+from covey.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 
 
 def _region_to_dict(region: Region) -> dict[str, Any]:

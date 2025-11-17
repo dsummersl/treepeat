@@ -5,8 +5,8 @@ from collections.abc import Sequence
 
 from rich.console import Console
 
-from whorl.models.similarity import Region
-from whorl.terminal_detect import get_diff_colors
+from covey.models.similarity import Region
+from covey.terminal_detect import get_diff_colors
 
 console = Console()
 

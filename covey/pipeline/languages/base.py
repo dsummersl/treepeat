@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from whorl.pipeline.rules.models import Rule
+from covey.pipeline.rules.models import Rule
 
 
 @dataclass

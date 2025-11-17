@@ -4,7 +4,7 @@ import logging
 from collections import defaultdict
 from pathlib import Path
 
-from whorl.models.similarity import Region, SimilarRegionGroup
+from covey.models.similarity import Region, SimilarRegionGroup
 
 logger = logging.getLogger(__name__)
 

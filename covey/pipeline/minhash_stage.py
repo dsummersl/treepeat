@@ -4,8 +4,8 @@ import logging
 
 from datasketch import MinHash  # type: ignore[import-untyped]
 
-from whorl.models.shingle import ShingledRegion
-from whorl.models.similarity import RegionSignature
+from covey.models.shingle import ShingledRegion
+from covey.models.similarity import RegionSignature
 
 logger = logging.getLogger(__name__)
 
