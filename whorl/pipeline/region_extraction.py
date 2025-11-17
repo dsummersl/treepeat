@@ -250,8 +250,8 @@ def create_unmatched_regions(
         for range_start, range_end in unmatched_ranges:
             range_length = range_end - range_start + 1
             if range_length >= min_lines:
-                region = _create_unmatched_region(parsed_file, range_start, range_end)
-                unmatched_regions.append(region)
+                unmatched_region = _create_unmatched_region(parsed_file, range_start, range_end)
+                unmatched_regions.append(unmatched_region)
                 logger.debug(
                     "Created unmatched region for %s: lines %d-%d (%d lines)",
                     parsed_file.path,
