@@ -644,7 +644,8 @@ def _reconstruct_transformed_source(parsed_file: Any, shingler: Any) -> dict[int
             if len(node.children) == 0:
                 _process_leaf_node(node, node_repr, line_parts, include_node_type=False)
         except SkipNode:
-            node_skipped = True
+            # Skip this node and its entire subtree
+            return True
 
         # Process children
         any_child_processed = False
