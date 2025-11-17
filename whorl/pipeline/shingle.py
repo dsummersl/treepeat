@@ -1,12 +1,13 @@
 import logging
 from collections import deque
 from pathlib import Path
+from typing import Sequence
 
 from tree_sitter import Node
 
 from whorl.models.ast import ParsedFile, ParseResult
 from whorl.models.normalization import NodeRepresentation, SkipNode
-from whorl.models.shingle import ShingledRegion, ShingleResult, ShingleList, ShingledFile
+from whorl.models.shingle import Shingle, ShingledRegion, ShingleResult, ShingleList, ShingledFile
 from whorl.pipeline.region_extraction import ExtractedRegion
 from whorl.pipeline.rules.engine import RuleEngine
 from whorl.pipeline.rules.models import SkipNodeException
@@ -53,7 +54,7 @@ class ASTShingler:
 
         # If region has multiple nodes (section regions), extract shingles from all
         if extracted_region.nodes is not None:
-            all_shingles: list[str] = []
+            all_shingles: list[Shingle] = []
             for node in extracted_region.nodes:
                 node_shingles = self._extract_shingles(node, region.language, source)
                 all_shingles.extend(node_shingles)
@@ -137,19 +138,26 @@ class ASTShingler:
         source: bytes,
         start_line: int | None = None,
         end_line: int | None = None,
-    ) -> list[str]:
-        shingles: list[str] = []
+    ) -> list[Shingle]:
+        """Extract shingles from AST with line range metadata.
+
+        Note: start_line and end_line parameters are deprecated and ignored.
+        Line ranges are now tracked automatically from AST nodes.
+
+        Args:
+            root: Root AST node to extract shingles from
+            language: Programming language
+            source: Source code bytes
+            start_line: Deprecated, will be removed
+            end_line: Deprecated, will be removed
+
+        Returns:
+            List of Shingle objects with content and line ranges
+        """
+        shingles: list[Shingle] = []
 
         # Pre-order traversal to extract all paths
-        def traverse(node: Node, path: deque[NodeRepresentation]) -> None:
-            # Filter nodes by line range if specified (for line-based regions)
-            if start_line is not None and end_line is not None:
-                node_start = node.start_point[0] + 1  # Convert 0-indexed to 1-indexed
-                node_end = node.end_point[0] + 1
-                # Skip nodes that are completely outside the line range
-                if node_end < start_line or node_start > end_line:
-                    return
-
+        def traverse(node: Node, path: deque[tuple[NodeRepresentation, Node]]) -> None:
             # Get normalized representation (may raise SkipNode)
             try:
                 node_repr = self._get_node_representation(node, language, source, root)
@@ -157,12 +165,27 @@ class ASTShingler:
                 # Skip this node and its entire subtree
                 return
 
-            path.append(node_repr)
+            path.append((node_repr, node))
 
-            # If path is long enough, create a shingle
+            # If path is long enough, create a shingle with line range metadata
             if len(path) >= self.k:
                 shingle_path = list(path)[-self.k :]
-                shingle = "→".join(str(repr) for repr in shingle_path)
+                shingle_reprs = [repr for repr, _ in shingle_path]
+                shingle_nodes = [n for _, n in shingle_path]
+
+                # Create shingle content
+                shingle_content = "→".join(str(repr) for repr in shingle_reprs)
+
+                # Calculate line range from the nodes in this shingle
+                # Use the LAST node in the k-gram (most specific) for line positioning
+                # rather than min/max which often includes the root node spanning the entire file
+                last_node = shingle_nodes[-1]
+                start_line = last_node.start_point[0] + 1
+                end_line = last_node.end_point[0] + 1
+
+                shingle = Shingle(
+                    content=shingle_content, start_line=start_line, end_line=end_line
+                )
                 shingles.append(shingle)
 
             # Recursively traverse children
@@ -278,18 +301,46 @@ def shingle_regions(
 
 
 def _create_window_region(
-    shingled_region: ShingledRegion, window_idx: int, window_shingles: list[str]
+    shingled_region: ShingledRegion, window_idx: int, window_shingles: Sequence[Shingle | str]
 ) -> ShingledRegion:
-    """Create a window region from a parent shingled region."""
+    """Create a window region from a parent shingled region.
+
+    Calculates actual line ranges from the shingles in the window.
+    """
     from whorl.models.similarity import Region
+    from whorl.models.shingle import Shingle
+
+    # Calculate actual line range from shingles
+    shingle_objs = [s for s in window_shingles if isinstance(s, Shingle)]
+    if shingle_objs:
+        # Use actual line ranges from shingles
+        start_line = min(s.start_line for s in shingle_objs)
+        end_line = max(s.end_line for s in shingle_objs)
+        logger.debug(
+            "Window %d has %d Shingle objects, line range: %d-%d",
+            window_idx,
+            len(shingle_objs),
+            start_line,
+            end_line,
+        )
+    else:
+        # Fallback to parent region's line range (for backward compatibility)
+        start_line = shingled_region.region.start_line
+        end_line = shingled_region.region.end_line
+        logger.debug(
+            "Window %d has NO Shingle objects, using parent range: %d-%d",
+            window_idx,
+            start_line,
+            end_line,
+        )
 
     window_region = Region(
         path=shingled_region.region.path,
         language=shingled_region.region.language,
         region_type="shingle_window",
         region_name=f"{shingled_region.region.region_name}_window_{window_idx}",
-        start_line=shingled_region.region.start_line,
-        end_line=shingled_region.region.end_line,
+        start_line=start_line,
+        end_line=end_line,
     )
 
     return ShingledRegion(

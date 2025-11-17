@@ -40,4 +40,4 @@ def test_identical_functions():
     assert {r.region.language for r in shingled_regions} == {"python"}
     # The first function's first shingle starts at depth 3 in the tree traversal
     # function_definition → parameters → (
-    assert shingled_regions[0].shingles.shingles[0] == "function_definition→parameters→((()"
+    assert shingled_regions[0].shingles.get_contents()[0] == "function_definition→parameters→((()"

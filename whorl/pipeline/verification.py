@@ -130,10 +130,10 @@ def _compute_pair_similarity_with_verification(
         )
         return 0.0
 
-    # Compute shingle-based similarity
+    # Compute shingle-based similarity using shingle contents
     shingle_similarity = _compute_ordered_similarity(
-        sr1.shingles.shingles,
-        sr2.shingles.shingles,
+        sr1.shingles.get_contents(),
+        sr2.shingles.get_contents(),
     )
 
     # For high similarity code regions, verify that signatures match

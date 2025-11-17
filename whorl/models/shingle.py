@@ -1,10 +1,29 @@
 """Models for shingling stage."""
 
 from pathlib import Path
+from typing import Sequence
 
 from pydantic import BaseModel, Field
 
 from whorl.models.similarity import Region
+
+
+class Shingle(BaseModel):
+    """A single shingle with its content and line range metadata.
+
+    Shingles are sequences of node types that represent structural patterns.
+    Each shingle tracks the line range it spans based on the AST nodes it was extracted from.
+    """
+
+    content: str = Field(description="The shingle content (stringified k-gram path)")
+    start_line: int = Field(description="Starting line number (1-indexed)")
+    end_line: int = Field(description="Ending line number (1-indexed, inclusive)")
+
+    def __str__(self) -> str:
+        return self.content
+
+    def __repr__(self) -> str:
+        return f"Shingle({self.content!r}, lines {self.start_line}-{self.end_line})"
 
 
 class ShingleList(BaseModel):
@@ -14,14 +33,28 @@ class ShingleList(BaseModel):
     These will be used for MinHash similarity estimation.
     """
 
-    shingles: list[str] = Field(
-        description="Set of unique shingles (stringified k-gram paths through the AST)"
+    shingles: Sequence[Shingle | str] = Field(
+        description="Set of shingles (with line ranges or legacy strings)"
     )
 
     @property
     def size(self) -> int:
         """Return the number of unique shingles."""
         return len(self.shingles)
+
+    def get_contents(self) -> list[str]:
+        """Get shingle contents as strings (for backward compatibility)."""
+        return [s.content if isinstance(s, Shingle) else s for s in self.shingles]
+
+    def get_line_range(self) -> tuple[int, int] | None:
+        """Get the min/max line range covered by these shingles."""
+        shingle_objects = [s for s in self.shingles if isinstance(s, Shingle)]
+        if not shingle_objects:
+            return None
+
+        min_line = min(s.start_line for s in shingle_objects)
+        max_line = max(s.end_line for s in shingle_objects)
+        return (min_line, max_line)
 
     def __repr__(self) -> str:
         return f"ShingleList(size={self.size})"
