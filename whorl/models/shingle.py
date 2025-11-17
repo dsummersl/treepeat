@@ -46,15 +46,16 @@ class ShingleList(BaseModel):
         """Get shingle contents as strings (for backward compatibility)."""
         return [s.content if isinstance(s, Shingle) else s for s in self.shingles]
 
+    def _get_shingle_objects(self) -> list[Shingle]:
+        """Extract Shingle objects from mixed list."""
+        return [s for s in self.shingles if isinstance(s, Shingle)]
+
     def get_line_range(self) -> tuple[int, int] | None:
         """Get the min/max line range covered by these shingles."""
-        shingle_objects = [s for s in self.shingles if isinstance(s, Shingle)]
+        shingle_objects = self._get_shingle_objects()
         if not shingle_objects:
             return None
-
-        min_line = min(s.start_line for s in shingle_objects)
-        max_line = max(s.end_line for s in shingle_objects)
-        return (min_line, max_line)
+        return (min(s.start_line for s in shingle_objects), max(s.end_line for s in shingle_objects))
 
     def __repr__(self) -> str:
         return f"ShingleList(size={self.size})"

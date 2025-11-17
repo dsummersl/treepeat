@@ -300,51 +300,34 @@ def shingle_regions(
     return shingled_regions
 
 
+def _get_window_line_range(shingle_objs: list[Shingle], parent_start: int, parent_end: int) -> tuple[int, int]:
+    """Calculate line range from shingles or use parent range."""
+    if shingle_objs:
+        return (min(s.start_line for s in shingle_objs), max(s.end_line for s in shingle_objs))
+    return (parent_start, parent_end)
+
+
 def _create_window_region(
     shingled_region: ShingledRegion, window_idx: int, window_shingles: Sequence[Shingle | str]
 ) -> ShingledRegion:
-    """Create a window region from a parent shingled region.
-
-    Calculates actual line ranges from the shingles in the window.
-    """
+    """Create a window region from a parent shingled region with calculated line ranges."""
     from whorl.models.similarity import Region
     from whorl.models.shingle import Shingle
 
-    # Calculate actual line range from shingles
     shingle_objs = [s for s in window_shingles if isinstance(s, Shingle)]
-    if shingle_objs:
-        # Use actual line ranges from shingles
-        start_line = min(s.start_line for s in shingle_objs)
-        end_line = max(s.end_line for s in shingle_objs)
-        logger.debug(
-            "Window %d has %d Shingle objects, line range: %d-%d",
-            window_idx,
-            len(shingle_objs),
-            start_line,
-            end_line,
-        )
-    else:
-        # Fallback to parent region's line range (for backward compatibility)
-        start_line = shingled_region.region.start_line
-        end_line = shingled_region.region.end_line
-        logger.debug(
-            "Window %d has NO Shingle objects, using parent range: %d-%d",
-            window_idx,
-            start_line,
-            end_line,
-        )
-
-    window_region = Region(
-        path=shingled_region.region.path,
-        language=shingled_region.region.language,
-        region_type="shingle_window",
-        region_name=f"{shingled_region.region.region_name}_window_{window_idx}",
-        start_line=start_line,
-        end_line=end_line,
+    start_line, end_line = _get_window_line_range(
+        shingle_objs, shingled_region.region.start_line, shingled_region.region.end_line
     )
 
     return ShingledRegion(
-        region=window_region,
+        region=Region(
+            path=shingled_region.region.path,
+            language=shingled_region.region.language,
+            region_type="shingle_window",
+            region_name=f"{shingled_region.region.region_name}_window_{window_idx}",
+            start_line=start_line,
+            end_line=end_line,
+        ),
         shingles=ShingleList(shingles=window_shingles),
     )
 
