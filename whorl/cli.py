@@ -551,17 +551,23 @@ def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> dict[int, list
 
 
 def _process_leaf_node(
-    node: Any, node_repr: Any, line_parts: dict[int, list[tuple[int, str]]]
+    node: Any, node_repr: Any, line_parts: dict[int, list[tuple[int, str]]],
+    include_node_type: bool = False
 ) -> None:
     """Process a leaf node and add its representation to line_parts."""
     line_num = node.start_point[0] + 1
     col_num = node.start_point[1]
 
     # Use the normalized representation
-    if node_repr.value:
-        text = f"{node_repr.name}:{node_repr.value}"
+    if include_node_type:
+        # Include node type prefix (for tokens view)
+        if node_repr.value:
+            text = f"{node_repr.name}:{node_repr.value}"
+        else:
+            text = node_repr.name
     else:
-        text = node_repr.name
+        # Just show the value (for transformed view)
+        text = node_repr.value if node_repr.value else node_repr.name
 
     if line_num not in line_parts:
         line_parts[line_num] = []
@@ -619,7 +625,7 @@ def _reconstruct_transformed_source(parsed_file: Any, shingler: Any) -> dict[int
         try:
             node_repr = shingler._get_node_representation(node, language, source, root)
             if len(node.children) == 0:
-                _process_leaf_node(node, node_repr, line_parts)
+                _process_leaf_node(node, node_repr, line_parts, include_node_type=False)
         except SkipNode:
             node_skipped = True
 
