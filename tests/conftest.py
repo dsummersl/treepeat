@@ -1,6 +1,7 @@
 from pathlib import Path
 from tree_sitter_language_pack import get_parser
 from whorl.models.ast import ParsedFile
+from whorl.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 from whorl.pipeline.rules.engine import RuleEngine, build_default_rules
 
 
@@ -35,6 +36,18 @@ def parse_fixture(path: Path, language: str) -> ParsedFile:
         language=language,
         tree=tree,
         source=fixture,
+    )
+
+
+def assert_regions_in_same_group(
+    result: SimilarityResult, region1: Region, region2: Region
+) -> SimilarRegionGroup:
+    """Assert that region1 and region2 are in the same similarity group."""
+    for group in result.similar_groups:
+        if region1 in group.regions and region2 in group.regions:
+            return group
+    raise AssertionError(
+        f"Regions ({region1}, {region2}) not found in same group ({result.similar_groups})"
     )
 
 
