@@ -207,6 +207,50 @@ def _create_unmatched_region(
     return _create_line_region(parsed_file, range_start, range_end)
 
 
+def _group_matched_regions_by_file(matched_regions: list[Region]) -> dict[Path, list[Region]]:
+    """Group matched regions by file path."""
+    matched_by_file: dict[Path, list[Region]] = {}
+    for region in matched_regions:
+        if region.path not in matched_by_file:
+            matched_by_file[region.path] = []
+        matched_by_file[region.path].append(region)
+    return matched_by_file
+
+
+def _regions_to_line_set(regions: list[Region]) -> set[int]:
+    """Convert a list of regions to a set of line numbers."""
+    matched_lines: set[int] = set()
+    for region in regions:
+        for line in range(region.start_line, region.end_line + 1):
+            matched_lines.add(line)
+    return matched_lines
+
+
+def _create_unmatched_regions_for_file(
+    parsed_file: ParsedFile,
+    matched_lines: set[int],
+    min_lines: int,
+) -> list[ExtractedRegion]:
+    """Create unmatched regions for a single file."""
+    file_end_line = parsed_file.root_node.end_point[0] + 1
+    unmatched_ranges = _find_unmatched_ranges(matched_lines, file_end_line)
+
+    unmatched_regions: list[ExtractedRegion] = []
+    for range_start, range_end in unmatched_ranges:
+        range_length = range_end - range_start + 1
+        if range_length >= min_lines:
+            unmatched_region = _create_unmatched_region(parsed_file, range_start, range_end)
+            unmatched_regions.append(unmatched_region)
+            logger.debug(
+                "Created unmatched region for %s: lines %d-%d (%d lines)",
+                parsed_file.path,
+                range_start,
+                range_end,
+                range_length,
+            )
+    return unmatched_regions
+
+
 def create_unmatched_regions(
     parsed_files: list[ParsedFile],
     matched_regions: list[Region],
@@ -225,40 +269,14 @@ def create_unmatched_regions(
     Returns:
         List of extracted regions for unmatched sections
     """
-    # Group matched regions by file
-    matched_by_file: dict[Path, list[Region]] = {}
-    for region in matched_regions:
-        if region.path not in matched_by_file:
-            matched_by_file[region.path] = []
-        matched_by_file[region.path].append(region)
-
+    matched_by_file = _group_matched_regions_by_file(matched_regions)
     unmatched_regions: list[ExtractedRegion] = []
 
     for parsed_file in parsed_files:
-        # Get matched regions for this file
         file_matched_regions = matched_by_file.get(parsed_file.path, [])
-
-        # Convert matched regions to line sets (this excludes the matched AST nodes)
-        matched_lines: set[int] = set()
-        for region in file_matched_regions:
-            for line in range(region.start_line, region.end_line + 1):
-                matched_lines.add(line)
-
-        file_end_line = parsed_file.root_node.end_point[0] + 1
-        unmatched_ranges = _find_unmatched_ranges(matched_lines, file_end_line)
-
-        for range_start, range_end in unmatched_ranges:
-            range_length = range_end - range_start + 1
-            if range_length >= min_lines:
-                unmatched_region = _create_unmatched_region(parsed_file, range_start, range_end)
-                unmatched_regions.append(unmatched_region)
-                logger.debug(
-                    "Created unmatched region for %s: lines %d-%d (%d lines)",
-                    parsed_file.path,
-                    range_start,
-                    range_end,
-                    range_length,
-                )
+        matched_lines = _regions_to_line_set(file_matched_regions)
+        file_unmatched = _create_unmatched_regions_for_file(parsed_file, matched_lines, min_lines)
+        unmatched_regions.extend(file_unmatched)
 
     logger.info("Created %d unmatched region(s) for shingling", len(unmatched_regions))
     return unmatched_regions
