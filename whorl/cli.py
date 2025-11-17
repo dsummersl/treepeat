@@ -348,17 +348,23 @@ def _create_rules_settings(ruleset: str) -> RulesSettings:
 
 def _configure_settings(
     ruleset: str,
-    threshold: float,
+    threshold: float | None,
     min_lines: int,
     ignore: str,
     ignore_files: str,
 ) -> None:
     """Configure pipeline settings."""
+    # Create LSH settings - if threshold is None, use internal defaults
+    if threshold is not None:
+        lsh_settings = LSHSettings(threshold=threshold, min_lines=min_lines)
+    else:
+        lsh_settings = LSHSettings(min_lines=min_lines)
+
     settings = PipelineSettings(
         rules=_create_rules_settings(ruleset),
         shingle=ShingleSettings(),  # Uses default k=3
         minhash=MinHashSettings(),  # Uses default num_perm=128
-        lsh=LSHSettings(threshold=threshold, min_lines=min_lines),
+        lsh=lsh_settings,
         ignore_patterns=_parse_patterns(ignore),
         ignore_file_patterns=_parse_patterns(ignore_files),
     )
@@ -408,8 +414,8 @@ def main(
 @click.option(
     "--threshold",
     type=float,
-    default=1.0,
-    help="Filter threshold for similarity (default: 1.0)",
+    default=None,
+    help="Filter threshold for similarity (default: uses ruleset-specific thresholds)",
 )
 @click.option(
     "--min-lines",
@@ -458,7 +464,7 @@ def main(
 def detect(
     ctx: click.Context,
     path: Path,
-    threshold: float,
+    threshold: float | None,
     min_lines: int,
     output_format: str,
     output: Path | None,

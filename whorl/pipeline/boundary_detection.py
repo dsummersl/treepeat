@@ -214,8 +214,8 @@ def merge_similar_window_groups(
 ) -> list[SimilarRegionGroup]:
     """Merge overlapping windows in similar groups to find contiguous boundaries.
 
-    First merges groups that have overlapping regions in common files,
-    then merges overlapping or adjacent windows within each group.
+    Merges overlapping or adjacent windows within each group to find clean boundaries.
+    Does NOT merge separate groups together, preserving distinct similar sections.
 
     Args:
         groups: Similar region groups with potentially overlapping windows
@@ -223,12 +223,12 @@ def merge_similar_window_groups(
     Returns:
         Groups with merged regions showing clean boundaries
     """
-    # First, merge groups that have overlapping regions
-    coalesced_groups = _merge_overlapping_groups(groups)
+    # Skip group-level merging to preserve separate similar sections
+    # (e.g., sections before and after a deletion)
+    coalesced_groups = groups
     logger.debug(
-        "Coalesced %d groups with overlapping regions into %d groups",
+        "Processing %d groups (skipping group-level merging to preserve separate sections)",
         len(groups),
-        len(coalesced_groups),
     )
 
     merged_groups: list[SimilarRegionGroup] = []

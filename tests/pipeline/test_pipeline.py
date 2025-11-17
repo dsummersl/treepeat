@@ -81,7 +81,8 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
     [
         # Tests with ruleset=none (no normalization)
         ("none", class_with_methods_file, 0.1, 0, []),
-        ("none", class_with_methods_file, 0.9, 1, []),
+        # Updated: now finds line-level window matches in addition to function matches
+        ("none", class_with_methods_file, 0.9, 2, []),
         # Tests with ruleset=default (with normalization)
         # With normalization and identifier reset per region, classes become more similar
         ("default", class_with_methods_file, 0.1, 0, []),
@@ -93,7 +94,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.7,
-            6,  # Shingle-based windows find precise code duplicates
+            13,  # Updated: accurate line ranges find more granular window matches
             [
                 # Cross-file duplicate functions
                 (
@@ -132,7 +133,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.8,
-            4,  # Shingle-based windows find precise code duplicates
+            7,  # Updated: accurate line ranges find more granular window matches
             [
                 # Cross-file duplicate functions
                 (
@@ -176,7 +177,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.9,
-            2,  # Updated: verification filters out 1 group below order-sensitive threshold
+            4,  # Updated: accurate line ranges find more granular window matches
             [
                 # Cross-file duplicate functions
                 (

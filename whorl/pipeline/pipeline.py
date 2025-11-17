@@ -157,6 +157,24 @@ def _run_lsh_stage(
     return similarity_result
 
 
+def _filter_file_type_regions(extracted_regions: list[ExtractedRegion]) -> list[ExtractedRegion]:
+    """Filter out 'file' type regions that should use line matching instead.
+
+    Args:
+        extracted_regions: All extracted regions
+
+    Returns:
+        Only code regions (functions, classes, etc.) excluding file-type regions
+    """
+    code_regions = [r for r in extracted_regions if r.region.region_type != "file"]
+    file_type_count = len(extracted_regions) - len(code_regions)
+
+    if file_type_count > 0:
+        logger.info("Skipping %d 'file' type region(s) - will process with line matching", file_type_count)
+
+    return code_regions
+
+
 def _run_region_matching(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
@@ -165,8 +183,14 @@ def _run_region_matching(
     """Run region matching for functions and classes."""
     logger.info("===== REGION MATCHING: Functions and Classes =====")
 
-    # Extract only functions/classes (no section regions)
-    region_regions = _run_extract_stage(parsed_files, rule_engine)
+    # Extract and filter regions
+    all_extracted = _run_extract_stage(parsed_files, rule_engine)
+    region_regions = _filter_file_type_regions(all_extracted)
+
+    # If no code regions, skip region matching entirely
+    if not region_regions:
+        logger.info("No code regions found, skipping region matching")
+        return [], []
 
     # Shingle region regions
     region_shingled = _run_shingle_stage(region_regions, parsed_files, rule_engine, settings)

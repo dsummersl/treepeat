@@ -73,7 +73,7 @@ def foo():
     shingled = shingler.shingle_region(extracted_region, source)
 
     # Check that shingles don't contain import-related nodes
-    shingle_str = " ".join(shingled.shingles.shingles)
+    shingle_str = " ".join(shingled.shingles.get_contents())
     assert "future_import_statement" not in shingle_str
     assert "import_statement" not in shingle_str
     assert "import_from_statement" not in shingle_str
@@ -120,7 +120,7 @@ def foo():
     shingled = shingler.shingle_region(extracted_region, source)
 
     # TYPE_CHECKING block should be removed
-    shingle_str = " ".join(shingled.shingles.shingles)
+    shingle_str = " ".join(shingled.shingles.get_contents())
     assert "TYPE_CHECKING" not in shingle_str
 
     # Regular function should still be present
@@ -164,7 +164,7 @@ def foo():
     shingled = shingler.shingle_region(extracted_region, source)
 
     # TypeVar should be removed
-    shingle_str = " ".join(shingled.shingles.shingles)
+    shingle_str = " ".join(shingled.shingles.get_contents())
     assert "TypeVar" not in shingle_str
 
     # Regular function should still be present

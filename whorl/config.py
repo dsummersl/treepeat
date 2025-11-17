@@ -80,9 +80,9 @@ class LSHSettings(BaseSettings):
     region_threshold: float = 0.5
     region_min_similarity: float = 0.9
 
-    # Line matching uses lower threshold to find approximate windows, then filters to exact matches
-    line_threshold: float = 0.3
-    line_min_similarity: float = 0.95
+    # Line matching uses moderate threshold to find similar windows, then filters after merging
+    line_threshold: float = 0.7
+    line_min_similarity: float = 0.5
 
     def __init__(self, threshold: float | None = None, **data: Any) -> None:
         """Initialize LSH settings, optionally overriding thresholds with a single value."""
