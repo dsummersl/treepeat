@@ -43,7 +43,7 @@ def _filter_rules_by_language(
 
 def _print_rulesets(ruleset_name: str, language_filter: str | None = None) -> None:
     """Print rules in the specified ruleset, optionally filtered by language."""
-    from whorl.pipeline.rules_factory import get_ruleset_with_descriptions
+    from covey.pipeline.rules_factory import get_ruleset_with_descriptions
 
     rules_with_descriptions = get_ruleset_with_descriptions(ruleset_name)
     rules_with_descriptions = _filter_rules_by_language(rules_with_descriptions, language_filter)
