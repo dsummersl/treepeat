@@ -247,6 +247,14 @@ def _create_group_from_keys(
         len(regions),
         similarity * 100,
     )
+    for region in regions:
+        logger.debug(
+            "  - %s [%d:%d] from %s",
+            region.region_name,
+            region.start_line,
+            region.end_line,
+            region.path.name,
+        )
 
     return SimilarRegionGroup(regions=regions, similarity=similarity)
 

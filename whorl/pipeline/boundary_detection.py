@@ -87,14 +87,36 @@ def _merge_overlapping_regions_for_file(regions: list[Region]) -> list[Region]:
 
     for region in sorted_regions[1:]:
         if _should_merge_with_group(region, current_group):
+            logger.debug(
+                "  Merging %s [%d:%d] with group [%d:%d]",
+                region.region_name,
+                region.start_line,
+                region.end_line,
+                current_group[0].start_line,
+                current_group[-1].end_line,
+            )
             current_group.append(region)
         else:
-            merged.append(_merge_regions(current_group))
+            merged_region = _merge_regions(current_group)
+            logger.debug(
+                "  Completed merge group -> [%d:%d] from %d windows",
+                merged_region.start_line,
+                merged_region.end_line,
+                len(current_group),
+            )
+            merged.append(merged_region)
             current_group = [region]
 
     # Don't forget the last group
     if current_group:
-        merged.append(_merge_regions(current_group))
+        merged_region = _merge_regions(current_group)
+        logger.debug(
+            "  Completed merge group -> [%d:%d] from %d windows",
+            merged_region.start_line,
+            merged_region.end_line,
+            len(current_group),
+        )
+        merged.append(merged_region)
 
     return merged
 
