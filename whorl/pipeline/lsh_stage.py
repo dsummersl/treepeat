@@ -16,6 +16,11 @@ from whorl.models.similarity import (
 
 logger = logging.getLogger(__name__)
 
+# Maximum LSH threshold for initial candidate matching
+# Use a lower threshold to find approximate matches, then verify with actual threshold
+# This is capped at 0.6 to avoid being too restrictive in the initial search
+MAX_LSH_THRESHOLD = 0.6
+
 
 def _create_lsh_index(
     signatures: list[RegionSignature],
@@ -24,7 +29,10 @@ def _create_lsh_index(
     """Create and populate LSH index."""
     num_perm = signatures[0].minhash.hashvalues.shape[0]
 
-    lsh_threshold = min(threshold, 0.98)
+    # Use a lower threshold for finding candidates, capped at MAX_LSH_THRESHOLD
+    # For high thresholds (e.g., 1.0), use 0.6 to find more candidates
+    # For low thresholds (e.g., 0.1), use the actual threshold
+    lsh_threshold = min(threshold, MAX_LSH_THRESHOLD)
     lsh = MinHashLSH(lsh_threshold, num_perm)
 
     for sig in signatures:

@@ -6,7 +6,7 @@ from ..conftest import (
     fixture_class_methods,
     default_rule_engine,
 )
-from whorl.pipeline.region_extraction import extract_all_regions, get_matched_line_ranges
+from whorl.pipeline.region_extraction import extract_all_regions, create_unmatched_regions
 
 
 def test_extract_regions_dataclass1():
@@ -130,8 +130,8 @@ def test_nested_function_included_in_outer():
     assert outer.region.end_line == 17  # Should include all nested functions
 
 
-def test_matched_line_ranges_covers_entire_function():
-    """Test that matching a function marks all its lines as matched (including nested code)."""
+def test_matched_regions_excluded_from_unmatched():
+    """Test that matching a function excludes all its lines from unmatched regions."""
     parsed = parsed_fixture(fixture_nested)
     engine = default_rule_engine()
     regions = extract_all_regions([parsed], engine)
@@ -139,21 +139,19 @@ def test_matched_line_ranges_covers_entire_function():
     # Find outer_function
     outer = next(r for r in regions if r.region.region_name == "outer_function")
 
-    # Simulate that outer_function was matched at level 1
+    # Simulate that outer_function was matched
     matched_regions = [outer.region]
-    matched_lines_by_file = get_matched_line_ranges(matched_regions)
 
-    # Get matched lines for this file
-    matched_lines = matched_lines_by_file.get(parsed.path, set())
+    # Create unmatched regions - the matched function should be excluded
+    unmatched_regions = create_unmatched_regions([parsed], matched_regions, min_lines=1)
 
-    # Verify that all lines of outer_function are marked as matched
-    # This includes the lines where nested functions are defined
-    for line in range(outer.region.start_line, outer.region.end_line + 1):
-        assert line in matched_lines, f"Line {line} should be marked as matched"
-
-    # The matched lines count should equal the number of lines in the function
-    expected_line_count = outer.region.end_line - outer.region.start_line + 1
-    assert len(matched_lines) == expected_line_count
+    # Verify that none of the unmatched regions overlap with outer_function
+    outer_lines = set(range(outer.region.start_line, outer.region.end_line + 1))
+    for unmatched in unmatched_regions:
+        unmatched_lines = set(range(unmatched.region.start_line, unmatched.region.end_line + 1))
+        # No overlap between matched and unmatched regions
+        assert len(outer_lines & unmatched_lines) == 0, \
+            f"Unmatched region {unmatched.region.region_name} overlaps with matched outer_function"
 
 
 def test_include_sections_false_extracts_all_recursively():

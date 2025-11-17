@@ -80,13 +80,15 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
     "ruleset, path, threshold, similar_groups, expected_regions",
     [
         # Tests with ruleset=none (no normalization)
-        ("none", class_with_methods_file, 0.1, 0, []),
+        # Updated: With improved LSH and merging, finds low similarity matches
+        ("none", class_with_methods_file, 0.1, 1, []),
         # Updated: now finds line-level window matches in addition to function matches
-        ("none", class_with_methods_file, 0.9, 2, []),
+        ("none", class_with_methods_file, 0.9, 3, []),
         # Tests with ruleset=default (with normalization)
         # With normalization and identifier reset per region, classes become more similar
-        ("default", class_with_methods_file, 0.1, 0, []),
-        ("default", class_with_methods_file, 0.3, 1, []),
+        # Updated: With improved LSH and merging, finds low similarity matches
+        ("default", class_with_methods_file, 0.1, 1, []),
+        ("default", class_with_methods_file, 0.3, 2, []),
         # With threshold 0.5, ClassA and ClassB match at ~82% (2 of 3 methods identical)
         ("default", class_with_methods_file, 0.5, 3, [(classA_region, classB_region)]),
         # Tests with entire fixture directory (ruleset=none) - verifies no self-overlapping false positives
@@ -94,7 +96,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.7,
-            13,  # Updated: accurate line ranges find more granular window matches
+            8,  # Updated: group merging reduces overlapping window groups
             [
                 # Cross-file duplicate functions
                 (
@@ -177,7 +179,7 @@ class_with_methods_file = fixture_dir / "class_with_methods.py"
             "none",
             fixture_dir,
             0.9,
-            4,  # Updated: accurate line ranges find more granular window matches
+            6,  # Updated: group merging combines overlapping window groups
             [
                 # Cross-file duplicate functions
                 (
