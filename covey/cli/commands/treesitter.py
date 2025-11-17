@@ -7,7 +7,7 @@ from typing import Any
 import click
 from rich.console import Console
 
-from whorl.config import LSHSettings, MinHashSettings, PipelineSettings, RulesSettings, ShingleSettings, set_settings
+from covey.config import LSHSettings, MinHashSettings, PipelineSettings, RulesSettings, ShingleSettings, set_settings
 
 console = Console()
 
@@ -52,7 +52,7 @@ def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> dict[int, list
 
     Returns a dictionary mapping line numbers (1-indexed) to lists of token representations.
     """
-    from whorl.models.normalization import SkipNode
+    from covey.models.normalization import SkipNode
 
     tokens_by_line: dict[int, list[str]] = {}
     source = parsed_file.source
@@ -113,7 +113,7 @@ def _process_internal_node(
     line_parts: dict[int, list[tuple[int, str]]]
 ) -> None:
     """Process an internal node where all children were skipped."""
-    from whorl.models.normalization import SkipNode
+    from covey.models.normalization import SkipNode
 
     line_num = node.start_point[0] + 1
     col_num = node.start_point[1]
@@ -151,7 +151,7 @@ def _reconstruct_transformed_source(parsed_file: Any, shingler: Any) -> dict[int
 
     Returns a dictionary mapping line numbers (1-indexed) to reconstructed source lines.
     """
-    from whorl.models.normalization import SkipNode
+    from covey.models.normalization import SkipNode
 
     source = parsed_file.source
     language = parsed_file.language
@@ -292,10 +292,10 @@ def treesitter(
     tree-sitter token representations on the right (or transformed source with --transformed),
     showing how the code is transformed during similarity detection.
     """
-    from whorl.config import get_settings
-    from whorl.pipeline.parse import parse_file
-    from whorl.pipeline.shingle import ASTShingler
-    from whorl.pipeline.rules_factory import build_rule_engine
+    from covey.config import get_settings
+    from covey.pipeline.parse import parse_file
+    from covey.pipeline.shingle import ASTShingler
+    from covey.pipeline.rules_factory import build_rule_engine
 
     ruleset = ctx.obj["ruleset"]
     _configure_settings(ruleset, 1.0, 5, "", "**/.*ignore")

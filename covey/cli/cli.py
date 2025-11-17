@@ -1,4 +1,4 @@
-"""CLI interface for whorl."""
+"""CLI interface for covey."""
 
 import logging
 
@@ -6,7 +6,7 @@ import click
 from rich.console import Console
 from rich.logging import RichHandler
 
-from whorl.cli.commands import detect, list_ruleset, treesitter
+from covey.cli.commands import detect, list_ruleset, treesitter
 
 console = Console()
 

@@ -7,10 +7,10 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from whorl.config import LSHSettings, MinHashSettings, PipelineSettings, RulesSettings, ShingleSettings, set_settings
-from whorl.formatters import format_as_sarif
-from whorl.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
-from whorl.pipeline.pipeline import run_pipeline
+from covey.config import LSHSettings, MinHashSettings, PipelineSettings, RulesSettings, ShingleSettings, set_settings
+from covey.formatters import format_as_sarif
+from covey.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
+from covey.pipeline.pipeline import run_pipeline
 
 console = Console()
 
@@ -61,7 +61,7 @@ def _write_output(text: str, output_path: Path | None) -> None:
 def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
     """Run the pipeline with appropriate UI feedback based on output format."""
     if output_format.lower() == "console":
-        from whorl.config import get_settings
+        from covey.config import get_settings
         settings = get_settings()
         console.print(f"\nRuleset: [cyan]{settings.rules.ruleset}[/cyan]")
         console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
@@ -99,7 +99,7 @@ def _format_region_name(region: Region) -> str:
 
 def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
     """Display a single similarity group with optional diff."""
-    from whorl.diff import display_diff
+    from covey.diff import display_diff
 
     # Display similarity group header
     console.print(f"Similar group found ([bold]{group.similarity:.1%}[/bold] similar, {group.size} regions):")
