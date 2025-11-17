@@ -150,21 +150,6 @@ def extract_all_regions(
     return all_regions
 
 
-def get_matched_line_ranges(matched_regions: list[Region]) -> dict[Path, set[int]]:
-    """Get the line ranges that were matched, organized by file path."""
-    matched_lines_by_file: dict[Path, set[int]] = {}
-
-    for region in matched_regions:
-        if region.path not in matched_lines_by_file:
-            matched_lines_by_file[region.path] = set()
-
-        # Add all lines in this region to the matched set
-        for line in range(region.start_line, region.end_line + 1):
-            matched_lines_by_file[region.path].add(line)
-
-    return matched_lines_by_file
-
-
 def _finish_range(
     range_start: int | None, end_line: int, ranges: list[tuple[int, int]]
 ) -> None:
@@ -224,27 +209,41 @@ def _create_unmatched_region(
 
 def create_unmatched_regions(
     parsed_files: list[ParsedFile],
-    matched_lines_by_file: dict[Path, set[int]],
+    matched_regions: list[Region],
     min_lines: int,
 ) -> list[ExtractedRegion]:
     """Create regions for unmatched sections (to be shingled).
 
-    Unlike the old approach which created sliding windows of line ranges,
-    this creates ONE region per unmatched range. Windows will be created
-    from the shingles after shingling.
+    This uses a treesitter-based approach: instead of tracking matched lines,
+    we exclude entire matched region nodes and their children.
 
     Args:
         parsed_files: List of parsed files
-        matched_lines_by_file: Lines already matched by region matching
+        matched_regions: Regions already matched by region matching
         min_lines: Minimum lines for a region to be valid
 
     Returns:
         List of extracted regions for unmatched sections
     """
+    # Group matched regions by file
+    matched_by_file: dict[Path, list[Region]] = {}
+    for region in matched_regions:
+        if region.path not in matched_by_file:
+            matched_by_file[region.path] = []
+        matched_by_file[region.path].append(region)
+
     unmatched_regions: list[ExtractedRegion] = []
 
     for parsed_file in parsed_files:
-        matched_lines = matched_lines_by_file.get(parsed_file.path, set())
+        # Get matched regions for this file
+        file_matched_regions = matched_by_file.get(parsed_file.path, [])
+
+        # Convert matched regions to line sets (this excludes the matched AST nodes)
+        matched_lines: set[int] = set()
+        for region in file_matched_regions:
+            for line in range(region.start_line, region.end_line + 1):
+                matched_lines.add(line)
+
         file_end_line = parsed_file.root_node.end_point[0] + 1
         unmatched_ranges = _find_unmatched_ranges(matched_lines, file_end_line)
 

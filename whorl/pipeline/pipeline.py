@@ -12,7 +12,6 @@ from whorl.pipeline.region_extraction import (
     ExtractedRegion,
     create_unmatched_regions,
     extract_all_regions,
-    get_matched_line_ranges,
 )
 from whorl.pipeline.boundary_detection import merge_similar_window_groups
 from whorl.pipeline.rules.engine import RuleEngine
@@ -175,6 +174,32 @@ def _filter_file_type_regions(extracted_regions: list[ExtractedRegion]) -> list[
     return code_regions
 
 
+def _filter_regions_by_min_lines(
+    regions: list[ExtractedRegion], min_lines: int
+) -> list[ExtractedRegion]:
+    """Filter regions that are too short before processing."""
+    filtered = []
+    for region in regions:
+        lines = region.region.end_line - region.region.start_line + 1
+        if lines >= min_lines:
+            filtered.append(region)
+        else:
+            logger.debug(
+                "Filtered out region %s [%d:%d] (%d lines) - below min_lines threshold",
+                region.region.region_name,
+                region.region.start_line,
+                region.region.end_line,
+                lines,
+            )
+    if len(filtered) < len(regions):
+        logger.info(
+            "Filtered %d region(s) below min_lines=%d before processing",
+            len(regions) - len(filtered),
+            min_lines,
+        )
+    return filtered
+
+
 def _run_region_matching(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
@@ -190,6 +215,12 @@ def _run_region_matching(
     # If no code regions, skip region matching entirely
     if not region_regions:
         logger.info("No code regions found, skipping region matching")
+        return [], []
+
+    # Filter out regions that are too short before processing
+    region_regions = _filter_regions_by_min_lines(region_regions, settings.lsh.min_lines)
+    if not region_regions:
+        logger.info("No regions above min_lines threshold, skipping region matching")
         return [], []
 
     # Shingle region regions
@@ -234,15 +265,15 @@ def _run_line_matching(
     """
     logger.info("===== LINE MATCHING: Unmatched Sections =====")
 
-    # Track matched lines from region matching
+    # Track matched regions from region matching
     region_matched_regions = _get_matched_regions_from_groups(region_filtered_groups)
-    matched_lines_by_file = get_matched_line_ranges(region_matched_regions)
     logger.info("Tracked %d matched regions from region matching", len(region_matched_regions))
 
     # Step 1: Create regions for unmatched sections (one region per unmatched range)
+    # Use treesitter-based approach: pass matched regions directly instead of line ranges
     unmatched_regions = create_unmatched_regions(
         parsed_files,
-        matched_lines_by_file,
+        region_matched_regions,
         settings.lsh.min_lines,
     )
 
