@@ -592,12 +592,23 @@ def _process_internal_node(
         pass
 
 
-def _reconstruct_lines_from_parts(line_parts: dict[int, list[tuple[int, str]]]) -> dict[int, str]:
-    """Reconstruct source lines from collected node parts."""
+def _reconstruct_lines_from_parts(
+    line_parts: dict[int, list[tuple[int, str]]],
+    source_lines: list[str]
+) -> dict[int, str]:
+    """Reconstruct source lines from collected node parts, preserving original indentation."""
     reconstructed_lines: dict[int, str] = {}
     for line_num, parts in sorted(line_parts.items()):
         sorted_parts = sorted(parts, key=lambda x: x[0])
-        reconstructed_lines[line_num] = " ".join(text for _, text in sorted_parts)
+        tokens = " ".join(text for _, text in sorted_parts)
+
+        # Extract indentation from original source line
+        if line_num <= len(source_lines):
+            original_line = source_lines[line_num - 1]
+            indentation = original_line[:len(original_line) - len(original_line.lstrip())]
+            reconstructed_lines[line_num] = indentation + tokens
+        else:
+            reconstructed_lines[line_num] = tokens
     return reconstructed_lines
 
 
@@ -611,6 +622,12 @@ def _reconstruct_transformed_source(parsed_file: Any, shingler: Any) -> dict[int
     source = parsed_file.source
     language = parsed_file.language
     root = parsed_file.root_node
+
+    # Get source lines for indentation extraction
+    try:
+        source_lines = source.decode("utf-8", errors="ignore").splitlines()
+    except Exception:
+        source_lines = []
 
     # Reset identifiers for consistent output
     shingler.rule_engine.reset_identifiers()
@@ -643,7 +660,7 @@ def _reconstruct_transformed_source(parsed_file: Any, shingler: Any) -> dict[int
         return node_skipped
 
     traverse(root)
-    return _reconstruct_lines_from_parts(line_parts)
+    return _reconstruct_lines_from_parts(line_parts, source_lines)
 
 
 def _truncate_if_needed(text: str, max_width: int) -> str:
