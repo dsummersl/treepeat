@@ -1,8 +1,8 @@
 from pathlib import Path
 from tree_sitter_language_pack import get_parser
-from whorl.models.ast import ParsedFile
-from whorl.models.similarity import Region, SimilarRegionGroup, SimilarityResult
-from whorl.pipeline.rules.engine import RuleEngine, build_default_rules
+from covey.models.ast import ParsedFile
+from covey.models.similarity import Region, SimilarRegionGroup, SimilarityResult
+from covey.pipeline.rules.engine import RuleEngine, build_default_rules
 
 
 # Legacy fixture paths (for backward compatibility)

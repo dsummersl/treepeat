@@ -2,10 +2,10 @@
 
 import logging
 
-from whorl.config import PipelineSettings
-from whorl.pipeline.rules.engine import RuleEngine, build_default_rules
-from whorl.pipeline.rules.models import Rule
-from whorl.pipeline.rules.engine import build_loose_rules, build_region_extraction_rules
+from covey.config import PipelineSettings
+from covey.pipeline.rules.engine import RuleEngine, build_default_rules
+from covey.pipeline.rules.models import Rule
+from covey.pipeline.rules.engine import build_loose_rules, build_region_extraction_rules
 
 logger = logging.getLogger(__name__)
 

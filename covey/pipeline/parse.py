@@ -6,9 +6,9 @@ from pathlib import Path
 
 from tree_sitter_language_pack import get_parser, SupportedLanguage
 
-from whorl.config import get_settings
-from whorl.models import ParsedFile, ParseResult
-from whorl.pipeline.languages import LANGUAGE_EXTENSIONS
+from covey.config import get_settings
+from covey.models import ParsedFile, ParseResult
+from covey.pipeline.languages import LANGUAGE_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 

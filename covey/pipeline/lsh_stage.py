@@ -6,8 +6,8 @@ from typing import Hashable
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
 
-from whorl.models.shingle import ShingledRegion
-from whorl.models.similarity import (
+from covey.models.shingle import ShingledRegion
+from covey.models.similarity import (
     Region,
     RegionSignature,
     SimilarRegionGroup,
@@ -326,7 +326,7 @@ def _verify_and_filter_groups(
     min_similarity: float,
 ) -> list[SimilarRegionGroup]:
     """Verify candidate groups and filter by minimum similarity threshold."""
-    from whorl.pipeline.verification import verify_similar_groups
+    from covey.pipeline.verification import verify_similar_groups
 
     logger.info("Verifying %d candidate group(s)", len(candidate_groups))
     verified_groups = verify_similar_groups(candidate_groups, shingled_regions)

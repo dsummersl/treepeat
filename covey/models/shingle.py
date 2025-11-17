@@ -5,7 +5,7 @@ from typing import Sequence
 
 from pydantic import BaseModel, Field
 
-from whorl.models.similarity import Region
+from covey.models.similarity import Region
 
 
 class Shingle(BaseModel):

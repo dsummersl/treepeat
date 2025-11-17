@@ -7,10 +7,10 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from tree_sitter import Node
 
-from whorl.models.ast import ParsedFile
-from whorl.models.similarity import Region
+from covey.models.ast import ParsedFile
+from covey.models.similarity import Region
 
-from whorl.pipeline.rules.engine import RuleEngine
+from covey.pipeline.rules.engine import RuleEngine
 
 logger = logging.getLogger(__name__)
 

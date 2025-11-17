@@ -6,7 +6,7 @@ from ..conftest import (
     fixture_class_methods,
     default_rule_engine,
 )
-from whorl.pipeline.region_extraction import extract_all_regions, create_unmatched_regions
+from covey.pipeline.region_extraction import extract_all_regions, create_unmatched_regions
 
 
 def test_extract_regions_dataclass1():

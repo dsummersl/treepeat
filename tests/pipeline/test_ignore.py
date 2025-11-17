@@ -4,8 +4,8 @@ import tempfile
 from pathlib import Path
 
 
-from whorl.config import PipelineSettings, set_settings
-from whorl.pipeline.parse import (
+from covey.config import PipelineSettings, set_settings
+from covey.pipeline.parse import (
     collect_source_files,
     find_ignore_files,
     matches_pattern,

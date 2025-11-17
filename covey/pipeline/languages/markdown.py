@@ -1,6 +1,6 @@
 """Markdown language configuration."""
 
-from whorl.pipeline.rules.models import Rule
+from covey.pipeline.rules.models import Rule
 
 from .base import LanguageConfig, RegionExtractionRule
 

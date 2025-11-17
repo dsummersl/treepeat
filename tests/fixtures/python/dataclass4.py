@@ -3,9 +3,9 @@
 import logging
 from typing import Callable
 
-from whorl.config import PipelineSettings
-from whorl.pipeline.normalizers import Normalizer
-from whorl.pipeline.normalizers.python import PythonImportNormalizer
+from covey.config import PipelineSettings
+from covey.pipeline.normalizers import Normalizer
+from covey.pipeline.normalizers.python import PythonImportNormalizer
 
 logger = logging.getLogger(__name__)
 

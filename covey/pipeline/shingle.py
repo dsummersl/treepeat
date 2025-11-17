@@ -5,12 +5,12 @@ from typing import Sequence
 
 from tree_sitter import Node
 
-from whorl.models.ast import ParsedFile, ParseResult
-from whorl.models.normalization import NodeRepresentation, SkipNode
-from whorl.models.shingle import Shingle, ShingledRegion, ShingleResult, ShingleList, ShingledFile
-from whorl.pipeline.region_extraction import ExtractedRegion
-from whorl.pipeline.rules.engine import RuleEngine
-from whorl.pipeline.rules.models import SkipNodeException
+from covey.models.ast import ParsedFile, ParseResult
+from covey.models.normalization import NodeRepresentation, SkipNode
+from covey.models.shingle import Shingle, ShingledRegion, ShingleResult, ShingleList, ShingledFile
+from covey.pipeline.region_extraction import ExtractedRegion
+from covey.pipeline.rules.engine import RuleEngine
+from covey.pipeline.rules.models import SkipNodeException
 
 logger = logging.getLogger(__name__)
 
@@ -311,8 +311,8 @@ def _create_window_region(
     shingled_region: ShingledRegion, window_idx: int, window_shingles: Sequence[Shingle | str]
 ) -> ShingledRegion:
     """Create a window region from a parent shingled region with calculated line ranges."""
-    from whorl.models.similarity import Region
-    from whorl.models.shingle import Shingle
+    from covey.models.similarity import Region
+    from covey.models.shingle import Shingle
 
     shingle_objs = [s for s in window_shingles if isinstance(s, Shingle)]
     start_line, end_line = _get_window_line_range(

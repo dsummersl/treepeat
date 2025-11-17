@@ -1,22 +1,22 @@
 import logging
 from pathlib import Path
 
-from whorl.config import PipelineSettings, get_settings
-from whorl.models.ast import ParsedFile, ParseResult
-from whorl.models.shingle import ShingledRegion
-from whorl.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
-from whorl.pipeline.lsh_stage import detect_similarity
-from whorl.pipeline.minhash_stage import compute_region_signatures
-from whorl.pipeline.parse import parse_path
-from whorl.pipeline.region_extraction import (
+from covey.config import PipelineSettings, get_settings
+from covey.models.ast import ParsedFile, ParseResult
+from covey.models.shingle import ShingledRegion
+from covey.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
+from covey.pipeline.lsh_stage import detect_similarity
+from covey.pipeline.minhash_stage import compute_region_signatures
+from covey.pipeline.parse import parse_path
+from covey.pipeline.region_extraction import (
     ExtractedRegion,
     create_unmatched_regions,
     extract_all_regions,
 )
-from whorl.pipeline.boundary_detection import merge_similar_window_groups
-from whorl.pipeline.rules.engine import RuleEngine
-from whorl.pipeline.rules_factory import build_rule_engine
-from whorl.pipeline.shingle import shingle_regions, create_shingle_windows
+from covey.pipeline.boundary_detection import merge_similar_window_groups
+from covey.pipeline.rules.engine import RuleEngine
+from covey.pipeline.rules_factory import build_rule_engine
+from covey.pipeline.shingle import shingle_regions, create_shingle_windows
 
 logger = logging.getLogger(__name__)
 

@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import parse_fixture
-from whorl.pipeline.languages.html import HTMLConfig
-from whorl.pipeline.region_extraction import extract_all_regions
-from whorl.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
+from covey.pipeline.languages.html import HTMLConfig
+from covey.pipeline.region_extraction import extract_all_regions
+from covey.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
 
 # Fixture path
