@@ -43,19 +43,6 @@ class MinHashSettings(BaseSettings):
     )
 
 
-class RegionSettings(BaseSettings):
-    """Settings for region extraction."""
-
-    model_config = SettingsConfigDict(
-        env_prefix="REGION_",
-    )
-
-    extraction_method: str = Field(
-        default="hybrid",
-        description="Region extraction method: 'explicit' (rule-based only), 'statistical' (auto-chunk only), 'hybrid' (both combined - recommended)",
-    )
-
-
 class LSHSettings(BaseSettings):
     """Settings for Locality Sensitive Hashing."""
 
@@ -80,7 +67,6 @@ class PipelineSettings(BaseSettings):
     )
 
     rules: RulesSettings = Field(default_factory=RulesSettings)
-    region: RegionSettings = Field(default_factory=RegionSettings)
     shingle: ShingleSettings = Field(default_factory=ShingleSettings)
     minhash: MinHashSettings = Field(default_factory=MinHashSettings)
     lsh: LSHSettings = Field(default_factory=LSHSettings)

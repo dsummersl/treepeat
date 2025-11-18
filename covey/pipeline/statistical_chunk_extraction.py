@@ -84,19 +84,33 @@ def _analyze_chunks(chunks: list[Node], file_lines: int) -> ChunkStats:
 def _filter_by_frequency(
     stats: ChunkStats,
     max_frequency_ratio: float = 0.3,
+    min_total_chunks: int = 10,
 ) -> list[Node]:
     """Filter out node types that appear too frequently.
 
     The intuition: If a node type appears many times (>30% of all chunks),
     it's probably too granular (like 'argument_list' or 'parameter').
 
+    Only applies when total_chunks >= min_total_chunks to avoid filtering
+    everything when there are very few chunks.
+
     Args:
         stats: Chunk statistics
         max_frequency_ratio: Maximum ratio of chunks that can be same type
+        min_total_chunks: Minimum total chunks before applying frequency filter
 
     Returns:
         Filtered list of chunks
     """
+    # Don't apply frequency filter if there are too few chunks
+    if stats.total_chunks < min_total_chunks:
+        logger.debug(
+            "Skipping frequency filter: only %d chunks (need %d)",
+            stats.total_chunks,
+            min_total_chunks,
+        )
+        return [chunk for chunks in stats.chunks_by_type.values() for chunk in chunks]
+
     filtered_chunks = []
 
     for node_type, chunks in stats.chunks_by_type.items():
