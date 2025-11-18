@@ -31,9 +31,14 @@ def _configure_settings(
     min_lines: int,
     ignore: str,
     ignore_files: str,
+    ignore_node_types: str,
 ) -> None:
     """Configure pipeline settings."""
-    lsh_settings = LSHSettings(similarity_percent=similarity_percent / 100.0, min_lines=min_lines)
+    lsh_settings = LSHSettings(
+        similarity_percent=similarity_percent / 100.0,
+        min_lines=min_lines,
+        ignore_node_types=_parse_patterns(ignore_node_types),
+    )
 
     settings = PipelineSettings(
         rules=_create_rules_settings(ruleset),
@@ -344,6 +349,13 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     default=False,
     help="Exit with error code 1 if any similar blocks are detected",
 )
+@click.option(
+    "--ignore-node-types",
+    "-int",
+    type=str,
+    default="",
+    help="Comma-separated list of AST node types to ignore during region extraction (e.g., 'parameters,argument_list')",
+)
 def detect(
     ctx: click.Context,
     path: Path,
@@ -355,6 +367,7 @@ def detect(
     ignore_files: str,
     diff: bool,
     fail: bool,
+    ignore_node_types: str,
 ) -> None:
     """Detect similar code regions of files in a path."""
     log_level = ctx.obj["log_level"]
@@ -366,6 +379,7 @@ def detect(
         min_lines,
         ignore,
         ignore_files,
+        ignore_node_types,
     )
     result = _run_pipeline_with_ui(path, output_format)
     _check_result_errors(result, output_format)

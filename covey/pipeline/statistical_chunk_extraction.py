@@ -3,6 +3,7 @@ from collections import Counter
 from dataclasses import dataclass
 from tree_sitter import Node
 
+from covey.config import get_settings
 from covey.models.ast import ParsedFile
 from covey.pipeline.region_extraction import ExtractedRegion
 from covey.pipeline.auto_chunk_extraction import (
@@ -213,6 +214,35 @@ def _filter_by_size_range(
     return filtered
 
 
+def _filter_by_ignored_types(
+    chunks: list[Node],
+    ignore_node_types: list[str],
+) -> list[Node]:
+    """Filter out chunks whose node type is in the ignore list.
+
+    Args:
+        chunks: List of chunk nodes
+        ignore_node_types: List of node type names to filter out
+
+    Returns:
+        Filtered list of chunks
+    """
+    if not ignore_node_types:
+        return chunks
+
+    filtered = [chunk for chunk in chunks if chunk.type not in ignore_node_types]
+
+    if len(filtered) < len(chunks):
+        ignored_count = len(chunks) - len(filtered)
+        logger.debug(
+            "Ignored %d chunks with types: %s",
+            ignored_count,
+            ", ".join(ignore_node_types),
+        )
+
+    return filtered
+
+
 def _apply_statistical_filters(
     chunks: list[Node],
     stats: ChunkStats,
@@ -280,6 +310,15 @@ def extract_chunks_statistical(
         return []
 
     logger.debug("Initial chunks: %d", len(all_chunks))
+
+    # Filter out ignored node types early
+    settings = get_settings()
+    if settings.lsh.ignore_node_types:
+        all_chunks = _filter_by_ignored_types(all_chunks, settings.lsh.ignore_node_types)
+        if not all_chunks:
+            logger.info("All chunks filtered out by ignore_node_types for %s", parsed_file.path)
+            return []
+        logger.debug("After ignoring types: %d chunks", len(all_chunks))
 
     # Analyze statistics
     file_lines = _calculate_node_lines(parsed_file.root_node)
