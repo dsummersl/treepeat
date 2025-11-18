@@ -24,8 +24,8 @@ class DuplicationTester:
         self.codebases_dir = base_dir / "codebases"
         self.results_dir = base_dir / "results"
         self.reports_dir = base_dir / "reports"
-        self.covey_root = base_dir.parent  # covey is one level up
-        self.ruleset = ruleset  # Store the ruleset to use for covey
+        self.treepeat_root = base_dir.parent  # treepeat is one level up
+        self.ruleset = ruleset  # Store the ruleset to use for treepeat
 
         for directory in [self.codebases_dir, self.results_dir, self.reports_dir]:
             directory.mkdir(parents=True, exist_ok=True)
@@ -83,24 +83,24 @@ class DuplicationTester:
                     pass
         return total_lines
 
-    def run_covey(self, repo_path: Path, codebase_name: str, language: str) -> dict[str, Any]:
-        """Run covey on a codebase."""
-        print(f"    Running covey on {codebase_name}...")
-        output_dir = self.results_dir / f"{codebase_name}_covey"
+    def run_treepeat(self, repo_path: Path, codebase_name: str, language: str) -> dict[str, Any]:
+        """Run treepeat on a codebase."""
+        print(f"    Running treepeat on {codebase_name}...")
+        output_dir = self.results_dir / f"{codebase_name}_treepeat"
         output_dir.mkdir(exist_ok=True)
-        sarif_output_file = output_dir / 'covey-report.sarif'
+        sarif_output_file = output_dir / 'treepeat-report.sarif'
 
         start_time = time.time()
         try:
-            # Run covey using uv run with SARIF output
+            # Run treepeat using uv run with SARIF output
             # Use configured ruleset (default or none)
             result = subprocess.run(
-                ['uv', 'run', 'covey', '--log-level', 'ERROR', '--ruleset', self.ruleset,
+                ['uv', 'run', 'treepeat', '--log-level', 'ERROR', '--ruleset', self.ruleset,
                  'detect', str(repo_path), '--format', 'sarif', '--output', str(sarif_output_file)],
                 capture_output=True,
                 text=True,
                 timeout=300,
-                cwd=str(self.covey_root)
+                cwd=str(self.treepeat_root)
             )
             elapsed_time = time.time() - start_time
 
@@ -126,7 +126,7 @@ class DuplicationTester:
                         total_regions = 0
 
                     return {
-                        'tool': 'covey',
+                        'tool': 'treepeat',
                         'codebase': codebase_name,
                         'duration': elapsed_time,
                         'status': 'success',
@@ -149,7 +149,7 @@ class DuplicationTester:
                     duplicates_found += 1
 
             return {
-                'tool': 'covey',
+                'tool': 'treepeat',
                 'codebase': codebase_name,
                 'duration': elapsed_time,
                 'status': 'success_no_json',
@@ -160,7 +160,7 @@ class DuplicationTester:
 
         except subprocess.TimeoutExpired:
             return {
-                'tool': 'covey',
+                'tool': 'treepeat',
                 'codebase': codebase_name,
                 'duration': 300,
                 'status': 'timeout',
@@ -168,7 +168,7 @@ class DuplicationTester:
             }
         except Exception as e:
             return {
-                'tool': 'covey',
+                'tool': 'treepeat',
                 'codebase': codebase_name,
                 'duration': time.time() - start_time,
                 'status': 'error',
@@ -333,7 +333,7 @@ class DuplicationTester:
 
         # Run each tool
         tools = [
-            self.run_covey,
+            self.run_treepeat,
             self.run_jscpd,
             self.run_basic_hash_detector,
         ]
@@ -455,7 +455,7 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description='Run duplication detection tests')
     parser.add_argument('--ruleset', choices=['none', 'default'], default='none',
-                       help='Ruleset profile to use for covey (default: none)')
+                       help='Ruleset profile to use for treepeat (default: none)')
     args = parser.parse_args()
 
     base_dir = Path(__file__).parent

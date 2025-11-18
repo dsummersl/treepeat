@@ -3,9 +3,9 @@
 import logging
 from typing import Callable
 
-from covey.config import PipelineSettings
-from covey.pipeline.normalizers import Normalizer
-from covey.pipeline.normalizers.python import PythonImportNormalizer
+from treepeat.config import PipelineSettings
+from treepeat.pipeline.normalizers import Normalizer
+from treepeat.pipeline.normalizers.python import PythonImportNormalizer
 
 logger = logging.getLogger(__name__)
 
