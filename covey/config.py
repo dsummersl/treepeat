@@ -60,38 +60,16 @@ class LSHSettings(BaseSettings):
         description="Minimum number of lines for a match to be considered valid",
     )
 
-    # Window/stride settings for line matching (shingle-based windows)
-    # A typical line of code generates ~5-10 shingles depending on AST depth
-    # So window_size=100 ≈ 10-20 lines of code
-    window_size: int = Field(
-        default=100,
-        ge=1,
-        description="Size of sliding window in number of shingles for line-based similarity detection",
-    )
-
-    stride: int = Field(
-        default=25,
-        ge=1,
-        description="Stride (step size) for sliding window in number of shingles",
-    )
-
-    # Internal thresholds (not exposed as environment variables or CLI options)
-    # Region matching uses higher thresholds for exact matches
+    # Internal thresholds for region matching
     region_threshold: float = 0.5
     region_min_similarity: float = 0.9
-
-    # Line matching uses moderate threshold to find similar windows, then filters after merging
-    line_threshold: float = 0.7
-    line_min_similarity: float = 0.5
 
     def __init__(self, threshold: float | None = None, **data: Any) -> None:
         """Initialize LSH settings, optionally overriding thresholds with a single value."""
         # If threshold is provided, use it for all thresholds (backward compatibility)
         if threshold is not None:
             data.setdefault('region_threshold', threshold)
-            data.setdefault('line_threshold', threshold)
             data.setdefault('region_min_similarity', threshold)
-            data.setdefault('line_min_similarity', threshold)
         super().__init__(**data)
 
 

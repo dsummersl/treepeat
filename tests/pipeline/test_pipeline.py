@@ -73,7 +73,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
         # TODO this is clearly wrong for CSS - this has to do with WINDOW_OFFSET_LIMITATION.md
         ("none", css_fixtures, 100, 0, []),
         ("none", class_with_methods_file, 0.1, 1, []),
-        ("none", class_with_methods_file, 0.9, 3, []),
+        ("none", class_with_methods_file, 0.9, 2, []),  # Region-only matching with high threshold finds 2 groups
         ("default", class_with_methods_file, 0.1, 1, []),
         ("default", class_with_methods_file, 0.3, 2, []),
         ("default", class_with_methods_file, 0.5, 3, [(classA_region, classB_region)]),
@@ -81,7 +81,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             "none",
             python_fixtures,
             0.7,
-            8,  # Updated: group merging reduces overlapping window groups
+            5,  # Region-only matching (line-level matching removed)
             [
                 # Cross-file duplicate functions
                 (
@@ -120,7 +120,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             "none",
             python_fixtures,
             0.8,
-            7,  # Updated: accurate line ranges find more granular window matches
+            4,  # Region-only matching (line-level matching removed)
             [
                 # Cross-file duplicate functions
                 (
@@ -164,7 +164,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             "none",
             python_fixtures,
             0.9,
-            6,  # Updated: group merging combines overlapping window groups
+            4,  # Region-only matching (line-level matching removed)
             [
                 # Cross-file duplicate functions
                 (
@@ -207,9 +207,7 @@ def test_match_counts(ruleset, path, threshold, similar_groups, expected_regions
             minhash=MinHashSettings(),
             lsh=LSHSettings(
                 region_threshold=threshold,
-                line_threshold=threshold,
                 region_min_similarity=threshold,
-                line_min_similarity=threshold,
             ),
         )
     )

@@ -4,19 +4,17 @@ from pathlib import Path
 from covey.config import PipelineSettings, get_settings
 from covey.models.ast import ParsedFile, ParseResult
 from covey.models.shingle import ShingledRegion
-from covey.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
+from covey.models.similarity import RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
 from covey.pipeline.lsh_stage import detect_similarity
 from covey.pipeline.minhash_stage import compute_region_signatures
 from covey.pipeline.parse import parse_path
 from covey.pipeline.region_extraction import (
     ExtractedRegion,
-    create_unmatched_regions,
     extract_all_regions,
 )
-from covey.pipeline.boundary_detection import merge_similar_window_groups
 from covey.pipeline.rules.engine import RuleEngine
 from covey.pipeline.rules_factory import build_rule_engine
-from covey.pipeline.shingle import shingle_regions, create_shingle_windows
+from covey.pipeline.shingle import shingle_regions
 
 logger = logging.getLogger(__name__)
 
@@ -90,14 +88,6 @@ def _filter_pairs_by_min_lines(
     return filtered
 
 
-def _get_matched_regions_from_groups(groups: list[SimilarRegionGroup]) -> list[Region]:
-    """Extract all matched regions from similar groups."""
-    matched_regions: list[Region] = []
-    for group in groups:
-        matched_regions.extend(group.regions)
-    return matched_regions
-
-
 def _run_shingle_stage(
     extracted_regions: list[ExtractedRegion],
     parsed_files: list[ParsedFile],
@@ -156,24 +146,6 @@ def _run_lsh_stage(
     return similarity_result
 
 
-def _filter_file_type_regions(extracted_regions: list[ExtractedRegion]) -> list[ExtractedRegion]:
-    """Filter out 'file' type regions that should use line matching instead.
-
-    Args:
-        extracted_regions: All extracted regions
-
-    Returns:
-        Only code regions (functions, classes, etc.) excluding file-type regions
-    """
-    code_regions = [r for r in extracted_regions if r.region.region_type != "file"]
-    file_type_count = len(extracted_regions) - len(code_regions)
-
-    if file_type_count > 0:
-        logger.info("Skipping %d 'file' type region(s) - will process with line matching", file_type_count)
-
-    return code_regions
-
-
 def _filter_regions_by_min_lines(
     regions: list[ExtractedRegion], min_lines: int
 ) -> list[ExtractedRegion]:
@@ -206,25 +178,24 @@ def _run_region_matching(
     settings: PipelineSettings,
 ) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
     """Run region matching for functions and classes."""
-    logger.info("===== REGION MATCHING: Functions and Classes =====")
+    logger.info("===== REGION MATCHING =====")
 
-    # Extract and filter regions
-    all_extracted = _run_extract_stage(parsed_files, rule_engine)
-    region_regions = _filter_file_type_regions(all_extracted)
+    # Extract regions
+    extracted_regions = _run_extract_stage(parsed_files, rule_engine)
 
-    # If no code regions, skip region matching entirely
-    if not region_regions:
-        logger.info("No code regions found, skipping region matching")
+    # If no regions, skip region matching entirely
+    if not extracted_regions:
+        logger.info("No regions found, skipping region matching")
         return [], []
 
     # Filter out regions that are too short before processing
-    region_regions = _filter_regions_by_min_lines(region_regions, settings.lsh.min_lines)
-    if not region_regions:
+    extracted_regions = _filter_regions_by_min_lines(extracted_regions, settings.lsh.min_lines)
+    if not extracted_regions:
         logger.info("No regions above min_lines threshold, skipping region matching")
         return [], []
 
-    # Shingle region regions
-    region_shingled = _run_shingle_stage(region_regions, parsed_files, rule_engine, settings)
+    # Shingle regions
+    region_shingled = _run_shingle_stage(extracted_regions, parsed_files, rule_engine, settings)
 
     # MinHash region
     region_signatures = _run_minhash_stage(region_shingled, settings.minhash.num_perm)
@@ -252,85 +223,10 @@ def _run_region_matching(
     return region_filtered_groups, region_signatures
 
 
-def _run_line_matching(
-    parsed_files: list[ParsedFile],
-    region_filtered_groups: list[SimilarRegionGroup],
-    rule_engine: RuleEngine,
-    settings: PipelineSettings,
-) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
-    """Run line matching for unmatched sections using shingle-based sliding windows.
-
-    This builds windows from the remaining shingles that were not matched
-    by the region matching process that preceded it.
-    """
-    logger.info("===== LINE MATCHING: Unmatched Sections =====")
-
-    # Track matched regions from region matching
-    region_matched_regions = _get_matched_regions_from_groups(region_filtered_groups)
-    logger.info("Tracked %d matched regions from region matching", len(region_matched_regions))
-
-    # Step 1: Create regions for unmatched sections (one region per unmatched range)
-    # Use treesitter-based approach: pass matched regions directly instead of line ranges
-    unmatched_regions = create_unmatched_regions(
-        parsed_files,
-        region_matched_regions,
-        settings.lsh.min_lines,
-    )
-
-    if len(unmatched_regions) == 0:
-        logger.info("No unmatched sections found for line matching, skipping")
-        return [], []
-
-    # Step 2: Shingle the unmatched regions to get their shingles
-    logger.info("Shingling %d unmatched region(s)...", len(unmatched_regions))
-    unmatched_shingled = _run_shingle_stage(unmatched_regions, parsed_files, rule_engine, settings)
-
-    # Step 3: Create sliding windows from the shingles (not from line ranges)
-    # This builds windows from the remaining shingles, as intended
-    logger.info("Creating sliding windows from shingles (window_size=%d, stride=%d)...",
-                settings.lsh.window_size, settings.lsh.stride)
-    # Estimate min_shingles from min_lines (rough heuristic: 1 line ≈ k shingles)
-    min_shingles = max(1, settings.lsh.min_lines // settings.shingle.k)
-    windowed_shingled = create_shingle_windows(
-        unmatched_shingled,
-        window_size=settings.lsh.window_size,
-        stride=settings.lsh.stride,
-        min_shingles=min_shingles,
-    )
-
-    if len(windowed_shingled) == 0:
-        logger.info("No valid shingle windows created, skipping line matching")
-        return [], []
-
-    # Step 4: MinHash and LSH on shingle windows
-    line_signatures = _run_minhash_stage(windowed_shingled, settings.minhash.num_perm)
-    line_result = _run_lsh_stage(
-        line_signatures,
-        windowed_shingled,
-        settings.lsh.line_threshold,
-        settings.lsh.line_min_similarity,
-        {},
-    )
-
-    # Merge overlapping windows to find clean boundaries
-    if len(line_result.similar_groups) > 0:
-        logger.info("Merging %d overlapping window groups to find boundaries", len(line_result.similar_groups))
-        merged_groups = merge_similar_window_groups(line_result.similar_groups)
-    else:
-        merged_groups = line_result.similar_groups
-
-    # Filter by min_lines after merging
-    line_filtered_groups = _filter_groups_by_min_lines(merged_groups, settings.lsh.min_lines)
-    logger.info("Line matching complete: %d groups after merging and filtering (was %d windows in %d groups)",
-                len(line_filtered_groups), len(line_result.similar_groups), len(line_result.similar_groups))
-
-    return line_filtered_groups, line_signatures
-
-
 def run_pipeline(target_path: str | Path) -> SimilarityResult:
-    """Run the full two-stage pipeline on a target path."""
+    """Run the similarity detection pipeline on a target path."""
     settings = get_settings()
-    logger.info("Starting two-stage pipeline for: %s (min_lines=%d)", target_path, settings.lsh.min_lines)
+    logger.info("Starting pipeline for: %s (min_lines=%d)", target_path, settings.lsh.min_lines)
 
     if isinstance(target_path, str):
         target_path = Path(target_path)
@@ -343,28 +239,17 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
         logger.warning("No files successfully parsed, returning empty result")
         return SimilarityResult(failed_files=parse_result.failed_files)
 
-    # Run Region Matching (functions/classes)
-    region_filtered_groups, region_signatures = _run_region_matching(
+    # Run Region Matching
+    similar_groups, signatures = _run_region_matching(
         parse_result.parsed_files, rule_engine, settings
     )
 
-    # Run Line Matching (unmatched sections)
-    line_filtered_groups, line_signatures = _run_line_matching(
-        parse_result.parsed_files, region_filtered_groups, rule_engine, settings
-    )
-
-    # Combine results
-    all_groups = region_filtered_groups + line_filtered_groups
-    all_signatures = region_signatures + line_signatures if line_signatures else region_signatures
-    logger.info("Combined results: %d total groups (%d from region matching, %d from line matching)",
-                len(all_groups), len(region_filtered_groups), len(line_filtered_groups))
-
     # Create final result
     final_result = SimilarityResult(
-        signatures=all_signatures,
-        similar_groups=all_groups,
+        signatures=signatures,
+        similar_groups=similar_groups,
         failed_files=parse_result.failed_files,
     )
 
-    logger.info("Pipeline complete")
+    logger.info("Pipeline complete: %d groups found", len(similar_groups))
     return final_result
