@@ -287,7 +287,7 @@ def _collect_candidate_groups(
 
 def find_similar_groups(
     signatures: list[RegionSignature],
-    threshold: float = 0.5,
+    threshold: float
 ) -> list[SimilarRegionGroup]:
     """Find similar region groups using LSH."""
     if len(signatures) < 2:
@@ -310,14 +310,6 @@ def find_similar_groups(
     )
 
     return groups
-
-
-def _should_verify_groups(
-    shingled_regions: list[ShingledRegion] | None,
-    candidate_groups: list[SimilarRegionGroup],
-) -> bool:
-    """Check if candidate groups should be verified."""
-    return shingled_regions is not None and len(candidate_groups) > 0
 
 
 def _verify_and_filter_groups(
@@ -344,23 +336,17 @@ def _verify_and_filter_groups(
 
 def detect_similarity(
     signatures: list[RegionSignature],
-    threshold: float = 0.5,
-    min_similarity: float | None = None,
-    failed_files: dict[Path, str] | None = None,
-    shingled_regions: list[ShingledRegion] | None = None,
+    threshold: float,
+    min_similarity: float,
+    failed_files: dict[Path, str],
+    shingled_regions: list[ShingledRegion],
 ) -> SimilarityResult:
     """Detect similar regions using LSH. """
-    # Use threshold as min_similarity if not specified
-    if min_similarity is None:
-        min_similarity = threshold
+    candidate_groups = find_similar_groups(signatures, threshold)
 
-    # Find groups of similar regions
-    candidate_groups = find_similar_groups(signatures, threshold=threshold)
-
-    # Verify groups using order-sensitive similarity if requested
-    if _should_verify_groups(shingled_regions, candidate_groups):
+    if len(candidate_groups) > 0:
         similar_groups = _verify_and_filter_groups(
-            candidate_groups, shingled_regions, min_similarity  # type: ignore
+            candidate_groups, shingled_regions, min_similarity
         )
     else:
         similar_groups = candidate_groups

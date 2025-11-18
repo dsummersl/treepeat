@@ -41,7 +41,7 @@ def test_dissimilar_files():
     )
 
     signatures = compute_region_signatures(shingled_regions)
-    result = detect_similarity(signatures, threshold=0.5)
+    result = detect_similarity(signatures, 0.5, 0.6, {}, shingled_regions)
     assert len(result.similar_groups) == 0
 
 

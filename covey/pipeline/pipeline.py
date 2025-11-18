@@ -200,7 +200,6 @@ def _run_region_matching(
     # MinHash region
     region_signatures = _run_minhash_stage(region_shingled, settings.minhash.num_perm)
 
-    # LSH region - use higher threshold for region matching
     region_result = _run_lsh_stage(
         region_signatures,
         region_shingled,
