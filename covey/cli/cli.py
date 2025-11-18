@@ -39,7 +39,7 @@ def main(
     log_level: str,
     ruleset: str,
 ) -> None:
-    """Tree-sitter based similarity detection tool."""
+    """Tree-sitter based similarity detector."""
     setup_logging(log_level.upper())
 
     # Store common options in context for subcommands

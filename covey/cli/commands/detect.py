@@ -354,7 +354,7 @@ def detect(
     diff: bool,
     strict: bool,
 ) -> None:
-    """Detect similar code regions (default command)."""
+    """Detect similar code regions of files in a path."""
     log_level = ctx.obj["log_level"]
     ruleset = ctx.obj["ruleset"]
 

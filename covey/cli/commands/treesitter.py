@@ -286,10 +286,10 @@ def treesitter(
     file: Path,
     transformed: bool,
 ) -> None:
-    """Show file with side-by-side view of original source and tree-sitter tokens.
+    """Show a file's tree-sitter view after ruleset is applied.
 
-    This command displays the original source code on the left and the normalized
-    tree-sitter token representations on the right (or transformed source with --transformed),
+    This command displays the original source code on the left and the
+    tree-sitter token representations on the right,
     showing how the code is transformed during similarity detection.
     """
     from covey.config import get_settings
