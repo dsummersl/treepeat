@@ -1,6 +1,6 @@
-# Covey - finding groups of similar code
+# Treepeat - finding groups of similar code
 
-`covey` is a CLI tool that detects similar code using treesitter AST analysis with locality-sensitive hashing:
+`treepeat` is a CLI tool that detects similar code using treesitter AST analysis with locality-sensitive hashing:
 - Find **duplicate** code blocks meaningful to the language (classes/functions), not just lines.
 - near-duplicates
 - structurally similar text.
@@ -22,16 +22,16 @@ Key flags:
 
 ```bash
 # Find exact duplicates
-covey detect /path/to/codebase
+treepeat detect /path/to/codebase
 
 # Find near-duplicates with 80% similarity threshold
-covey detect --similarity 80 /path/to/codebase
+treepeat detect --similarity 80 /path/to/codebase
 
 # Show diffs between similar blocks and use loose ruleset
-covey --ruleset loose detect --diff --min-lines 10 /path/to/codebase
+treepeat --ruleset loose detect --diff --min-lines 10 /path/to/codebase
 
 # Output results in SARIF format for CI tools
-covey detect --format sarif -o results.sarif /path/to/codebase
+treepeat detect --format sarif -o results.sarif /path/to/codebase
 ```
 
 ### Other sub commands
@@ -42,7 +42,7 @@ List all rules in a ruleset, along with their descriptions. Use `--language` to 
 
 #### treesitter
 
-Display how covey normalizes source code into tree-sitter tokens for similarity detection -- helpful for debugging why a certain section of a file might be similar to another. Shows the original source code side-by-side with the normalized token representation.
+Display how treepeat normalizes source code into tree-sitter tokens for similarity detection -- helpful for debugging why a certain section of a file might be similar to another. Shows the original source code side-by-side with the normalized token representation.
 
 ## Dev setup
 
@@ -53,7 +53,7 @@ make test
 
 ## Benchmarks
 
-covey includes a testing framework for comparing duplication detection tools against real-world codebases.
+treepeat includes a testing framework for comparing duplication detection tools against real-world codebases.
 
 ```bash
 # Run all benchmark tests

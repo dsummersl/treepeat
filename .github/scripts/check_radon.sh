@@ -6,7 +6,7 @@ set -u
 set -e
 
 echo "Radon Cyclomatic Complexity below grade A:"
-PACKAGE="covey"
+PACKAGE="treepeat"
 CC_COMMAND="uv run radon cc -n B ${PACKAGE}"
 CC=$($CC_COMMAND)
 

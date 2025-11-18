@@ -134,57 +134,6 @@ toml = [
 ]
 
 [[package]]
-name = "covey"
-version = "0.0.1+slop"
-source = { editable = "." }
-dependencies = [
-    { name = "click" },
-    { name = "datasketch" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "python-magic" },
-    { name = "rich" },
-    { name = "sarif-pydantic" },
-    { name = "tdqm" },
-    { name = "tree-sitter" },
-    { name = "tree-sitter-language-pack" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "radon" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.3.0" },
-    { name = "datasketch", specifier = ">=1.6.5" },
-    { name = "pydantic", specifier = ">=2.12.3" },
-    { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "python-magic", specifier = ">=0.4.27" },
-    { name = "rich", specifier = ">=14.2.0" },
-    { name = "sarif-pydantic", specifier = ">=0.6.2" },
-    { name = "tdqm", specifier = ">=0.0.1" },
-    { name = "tree-sitter", specifier = ">=0.25.2" },
-    { name = "tree-sitter-language-pack", specifier = ">=0.10.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.10" },
-    { name = "pre-commit", specifier = ">=3.7" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "pytest-cov", specifier = ">=6" },
-    { name = "radon", specifier = ">=6.0.1" },
-    { name = "ruff", specifier = ">=0.5" },
-]
-
-[[package]]
 name = "datasketch"
 version = "1.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1006,6 +955,57 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/6c/e7/9525defa7b30792623f56b1fba9bbba361752348875b165b8975b87398fd/tree_sitter_yaml-0.7.2-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:74ca712c50fc9d7dbc68cb36b4a7811d6e67a5466b5a789f19bf8dd6084ef752", size = 90455, upload-time = "2025-10-07T14:40:33.778Z" },
     { url = "https://files.pythonhosted.org/packages/4a/d6/8d1e1ace03db3b02e64e91daf21d1347941d1bbecc606a5473a1a605250d/tree_sitter_yaml-0.7.2-cp310-abi3-win_amd64.whl", hash = "sha256:7587b5ca00fc4f9a548eff649697a3b395370b2304b399ceefa2087d8a6c9186", size = 45514, upload-time = "2025-10-07T14:40:34.562Z" },
     { url = "https://files.pythonhosted.org/packages/d8/c7/dcf3ea1c4f5da9b10353b9af4455d756c92d728a8f58f03c480d3ef0ead5/tree_sitter_yaml-0.7.2-cp310-abi3-win_arm64.whl", hash = "sha256:f63c227b18e7ce7587bce124578f0bbf1f890ac63d3e3cd027417574273642c4", size = 44065, upload-time = "2025-10-07T14:40:35.337Z" },
+]
+
+[[package]]
+name = "treepeat"
+version = "0.0.1"
+source = { editable = "." }
+dependencies = [
+    { name = "click" },
+    { name = "datasketch" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "python-magic" },
+    { name = "rich" },
+    { name = "sarif-pydantic" },
+    { name = "tdqm" },
+    { name = "tree-sitter" },
+    { name = "tree-sitter-language-pack" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "radon" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.3.0" },
+    { name = "datasketch", specifier = ">=1.6.5" },
+    { name = "pydantic", specifier = ">=2.12.3" },
+    { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "python-magic", specifier = ">=0.4.27" },
+    { name = "rich", specifier = ">=14.2.0" },
+    { name = "sarif-pydantic", specifier = ">=0.6.2" },
+    { name = "tdqm", specifier = ">=0.0.1" },
+    { name = "tree-sitter", specifier = ">=0.25.2" },
+    { name = "tree-sitter-language-pack", specifier = ">=0.10.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pre-commit", specifier = ">=3.7" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-cov", specifier = ">=6" },
+    { name = "radon", specifier = ">=6.0.1" },
+    { name = "ruff", specifier = ">=0.5" },
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 from ..conftest import parsed_fixture, fixture_path1, fixture_path2, default_rule_engine
-from covey.pipeline.region_extraction import extract_all_regions
-from covey.pipeline.rules.engine import RuleEngine
-from covey.pipeline.shingle import shingle_regions
+from treepeat.pipeline.region_extraction import extract_all_regions
+from treepeat.pipeline.rules.engine import RuleEngine
+from treepeat.pipeline.shingle import shingle_regions
 
 
 def test_shingle_regions_basic():

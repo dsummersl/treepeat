@@ -6,7 +6,7 @@ from ..conftest import (
     fixture_class_methods,
     default_rule_engine,
 )
-from covey.pipeline.region_extraction import extract_all_regions
+from treepeat.pipeline.region_extraction import extract_all_regions
 
 
 def test_extract_regions_dataclass1():

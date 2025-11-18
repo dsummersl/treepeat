@@ -5,7 +5,7 @@
 let g:gutentags_ctags_exclude += ['*/.venv/*', '*/benchmark-tests/*']
 let g:projectionist_heuristics = {
       \ 'pyproject.toml': {
-      \   'covey/*.py': {
+      \   'treepeat/*.py': {
       \     'type': 'function',
       \     'alternate': [
       \       'tests/{dirname}test_{basename}.py',
@@ -15,8 +15,8 @@ let g:projectionist_heuristics = {
       \   'tests/**/test_*.py': {
       \     'type': 'test',
       \     'alternate': [
-      \       'covey/{dirname}{basename}.py',
-      \       'covey/{dirname}/{basename}.py',
+      \       'treepeat/{dirname}{basename}.py',
+      \       'treepeat/{dirname}/{basename}.py',
       \     ]
       \   },
       \ },

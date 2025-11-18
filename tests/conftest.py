@@ -1,8 +1,8 @@
 from pathlib import Path
 from tree_sitter_language_pack import get_parser
-from covey.models.ast import ParsedFile
-from covey.models.similarity import Region, SimilarRegionGroup, SimilarityResult
-from covey.pipeline.rules.engine import RuleEngine, build_default_rules
+from treepeat.models.ast import ParsedFile
+from treepeat.models.similarity import Region, SimilarRegionGroup, SimilarityResult
+from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules
 
 
 # Legacy fixture paths (for backward compatibility)

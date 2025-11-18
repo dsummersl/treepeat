@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import parse_fixture
-from covey.pipeline.languages.javascript import JavaScriptConfig
-from covey.pipeline.region_extraction import extract_all_regions
-from covey.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
+from treepeat.pipeline.languages.javascript import JavaScriptConfig
+from treepeat.pipeline.region_extraction import extract_all_regions
+from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
 
 # Fixture path

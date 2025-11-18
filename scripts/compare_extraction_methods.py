@@ -13,12 +13,12 @@ from rich.table import Table
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from covey.pipeline.parse import parse_files
-from covey.pipeline.region_extraction import extract_regions
-from covey.pipeline.auto_chunk_extraction import extract_chunks
-from covey.pipeline.statistical_chunk_extraction import extract_chunks_statistical
-from covey.pipeline.rules.engine import RuleEngine, build_default_rules
-from covey.models.ast import ParseResult
+from treepeat.pipeline.parse import parse_files
+from treepeat.pipeline.region_extraction import extract_regions
+from treepeat.pipeline.auto_chunk_extraction import extract_chunks
+from treepeat.pipeline.statistical_chunk_extraction import extract_chunks_statistical
+from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules
+from treepeat.models.ast import ParseResult
 
 
 def compare_extractions(file_paths: list[str], min_lines: int = 5):

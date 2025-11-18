@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from covey.models.similarity import Region, SimilarRegionGroup, SimilarityResult
+from treepeat.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 from ..conftest import parsed_fixture, assert_regions_in_same_group
 import pytest
 
-from covey.config import (
+from treepeat.config import (
     LSHSettings,
     MinHashSettings,
     PipelineSettings,
@@ -12,11 +12,11 @@ from covey.config import (
     ShingleSettings,
     set_settings,
 )
-from covey.pipeline.lsh_stage import detect_similarity
-from covey.pipeline.minhash_stage import compute_region_signatures
-from covey.pipeline.pipeline import run_pipeline
-from covey.pipeline.region_extraction import extract_all_regions
-from covey.pipeline.shingle import shingle_regions
+from treepeat.pipeline.lsh_stage import detect_similarity
+from treepeat.pipeline.minhash_stage import compute_region_signatures
+from treepeat.pipeline.pipeline import run_pipeline
+from treepeat.pipeline.region_extraction import extract_all_regions
+from treepeat.pipeline.shingle import shingle_regions
 from ..conftest import default_rule_engine
 
 
