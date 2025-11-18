@@ -9,6 +9,12 @@ Helpers: This is very much an proof of concept - I'm happy with it, but I haven'
 
 ## Usage
 
+### Installation
+
+```sh
+pip insteall treepeat
+```
+
 ### detect
 
 Scan a codebase for similar or duplicate code blocks using tree-sitter AST analysis and locality-sensitive hashing.
