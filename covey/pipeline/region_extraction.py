@@ -2,7 +2,6 @@
 
 import logging
 from dataclasses import dataclass
-from pathlib import Path
 
 from pydantic import BaseModel, Field
 from tree_sitter import Node

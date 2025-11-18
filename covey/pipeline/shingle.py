@@ -1,7 +1,6 @@
 import logging
 from collections import deque
 from pathlib import Path
-from typing import Sequence
 
 from tree_sitter import Node
 

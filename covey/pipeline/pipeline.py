@@ -4,7 +4,7 @@ from pathlib import Path
 from covey.config import PipelineSettings, get_settings
 from covey.models.ast import ParsedFile, ParseResult
 from covey.models.shingle import ShingledRegion
-from covey.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
+from covey.models.similarity import RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
 from covey.pipeline.lsh_stage import detect_similarity
 from covey.pipeline.minhash_stage import compute_region_signatures
 from covey.pipeline.parse import parse_path
