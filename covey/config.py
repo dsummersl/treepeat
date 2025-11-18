@@ -51,8 +51,8 @@ class RegionSettings(BaseSettings):
     )
 
     extraction_method: str = Field(
-        default="explicit",
-        description="Region extraction method: 'explicit' (rule-based), 'naive' (auto-chunk), or 'statistical' (auto-chunk with filtering)",
+        default="hybrid",
+        description="Region extraction method: 'explicit' (rule-based only), 'statistical' (auto-chunk only), 'hybrid' (both combined - recommended)",
     )
 
 

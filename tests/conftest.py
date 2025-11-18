@@ -1,8 +1,10 @@
 from pathlib import Path
+import pytest
 from tree_sitter_language_pack import get_parser
 from covey.models.ast import ParsedFile
 from covey.models.similarity import Region, SimilarRegionGroup, SimilarityResult
 from covey.pipeline.rules.engine import RuleEngine, build_default_rules
+from covey.config import get_settings, set_settings, PipelineSettings
 
 
 # Legacy fixture paths (for backward compatibility)
@@ -52,3 +54,24 @@ def default_rule_engine():
     """Create a default rule engine for tests."""
     rules = [rule for rule, _ in build_default_rules()]
     return RuleEngine(rules)
+
+
+@pytest.fixture(autouse=True)
+def use_explicit_extraction():
+    """Force all tests to use explicit extraction mode for backward compatibility.
+
+    This ensures tests continue to work with their expected behavior.
+    Individual tests can override by setting REGION_extraction_method env var.
+    """
+    # Save current settings
+    original_settings = get_settings()
+
+    # Create new settings with explicit extraction
+    test_settings = PipelineSettings()
+    test_settings.region.extraction_method = "explicit"
+    set_settings(test_settings)
+
+    yield
+
+    # Restore original settings
+    set_settings(original_settings)
