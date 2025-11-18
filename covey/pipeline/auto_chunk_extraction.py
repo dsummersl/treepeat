@@ -1,16 +1,3 @@
-"""Auto-chunk extraction: Language-agnostic bottom-up region discovery.
-
-This module implements an alternative to explicit RegionExtractionRules by
-automatically discovering chunks through depth-first traversal. Chunks are
-the SMALLEST nodes that meet the min_lines threshold and have no children
-that also meet the threshold (leaf chunks).
-
-This approach is:
-- Language-agnostic: Works for any tree-sitter grammar
-- Adaptive: Finds natural boundaries based on code structure
-- Zero-maintenance: No per-language rules needed
-"""
-
 import logging
 from tree_sitter import Node
 

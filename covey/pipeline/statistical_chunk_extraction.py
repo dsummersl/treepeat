@@ -1,14 +1,3 @@
-"""Statistical chunk extraction: Auto-chunking with smart filtering.
-
-This module extends auto-chunking with statistical heuristics to filter out
-noise and find semantically meaningful chunks without language-specific rules.
-
-Key ideas:
-1. Frequency filtering: Rare node types are more meaningful than common ones
-2. Size filtering: Chunks should be in a "sweet spot" relative to file size
-3. Percentile filtering: Only keep larger chunks above a threshold
-"""
-
 import logging
 from collections import Counter
 from dataclasses import dataclass
