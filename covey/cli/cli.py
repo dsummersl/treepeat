@@ -24,12 +24,14 @@ def setup_logging(log_level: str) -> None:
 @click.pass_context
 @click.option(
     "--log-level",
+    "-l",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
     default="WARNING",
     help="Set the logging level",
 )
 @click.option(
     "--ruleset",
+    "-r",
     type=click.Choice(["none", "default", "loose"], case_sensitive=False),
     default="default",
     help="Built-in ruleset profile to use (default: default)",

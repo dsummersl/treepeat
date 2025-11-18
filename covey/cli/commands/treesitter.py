@@ -276,6 +276,7 @@ def _display_file_side_by_side(parsed_file: Any, shingler: Any, show_transformed
 @click.argument("file", type=click.Path(exists=True, path_type=Path))
 @click.option(
     "--transformed",
+    "-t",
     is_flag=True,
     default=False,
     help="Show transformed source instead of tree-sitter tokens on the right side",

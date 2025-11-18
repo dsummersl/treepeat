@@ -27,17 +27,13 @@ def _create_rules_settings(ruleset: str) -> RulesSettings:
 
 def _configure_settings(
     ruleset: str,
-    threshold: float | None,
+    threshold: float,
     min_lines: int,
     ignore: str,
     ignore_files: str,
 ) -> None:
     """Configure pipeline settings."""
-    # Create LSH settings - if threshold is None, use internal defaults
-    if threshold is not None:
-        lsh_settings = LSHSettings(threshold=threshold, min_lines=min_lines)
-    else:
-        lsh_settings = LSHSettings(min_lines=min_lines)
+    lsh_settings = LSHSettings(threshold=threshold, min_lines=min_lines)
 
     settings = PipelineSettings(
         rules=_create_rules_settings(ruleset),
@@ -294,18 +290,21 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 @click.pass_context
 @click.option(
     "--threshold",
+    "-t",
     type=float,
-    default=None,
-    help="Filter threshold for similarity (default: uses ruleset-specific thresholds)",
+    default=1.0,
+    help="Filter threshold for similarity",
 )
 @click.option(
     "--min-lines",
+    "-ml",
     type=int,
     default=5,
-    help="Minimum number of lines for a match to be considered valid (default: 5)",
+    help="Minimum number of lines to be considered similar (default: 5)",
 )
 @click.option(
     "--format",
+    "-f",
     "output_format",
     type=click.Choice(["console", "sarif"], case_sensitive=False),
     default="console",
@@ -320,24 +319,28 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 )
 @click.option(
     "--ignore",
+    "-i",
     type=str,
     default="",
     help="Comma-separated list of glob patterns to ignore files (e.g., '*.test.py,**/node_modules/**')",
 )
 @click.option(
     "--ignore-files",
+    "-if",
     type=str,
     default="**/.*ignore",
     help="Comma-separated list of glob patterns to find ignore files (default: '**/.*ignore')",
 )
 @click.option(
     "--diff",
+    "-d",
     is_flag=True,
     default=False,
     help="Show side-by-side diff between the first two files in each similar group (console format only)",
 )
 @click.option(
     "--strict",
+    "-s",
     is_flag=True,
     default=False,
     help="Exit with error code 1 if any similar blocks are detected",
@@ -345,7 +348,7 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 def detect(
     ctx: click.Context,
     path: Path,
-    threshold: float | None,
+    threshold: float,
     min_lines: int,
     output_format: str,
     output: Path | None,
