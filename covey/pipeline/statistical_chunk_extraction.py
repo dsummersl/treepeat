@@ -82,6 +82,37 @@ def _analyze_chunks(chunks: list[Node], file_lines: int) -> ChunkStats:
     )
 
 
+def _get_all_chunks_from_stats(stats: ChunkStats) -> list[Node]:
+    """Extract all chunks from stats."""
+    return [chunk for chunks in stats.chunks_by_type.values() for chunk in chunks]
+
+
+def _process_node_type_for_frequency(
+    node_type: str,
+    chunks: list[Node],
+    total_chunks: int,
+    max_frequency_ratio: float,
+) -> list[Node]:
+    """Process a single node type for frequency filtering."""
+    frequency_ratio = len(chunks) / total_chunks
+    if frequency_ratio <= max_frequency_ratio:
+        logger.debug(
+            "Keeping node type '%s': %d chunks (%.1f%% frequency)",
+            node_type,
+            len(chunks),
+            frequency_ratio * 100,
+        )
+        return list(chunks)
+
+    logger.debug(
+        "Filtering out node type '%s': too frequent (%d chunks, %.1f%%)",
+        node_type,
+        len(chunks),
+        frequency_ratio * 100,
+    )
+    return []
+
+
 def _filter_by_frequency(
     stats: ChunkStats,
     max_frequency_ratio: float = 0.3,
@@ -110,27 +141,15 @@ def _filter_by_frequency(
             stats.total_chunks,
             min_total_chunks,
         )
-        return [chunk for chunks in stats.chunks_by_type.values() for chunk in chunks]
+        return _get_all_chunks_from_stats(stats)
 
     filtered_chunks = []
-
     for node_type, chunks in stats.chunks_by_type.items():
-        frequency_ratio = len(chunks) / stats.total_chunks
-        if frequency_ratio <= max_frequency_ratio:
-            filtered_chunks.extend(chunks)
-            logger.debug(
-                "Keeping node type '%s': %d chunks (%.1f%% frequency)",
-                node_type,
-                len(chunks),
-                frequency_ratio * 100,
+        filtered_chunks.extend(
+            _process_node_type_for_frequency(
+                node_type, chunks, stats.total_chunks, max_frequency_ratio
             )
-        else:
-            logger.debug(
-                "Filtering out node type '%s': too frequent (%d chunks, %.1f%%)",
-                node_type,
-                len(chunks),
-                frequency_ratio * 100,
-            )
+        )
 
     return filtered_chunks
 
@@ -268,6 +287,28 @@ def _apply_statistical_filters(
     return filtered
 
 
+def _apply_ignore_node_types_filter(chunks: list[Node], file_path: str) -> list[Node] | None:
+    """Apply ignore_node_types filter if configured. Returns None if all chunks filtered out."""
+    settings = get_settings()
+    if not settings.lsh.ignore_node_types:
+        return chunks
+
+    filtered = _filter_by_ignored_types(chunks, settings.lsh.ignore_node_types)
+    if not filtered:
+        logger.info("All chunks filtered out by ignore_node_types for %s", file_path)
+        return None
+
+    logger.debug("After ignoring types: %d chunks", len(filtered))
+    return filtered
+
+
+def _log_chunk_type_summary(regions: list[ExtractedRegion]) -> None:
+    """Log summary of region types found."""
+    type_counts = Counter(r.region.region_type for r in regions)
+    for node_type, count in type_counts.most_common():
+        logger.debug("  %s: %d chunks", node_type, count)
+
+
 def extract_chunks_statistical(
     parsed_file: ParsedFile,
     min_lines: int = 5,
@@ -304,7 +345,6 @@ def extract_chunks_statistical(
 
     # Collect all potential chunks
     all_chunks = _collect_all_chunks(parsed_file.root_node, min_lines)
-
     if not all_chunks:
         logger.info("No chunks found for %s", parsed_file.path)
         return []
@@ -312,19 +352,14 @@ def extract_chunks_statistical(
     logger.debug("Initial chunks: %d", len(all_chunks))
 
     # Filter out ignored node types early
-    settings = get_settings()
-    if settings.lsh.ignore_node_types:
-        all_chunks = _filter_by_ignored_types(all_chunks, settings.lsh.ignore_node_types)
-        if not all_chunks:
-            logger.info("All chunks filtered out by ignore_node_types for %s", parsed_file.path)
-            return []
-        logger.debug("After ignoring types: %d chunks", len(all_chunks))
+    filtered_chunks = _apply_ignore_node_types_filter(all_chunks, str(parsed_file.path))
+    if filtered_chunks is None:
+        return []
+    all_chunks = filtered_chunks
 
-    # Analyze statistics
+    # Analyze statistics and apply filters
     file_lines = _calculate_node_lines(parsed_file.root_node)
     stats = _analyze_chunks(all_chunks, file_lines)
-
-    # Apply filters
     chunks = _apply_statistical_filters(
         all_chunks, stats, max_frequency_ratio, min_percentile, min_file_ratio, max_file_ratio
     )
@@ -338,11 +373,7 @@ def extract_chunks_statistical(
         len(regions),
     )
 
-    # Log summary by node type
-    type_counts = Counter(r.region.region_type for r in regions)
-    for node_type, count in type_counts.most_common():
-        logger.debug("  %s: %d chunks", node_type, count)
-
+    _log_chunk_type_summary(regions)
     return regions
 
 

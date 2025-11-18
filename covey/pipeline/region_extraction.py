@@ -138,6 +138,27 @@ def _should_replace_region(new: ExtractedRegion, existing: ExtractedRegion) -> b
     )
 
 
+def _make_region_key(region: ExtractedRegion) -> tuple[str, int, int]:
+    """Create deduplication key from region location."""
+    return (str(region.region.path), region.region.start_line, region.region.end_line)
+
+
+def _should_keep_region(region: ExtractedRegion, existing: ExtractedRegion | None) -> bool:
+    """Determine if region should be kept (prefer explicit types)."""
+    return existing is None or _should_replace_region(region, existing)
+
+
+def _build_deduplicated_map(regions: list[ExtractedRegion]) -> dict[tuple[str, int, int], ExtractedRegion]:
+    """Build map of unique regions, preferring explicit types for duplicates."""
+    seen_locations: dict[tuple[str, int, int], ExtractedRegion] = {}
+    for region in regions:
+        key = _make_region_key(region)
+        existing = seen_locations.get(key)
+        if _should_keep_region(region, existing):
+            seen_locations[key] = region
+    return seen_locations
+
+
 def _deduplicate_regions(regions: list[ExtractedRegion]) -> list[ExtractedRegion]:
     """Deduplicate regions based on file path and line range.
 
@@ -147,18 +168,7 @@ def _deduplicate_regions(regions: list[ExtractedRegion]) -> list[ExtractedRegion
     if not regions:
         return regions
 
-    # Group by (path, start_line, end_line), keeping explicit types when duplicates occur
-    seen_locations: dict[tuple[str, int, int], ExtractedRegion] = {}
-
-    for region in regions:
-        key = (str(region.region.path), region.region.start_line, region.region.end_line)
-        existing = seen_locations.get(key)
-
-        # Keep new region if no existing or if new is explicit and existing isn't
-        should_keep = existing is None or _should_replace_region(region, existing)
-        if should_keep:
-            seen_locations[key] = region
-
+    seen_locations = _build_deduplicated_map(regions)
     deduped = list(seen_locations.values())
     duplicate_count = len(regions) - len(deduped)
     if duplicate_count > 0:
