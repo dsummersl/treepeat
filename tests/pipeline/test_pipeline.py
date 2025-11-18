@@ -72,10 +72,10 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
     [
         ("none", css_fixtures, 1.0, 0, []),
         ("none", class_with_methods_file, 0.1, 1, []),
-        ("none", class_with_methods_file, 0.9, 2, []),  # Region-only matching with high similarity_threshold finds 2 groups
+        ("none", class_with_methods_file, 0.9, 3, []),  # Region-only matching with high similarity_threshold finds 3 groups
         ("default", class_with_methods_file, 0.1, 1, []),
         ("default", class_with_methods_file, 0.3, 2, []),
-        ("default", class_with_methods_file, 0.5, 4, [(classA_region, classB_region)]),
+        ("default", class_with_methods_file, 0.5, 3, [(classA_region, classB_region)]),
         (
             "none",
             python_fixtures,
@@ -119,7 +119,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             "none",
             python_fixtures,
             0.8,
-            4,  # Region-only matching (line-level matching removed)
+            5,  # Region-only matching (line-level matching removed)
             [
                 # Cross-file duplicate functions
                 (

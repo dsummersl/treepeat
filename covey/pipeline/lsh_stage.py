@@ -24,8 +24,11 @@ def _create_lsh_index(
     """Create and populate LSH index."""
     num_perm = signatures[0].minhash.hashvalues.shape[0]
 
-    # Use a lower similarity_percent, since LSH is an approximate method
-    lsh_similarity_percent = 0.6 * similarity_percent
+    # Use a lower threshold for LSH candidate finding to avoid missing matches
+    # Cap at 0.5 to avoid being too restrictive with high similarity thresholds
+    # For low thresholds, scale down proportionally to find appropriate candidates
+    # The actual similarity_percent filtering happens later in the pipeline
+    lsh_similarity_percent = min(0.5, 0.7 * similarity_percent)
     lsh = MinHashLSH(lsh_similarity_percent, num_perm)
 
     for sig in signatures:
@@ -186,6 +189,10 @@ def _build_union_find_from_lsh(
     uf = UnionFind()
     key_to_sig: dict[str, RegionSignature] = {}
 
+    # Use a lower threshold for pairwise filtering since LSH similarity is approximate
+    # The actual verified similarity may be higher than the MinHash Jaccard similarity
+    min_pair_similarity = 0.8 * similarity_percent
+
     for sig in signatures:
         # Use same key format as LSH index
         current_key = f"{sig.region.path}:{sig.region.region_name}:{sig.region.start_line}-{sig.region.end_line}"
@@ -200,7 +207,7 @@ def _build_union_find_from_lsh(
             len(similar_keys),
         )
 
-        _append_pairwise_similar(uf, current_key, similar_keys, sig, signatures, similarity_percent)
+        _append_pairwise_similar(uf, current_key, similar_keys, sig, signatures, min_pair_similarity)
 
     return uf, key_to_sig
 
@@ -225,14 +232,17 @@ def _create_group_from_keys(
         return None
 
     group_similarity_percent = _calculate_group_similarity(group_sigs)
-    # Filter by similarity_percent to avoid large groups with low average similarity
+    # Filter by a lower threshold (0.8 * similarity_percent) to avoid large groups with low average similarity
     # This can happen when union-find transitively connects many regions
-    if group_similarity_percent < similarity_percent:
+    # We use 0.8 here because LSH similarity is approximate - the actual verified similarity may be higher
+    # Final filtering by the full similarity_percent happens after verification
+    min_lsh_similarity = 0.8 * similarity_percent
+    if group_similarity_percent < min_lsh_similarity:
         logger.debug(
-            "Filtered out group of %d regions with %.1f%% similarity (below similarity_percent %.1f%%)",
+            "Filtered out group of %d regions with %.1f%% LSH similarity (below min threshold %.1f%%)",
             len(member_keys),
             group_similarity_percent * 100,
-            similarity_percent * 100,
+            min_lsh_similarity * 100,
         )
         return None
 
