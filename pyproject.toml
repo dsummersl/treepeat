@@ -1,6 +1,6 @@
 [project]
 name = "covey"
-version = "0.0.1+slop"
+version = "0.0.1"
 description = "covey: a treesitter-based CLI tool to detect similar code"
 readme = "README.md"
 requires-python = ">=3.11"
