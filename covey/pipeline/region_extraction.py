@@ -1,6 +1,7 @@
 """Extract regions (functions, classes, sections, etc) from parsed files."""
 
 import logging
+from collections import Counter
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
@@ -8,6 +9,7 @@ from tree_sitter import Node
 
 from covey.models.ast import ParsedFile
 from covey.models.similarity import Region
+from covey.config import get_settings
 
 from covey.pipeline.rules.engine import RuleEngine
 
@@ -99,51 +101,148 @@ def extract_regions(
     parsed_file: ParsedFile,
     rule_engine: "RuleEngine",
 ) -> list[ExtractedRegion]:
-    """Extract code regions from a parsed file using rules from the engine."""
-    logger.info("Extracting regions from %s (%s)", parsed_file.path, parsed_file.language)
+    """Extract code regions from a parsed file using explicit rules from the engine.
+
+    Returns empty list if no explicit rules exist for this language (statistical chunking will handle it).
+    """
+    logger.debug("Extracting explicit regions from %s (%s)", parsed_file.path, parsed_file.language)
 
     # Get region mappings from the rule engine
     mappings = _get_region_mappings_from_engine(rule_engine, parsed_file.language)
 
     if not mappings:
-        # For unsupported languages, treat the entire file as one region
-        logger.warning(
-            "Language '%s' not supported for region extraction, treating entire file as one region",
-            parsed_file.language,
-        )
-        region = Region(
-            path=parsed_file.path,
-            language=parsed_file.language,
-            region_type="file",
-            region_name=parsed_file.path.name,
-            start_line=1,
-            end_line=parsed_file.root_node.end_point[0] + 1,
-        )
-        regions = [ExtractedRegion(region=region, node=parsed_file.root_node)]
-    else:
-        # Recursive extraction: find ALL matching nodes (methods, nested functions, etc.)
-        matching_nodes_list = _collect_all_matching_nodes(
-            parsed_file.root_node, mappings, parsed_file.language, rule_engine
-        )
-        regions = [_create_target_region(node, region_type, parsed_file) for node, region_type in matching_nodes_list]
+        # No explicit rules for this language - return empty, statistical chunking will handle it
+        logger.debug("No explicit rules for %s, relying on statistical chunking", parsed_file.language)
+        return []
 
-    logger.info("Extracted %d region(s) from %s", len(regions), parsed_file.path)
+    # Recursive extraction: find ALL matching nodes (methods, nested functions, etc.)
+    matching_nodes_list = _collect_all_matching_nodes(
+        parsed_file.root_node, mappings, parsed_file.language, rule_engine
+    )
+    regions = [_create_target_region(node, region_type, parsed_file) for node, region_type in matching_nodes_list]
+
+    logger.debug("Extracted %d explicit region(s) from %s", len(regions), parsed_file.path)
     return regions
+
+
+def _is_explicit_type(region_type: str) -> bool:
+    """Check if region type is from explicit rules (vs statistical chunks)."""
+    explicit_types = {"function", "class", "method", "heading", "section", "head", "body"}
+    return region_type in explicit_types
+
+
+def _should_replace_region(new: ExtractedRegion, existing: ExtractedRegion) -> bool:
+    """Determine if new region should replace existing one (prefer explicit types)."""
+    return _is_explicit_type(new.region.region_type) and not _is_explicit_type(
+        existing.region.region_type
+    )
+
+
+def _make_region_key(region: ExtractedRegion) -> tuple[str, int, int]:
+    """Create deduplication key from region location."""
+    return (str(region.region.path), region.region.start_line, region.region.end_line)
+
+
+def _should_keep_region(region: ExtractedRegion, existing: ExtractedRegion | None) -> bool:
+    """Determine if region should be kept (prefer explicit types)."""
+    return existing is None or _should_replace_region(region, existing)
+
+
+def _build_deduplicated_map(regions: list[ExtractedRegion]) -> dict[tuple[str, int, int], ExtractedRegion]:
+    """Build map of unique regions, preferring explicit types for duplicates."""
+    seen_locations: dict[tuple[str, int, int], ExtractedRegion] = {}
+    for region in regions:
+        key = _make_region_key(region)
+        existing = seen_locations.get(key)
+        if _should_keep_region(region, existing):
+            seen_locations[key] = region
+    return seen_locations
+
+
+def _deduplicate_regions(regions: list[ExtractedRegion]) -> list[ExtractedRegion]:
+    """Deduplicate regions based on file path and line range.
+
+    In hybrid mode, explicit and statistical extraction may find the same region.
+    Keep explicit regions when there's overlap (they have better semantic labels).
+    """
+    if not regions:
+        return regions
+
+    seen_locations = _build_deduplicated_map(regions)
+    deduped = list(seen_locations.values())
+    duplicate_count = len(regions) - len(deduped)
+    if duplicate_count > 0:
+        logger.debug("Deduplicated %d overlapping regions", duplicate_count)
+
+    return deduped
+
+
+def _log_region_type_statistics(regions: list[ExtractedRegion], method: str) -> None:
+    """Log statistics about region types extracted."""
+    if not regions:
+        return
+
+    type_counts: Counter[str] = Counter(r.region.region_type for r in regions)
+    logger.info(
+        "%s extraction found %d region(s) across %d type(s)",
+        method,
+        len(regions),
+        len(type_counts),
+    )
+
+    # Log top 10 most common types
+    for region_type, count in type_counts.most_common(10):
+        logger.info("  %s: %d region(s)", region_type, count)
+
+    if len(type_counts) > 10:
+        logger.info("  ... and %d more type(s)", len(type_counts) - 10)
 
 
 def extract_all_regions(
     parsed_files: list[ParsedFile],
     rule_engine: "RuleEngine",
 ) -> list[ExtractedRegion]:
-    """Extract regions from all parsed files."""
+    """Extract regions from all parsed files using hybrid extraction (explicit + statistical).
+
+    Hybrid extraction combines:
+    - Explicit rules (semantic labels like "function", "class")
+    - Statistical auto-chunking (discovers patterns rules miss)
+    """
+    from covey.pipeline.statistical_chunk_extraction import extract_chunks_statistical
+
+    settings = get_settings()
+    logger.info("Using hybrid region extraction (explicit + statistical)")
+
     all_regions: list[ExtractedRegion] = []
 
     for parsed_file in parsed_files:
         try:
-            regions = extract_regions(parsed_file, rule_engine)
+            # Get explicit regions from rules
+            explicit_regions = extract_regions(parsed_file, rule_engine)
+
+            # Get statistical chunks
+            statistical_regions = extract_chunks_statistical(
+                parsed_file, min_lines=settings.lsh.min_lines
+            )
+
+            # Combine and deduplicate (prefer explicit when overlapping)
+            combined = explicit_regions + statistical_regions
+            regions = _deduplicate_regions(combined)
+
+            logger.debug(
+                "%s: %d explicit + %d statistical -> %d after dedup",
+                parsed_file.path.name,
+                len(explicit_regions),
+                len(statistical_regions),
+                len(regions),
+            )
+
             all_regions.extend(regions)
         except Exception as e:
             logger.error("Failed to extract regions from %s: %s", parsed_file.path, e)
 
+    # Log overall statistics
     logger.info("Extracted %d total region(s) from %d file(s)", len(all_regions), len(parsed_files))
+    _log_region_type_statistics(all_regions, "hybrid")
+
     return all_regions

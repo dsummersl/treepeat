@@ -14,15 +14,18 @@ def test_shingle_regions_basic():
         rule_engine=RuleEngine([]),
     )
 
-    # With recursive extraction, we get 3 regions (no section regions)
-    assert len(shingled_regions) == 3
-    assert [r.region.region_name for r in shingled_regions] == [
+    # With hybrid mode, filter to explicit regions (class/function types)
+    explicit_shingled = [r for r in shingled_regions if r.region.region_type in ("class", "function")]
+
+    # With recursive extraction, we get 3 explicit regions (no section regions)
+    assert len(explicit_shingled) == 3
+    assert [r.region.region_name for r in explicit_shingled] == [
         "Model1",
         "Model2",
         "my_adapted_one",
     ]
-    assert {r.region.path for r in shingled_regions} == {fixture_path1}
-    assert {r.region.language for r in shingled_regions} == {"python"}
+    assert {r.region.path for r in explicit_shingled} == {fixture_path1}
+    assert {r.region.language for r in explicit_shingled} == {"python"}
 
 
 def test_identical_functions():
@@ -33,11 +36,15 @@ def test_identical_functions():
         parsed_files=[parsed_dataclass2],
         rule_engine=RuleEngine([]),
     )
-    # With recursive extraction, we get 2 regions (no section regions)
-    assert len(shingled_regions) == 2
-    assert [r.region.region_name for r in shingled_regions] == ["one", "one_prime"]
-    assert {r.region.path for r in shingled_regions} == {fixture_path2}
-    assert {r.region.language for r in shingled_regions} == {"python"}
+
+    # With hybrid mode, filter to explicit regions (function types)
+    explicit_shingled = [r for r in shingled_regions if r.region.region_type == "function"]
+
+    # With recursive extraction, we get 2 explicit regions (no section regions)
+    assert len(explicit_shingled) == 2
+    assert [r.region.region_name for r in explicit_shingled] == ["one", "one_prime"]
+    assert {r.region.path for r in explicit_shingled} == {fixture_path2}
+    assert {r.region.language for r in explicit_shingled} == {"python"}
     # The first function's first shingle starts at depth 3 in the tree traversal
     # function_definition → parameters → (
-    assert shingled_regions[0].shingles.get_contents()[0] == "function_definition→parameters→((()"
+    assert explicit_shingled[0].shingles.get_contents()[0] == "function_definition→parameters→((()"

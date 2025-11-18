@@ -58,6 +58,11 @@ class LSHSettings(BaseSettings):
 
     similarity_percent: float = Field(default=0.8, ge=0.0, le=1.0, description="% treesitter similarity")
 
+    ignore_node_types: list[str] = Field(
+        default_factory=list,
+        description="Node types to ignore during region extraction (e.g., ['parameters', 'argument_list'])",
+    )
+
 
 class PipelineSettings(BaseSettings):
     """Global settings for the entire pipeline."""
