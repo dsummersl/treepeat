@@ -8,6 +8,7 @@ from tree_sitter import Node
 
 from covey.models.ast import ParsedFile
 from covey.models.similarity import Region
+from covey.config import get_settings
 
 from covey.pipeline.rules.engine import RuleEngine
 
@@ -135,12 +136,25 @@ def extract_all_regions(
     parsed_files: list[ParsedFile],
     rule_engine: "RuleEngine",
 ) -> list[ExtractedRegion]:
-    """Extract regions from all parsed files."""
+    """Extract regions from all parsed files using configured extraction method."""
+    settings = get_settings()
+    extraction_method = settings.region.extraction_method.lower()
+
+    logger.info("Using %s region extraction method", extraction_method)
+
     all_regions: list[ExtractedRegion] = []
 
     for parsed_file in parsed_files:
         try:
-            regions = extract_regions(parsed_file, rule_engine)
+            if extraction_method == "naive":
+                from covey.pipeline.auto_chunk_extraction import extract_chunks
+                regions = extract_chunks(parsed_file, min_lines=settings.lsh.min_lines)
+            elif extraction_method == "statistical":
+                from covey.pipeline.statistical_chunk_extraction import extract_chunks_statistical
+                regions = extract_chunks_statistical(parsed_file, min_lines=settings.lsh.min_lines)
+            else:  # "explicit" or default
+                regions = extract_regions(parsed_file, rule_engine)
+
             all_regions.extend(regions)
         except Exception as e:
             logger.error("Failed to extract regions from %s: %s", parsed_file.path, e)
