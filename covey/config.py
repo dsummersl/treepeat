@@ -65,10 +65,15 @@ class LSHSettings(BaseSettings):
     region_min_similarity: float = 0.9
 
     def __init__(self, threshold: float | None = None, **data: Any) -> None:
-        """Initialize LSH settings, optionally overriding thresholds with a single value."""
-        # If threshold is provided, use it for all thresholds (backward compatibility)
+        """Initialize LSH settings, optionally overriding min_similarity threshold.
+
+        The region_threshold is kept at a low value (default 0.5) to allow LSH
+        to find candidate matches. The CLI threshold only affects the final
+        filtering via region_min_similarity.
+        """
+        # If threshold is provided, use it only for min_similarity
+        # region_threshold should remain at its default low value for candidate finding
         if threshold is not None:
-            data.setdefault('region_threshold', threshold)
             data.setdefault('region_min_similarity', threshold)
         super().__init__(**data)
 
