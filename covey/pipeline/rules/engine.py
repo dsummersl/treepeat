@@ -88,16 +88,7 @@ class RuleEngine:
     def _get_all_matches(
         self, root_node: Node, query_strings: list[str], language: str
     ) -> dict[int, list[dict[str, Any]]]:
-        """Execute multiple queries and collect all matches indexed by node ID.
-
-        Args:
-            root_node: Root node to query
-            query_strings: List of query strings to execute
-            language: Language for the queries
-
-        Returns:
-            Dictionary mapping node.id to list of match dictionaries
-        """
+        """Execute multiple queries and collect all matches indexed by node ID. """
         all_matches: dict[int, list[dict[str, Any]]] = {}
 
         for query_str in query_strings:
@@ -209,17 +200,7 @@ class RuleEngine:
         node_name: Optional[str] = None,
         root_node: Optional[Node] = None,
     ) -> tuple[Optional[str], Optional[str]]:
-        """Apply all matching rules to a node.
-
-        Args:
-            node: The node to apply rules to
-            language: The language of the source code
-            node_name: Optional override for the node type name
-            root_node: Optional root node for query execution
-
-        Returns:
-            Tuple of (name, value) - either may be None
-        """
+        """Apply all matching rules to a node. """
         node_type = node_name or node.type
         name = None
         value = None
@@ -244,11 +225,6 @@ class RuleEngine:
 
         This executes all queries once and indexes matches by node ID for O(1) lookup.
         Call this once per region after reset_identifiers().
-
-        Args:
-            root_node: The root node to query
-            language: The language of the source code
-            source: Optional source bytes for extracting node text during anonymization
         """
         # Store source for use in anonymization
         self._source = source
@@ -277,16 +253,7 @@ class RuleEngine:
         return region_rules
 
     def get_nodes_matching_query(self, root_node: Node, query_str: str, language: str) -> list[Node]:
-        """Execute a query and return all matching nodes.
-
-        Args:
-            root_node: Root node to query
-            query_str: TreeSitter query string
-            language: Language for the query
-
-        Returns:
-            List of nodes that match the query
-        """
+        """Execute a query and return all matching nodes. """
         query = self._get_compiled_query(language, query_str)
         cursor = QueryCursor(query)
         matching_nodes = []

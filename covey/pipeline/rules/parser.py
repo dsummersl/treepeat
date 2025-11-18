@@ -129,20 +129,7 @@ def _validate_rulesets_structure(data: Any, ruleset_name: str) -> dict[str, Any]
 
 
 def parse_yaml_rules_file(file_path: str, ruleset_name: str = "default") -> list[Rule]:
-    """
-    Parse rules from a YAML file with ruleset support.
-
-    Args:
-        file_path: Path to the YAML rules file
-        ruleset_name: Name of the ruleset to load (default: "default")
-
-    Returns:
-        List of Rule objects from the specified ruleset
-
-    Raises:
-        RuleParseError: If the YAML is invalid or rules are malformed
-        FileNotFoundError: If the file doesn't exist
-    """
+    """ Parse rules from a YAML file with ruleset support. """
     data = _load_yaml_file(file_path)
     rulesets = _validate_rulesets_structure(data, ruleset_name)
 

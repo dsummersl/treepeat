@@ -142,16 +142,6 @@ class ASTShingler:
 
         Note: start_line and end_line parameters are deprecated and ignored.
         Line ranges are now tracked automatically from AST nodes.
-
-        Args:
-            root: Root AST node to extract shingles from
-            language: Programming language
-            source: Source code bytes
-            start_line: Deprecated, will be removed
-            end_line: Deprecated, will be removed
-
-        Returns:
-            List of Shingle objects with content and line ranges
         """
         shingles: list[Shingle] = []
 

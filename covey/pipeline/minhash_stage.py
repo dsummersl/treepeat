@@ -14,15 +14,7 @@ def create_minhash_signature(
     shingles: set[str],
     num_perm: int = 128,
 ) -> MinHash:
-    """Create a MinHash signature from a set of shingles.
-
-    Args:
-        shingles: Set of shingle strings
-        num_perm: Number of hash permutations
-
-    Returns:
-        MinHash signature
-    """
+    """Create a MinHash signature from a set of shingles. """
     minhash = MinHash(num_perm=num_perm)
     for shingle in shingles:
         minhash.update(shingle.encode("utf-8"))
@@ -33,15 +25,7 @@ def compute_region_signatures(
     shingled_regions: list[ShingledRegion],
     num_perm: int = 128,
 ) -> list[RegionSignature]:
-    """Compute MinHash signatures for all shingled regions.
-
-    Args:
-        shingled_regions: List of shingled regions
-        num_perm: Number of hash permutations for MinHash
-
-    Returns:
-        List of MinHash signatures for regions
-    """
+    """Compute MinHash signatures for all shingled regions. """
     logger.info(
         "Computing MinHash signatures for %d region(s) with num_perm=%d",
         len(shingled_regions),

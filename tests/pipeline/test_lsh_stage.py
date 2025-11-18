@@ -17,7 +17,7 @@ def test_detect_similarity_1():
         rule_engine=RuleEngine([]),
     )
     signatures = compute_region_signatures(shingled_regions)
-    result = detect_similarity(signatures, 0.1, 0.2, {}, shingled_regions)
+    result = detect_similarity(signatures, 0.1, {}, shingled_regions)
 
     assert len(result.similar_groups) == 1
     # After verification, the similarity is ~0.22
@@ -35,7 +35,7 @@ def test_detect_similarity_2():
     )
     signatures = compute_region_signatures(shingled_regions)
     # Use lower min_similarity to allow the match through after verification
-    result = detect_similarity(signatures, 0.5, 0.6, {}, shingled_regions)
+    result = detect_similarity(signatures, 0.5, {}, shingled_regions)
 
     assert len(result.similar_groups) == 1
     assert result.similar_groups[0].similarity > 0.6

@@ -1,7 +1,3 @@
-"""Configuration using pydantic-settings."""
-
-from typing import Any
-
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -15,7 +11,7 @@ class RulesSettings(BaseSettings):
 
     ruleset: str = Field(
         default="default",
-        description="Ruleset profile to use (none, default, loose)",
+        description="Ruleset profile to use",
     )
 
 
@@ -60,22 +56,7 @@ class LSHSettings(BaseSettings):
         description="Minimum number of lines for a match to be considered valid",
     )
 
-    # Internal thresholds for region matching
-    region_threshold: float = 0.5
-    region_min_similarity: float = 0.9
-
-    def __init__(self, threshold: float | None = None, **data: Any) -> None:
-        """Initialize LSH settings, optionally overriding min_similarity threshold.
-
-        The region_threshold is kept at a low value (default 0.5) to allow LSH
-        to find candidate matches. The CLI threshold only affects the final
-        filtering via region_min_similarity.
-        """
-        # If threshold is provided, use it only for min_similarity
-        # region_threshold should remain at its default low value for candidate finding
-        if threshold is not None:
-            data.setdefault('region_min_similarity', threshold)
-        super().__init__(**data)
+    similarity_percent: float = Field(default=0.8, ge=0.0, le=1.0, description="% treesitter similarity")
 
 
 class PipelineSettings(BaseSettings):

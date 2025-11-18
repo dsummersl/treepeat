@@ -23,15 +23,7 @@ from covey.models.similarity import SimilarRegionGroup, SimilarityResult
 
 
 def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:
-    """Format similarity detection results as SARIF JSON.
-
-    Args:
-        result: The similarity detection result to format
-        pretty: If True, format with indentation for readability
-
-    Returns:
-        SARIF-formatted JSON string
-    """
+    """Format similarity detection results as SARIF JSON. """
     sarif_log = _create_sarif_log(result)
 
     if pretty:
@@ -89,14 +81,7 @@ def _create_tool() -> Tool:
 
 
 def _create_result_from_group(group: SimilarRegionGroup) -> Result:
-    """Create a SARIF result from a similarity group.
-
-    Args:
-        group: SimilarRegionGroup to convert
-
-    Returns:
-        SARIF Result object
-    """
+    """Create a SARIF result from a similarity group. """
     similarity_percent = group.similarity * 100
     level = _get_level(group.similarity)
 

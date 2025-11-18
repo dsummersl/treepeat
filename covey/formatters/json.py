@@ -33,13 +33,6 @@ def format_as_json(result: SimilarityResult, *, pretty: bool = True) -> str:
     This formatter outputs the complete similarity result including similar groups
     and metadata in a structured JSON format. Note: MinHash signatures are excluded
     as they are not JSON-serializable.
-
-    Args:
-        result: The similarity detection result to format
-        pretty: If True, format with indentation for readability
-
-    Returns:
-        JSON-formatted string
     """
     # Build JSON structure manually to avoid MinHash serialization issues
     data = {

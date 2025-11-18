@@ -118,23 +118,13 @@ def _run_lsh_stage(
     signatures: list[RegionSignature],
     shingled_regions: list[ShingledRegion],
     threshold: float,
-    min_similarity: float,
     failed_files: dict[Path, str],
 ) -> SimilarityResult:
-    """Run LSH similarity detection stage.
-
-    Args:
-        signatures: Region signatures to compare
-        shingled_regions: Shingled regions for verification
-        threshold: LSH threshold for finding approximate matches
-        min_similarity: Minimum verified similarity to keep after verification
-        failed_files: Dictionary of failed files
-    """
+    """Run LSH similarity detection stage. """
     logger.info("Stage 5/5: Finding similar pairs...")
     similarity_result = detect_similarity(
         signatures,
-        threshold=threshold,
-        min_similarity=min_similarity,
+        similarity_percent=threshold,
         failed_files=failed_files,
         shingled_regions=shingled_regions,
     )
@@ -203,8 +193,7 @@ def _run_region_matching(
     region_result = _run_lsh_stage(
         region_signatures,
         region_shingled,
-        settings.lsh.region_threshold,
-        settings.lsh.region_min_similarity,
+        settings.lsh.similarity_percent,
         {},
     )
 

@@ -32,7 +32,7 @@ def _configure_settings(
     """Configure pipeline settings."""
     # Create LSH settings - if threshold is None, use internal defaults
     if threshold is not None:
-        lsh_settings = LSHSettings(threshold=threshold, min_lines=min_lines)
+        lsh_settings = LSHSettings(similarity_percent=threshold, min_lines=min_lines)
     else:
         lsh_settings = LSHSettings(min_lines=min_lines)
 

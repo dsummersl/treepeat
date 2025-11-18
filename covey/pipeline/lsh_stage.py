@@ -16,24 +16,17 @@ from covey.models.similarity import (
 
 logger = logging.getLogger(__name__)
 
-# Maximum LSH threshold for initial candidate matching
-# Use a lower threshold to find approximate matches, then verify with actual threshold
-# This is capped at 0.6 to avoid being too restrictive in the initial search
-MAX_LSH_THRESHOLD = 0.6
-
 
 def _create_lsh_index(
     signatures: list[RegionSignature],
-    threshold: float,
+    similarity_percent: float,
 ) -> MinHashLSH:
     """Create and populate LSH index."""
     num_perm = signatures[0].minhash.hashvalues.shape[0]
 
-    # Use a lower threshold for finding candidates, capped at MAX_LSH_THRESHOLD
-    # For high thresholds (e.g., 1.0), use 0.6 to find more candidates
-    # For low thresholds (e.g., 0.1), use the actual threshold
-    lsh_threshold = min(threshold, MAX_LSH_THRESHOLD)
-    lsh = MinHashLSH(lsh_threshold, num_perm)
+    # Use a lower similarity_percent, since LSH is an approximate method
+    lsh_similarity_percent = 0.6 * similarity_percent
+    lsh = MinHashLSH(lsh_similarity_percent, num_perm)
 
     for sig in signatures:
         # Create a unique key for each region
@@ -44,8 +37,8 @@ def _create_lsh_index(
     logger.debug(
         "Inserted %d region signatures into LSH index (lsh_threshold=%.2f, filter_threshold=%.2f)",
         len(signatures),
-        lsh_threshold,
-        threshold,
+        lsh_similarity_percent,
+        similarity_percent,
     )
     return lsh
 
@@ -54,12 +47,13 @@ def _find_signature_by_key(
     signatures: list[RegionSignature],
     key: Hashable,
 ) -> RegionSignature | None:
-    """Find signature by region key. """
+    """Find signature by region key."""
     return next(
         (
             s
             for s in signatures
-            if f"{s.region.path}:{s.region.region_name}:{s.region.start_line}-{s.region.end_line}" == key
+            if f"{s.region.path}:{s.region.region_name}:{s.region.start_line}-{s.region.end_line}"
+            == key
         ),
         None,
     )
@@ -121,7 +115,7 @@ class UnionFind:
 
 
 def _compute_pair_similarity(sig1: RegionSignature, sig2: RegionSignature) -> float:
-    """Compute similarity between two signatures. """
+    """Compute similarity between two signatures."""
     if sig1.shingle_count == 0 and sig2.shingle_count == 0:
         return 0.0
     return float(sig1.minhash.jaccard(sig2.minhash))
@@ -149,7 +143,7 @@ def _is_pairwise_similar(
     other_key: Hashable,
     sig: RegionSignature,
     signatures: list[RegionSignature],
-    threshold: float,
+    similarity_percent: float,
 ) -> bool:
     similar_sig = _find_signature_by_key(signatures, other_key)
     if similar_sig is None:
@@ -158,8 +152,8 @@ def _is_pairwise_similar(
     if _regions_overlap(sig.region, similar_sig.region):
         return False
 
-    similarity = _compute_pair_similarity(sig, similar_sig)
-    if similarity < threshold:
+    pair_similarity_percent = _compute_pair_similarity(sig, similar_sig)
+    if pair_similarity_percent < similarity_percent:
         return False
 
     return True
@@ -171,11 +165,12 @@ def _append_pairwise_similar(
     similar_keys: list[Hashable],
     sig: RegionSignature,
     signatures: list[RegionSignature],
-    threshold: float,
+    similarity_percent: float,
 ) -> None:
     pairwise_similar_keys = [
-        sk for sk in similar_keys
-        if _is_pairwise_similar(sk, sig, signatures, threshold)
+        sk
+        for sk in similar_keys
+        if _is_pairwise_similar(sk, sig, signatures, similarity_percent)
         if sk != current_key
     ]
     for similar_key in pairwise_similar_keys:
@@ -185,9 +180,9 @@ def _append_pairwise_similar(
 def _build_union_find_from_lsh(
     signatures: list[RegionSignature],
     lsh: MinHashLSH,
-    threshold: float,
+    similarity_percent: float,
 ) -> tuple[UnionFind, dict[str, RegionSignature]]:
-    """Build union-find structure from LSH queries. """
+    """Build union-find structure from LSH queries."""
     uf = UnionFind()
     key_to_sig: dict[str, RegionSignature] = {}
 
@@ -205,7 +200,7 @@ def _build_union_find_from_lsh(
             len(similar_keys),
         )
 
-        _append_pairwise_similar(uf, current_key, similar_keys, sig, signatures, threshold)
+        _append_pairwise_similar(uf, current_key, similar_keys, sig, signatures, similarity_percent)
 
     return uf, key_to_sig
 
@@ -222,22 +217,22 @@ def _get_valid_group_signatures(
 def _create_group_from_keys(
     member_keys: list[str],
     key_to_sig: dict[str, RegionSignature],
-    threshold: float,
+    similarity_percent: float,
 ) -> SimilarRegionGroup | None:
     """Create a similarity group from member keys."""
     group_sigs = _get_valid_group_signatures(member_keys, key_to_sig)
     if group_sigs is None:
         return None
 
-    similarity = _calculate_group_similarity(group_sigs)
-    # Filter by threshold to avoid large groups with low average similarity
+    group_similarity_percent = _calculate_group_similarity(group_sigs)
+    # Filter by similarity_percent to avoid large groups with low average similarity
     # This can happen when union-find transitively connects many regions
-    if similarity < threshold:
+    if group_similarity_percent < similarity_percent:
         logger.debug(
-            "Filtered out group of %d regions with %.1f%% similarity (below threshold %.1f%%)",
+            "Filtered out group of %d regions with %.1f%% similarity (below similarity_percent %.1f%%)",
             len(member_keys),
-            similarity * 100,
-            threshold * 100,
+            group_similarity_percent * 100,
+            similarity_percent * 100,
         )
         return None
 
@@ -245,7 +240,7 @@ def _create_group_from_keys(
     logger.debug(
         "Found similar group of %d region(s) with %.1f%% similarity",
         len(regions),
-        similarity * 100,
+        group_similarity_percent * 100,
     )
     for region in regions:
         logger.debug(
@@ -256,17 +251,17 @@ def _create_group_from_keys(
             region.path.name,
         )
 
-    return SimilarRegionGroup(regions=regions, similarity=similarity)
+    return SimilarRegionGroup(regions=regions, similarity=group_similarity_percent)
 
 
 def _collect_candidate_groups(
     signatures: list[RegionSignature],
     lsh: MinHashLSH,
-    threshold: float,
+    similarity_percent: float,
 ) -> list[SimilarRegionGroup]:
     """Collect similar region groups from LSH queries."""
     # Build union-find structure
-    uf, key_to_sig = _build_union_find_from_lsh(signatures, lsh, threshold)
+    uf, key_to_sig = _build_union_find_from_lsh(signatures, lsh, similarity_percent)
 
     # Extract groups from union-find
     groups_dict = uf.get_groups()
@@ -278,7 +273,7 @@ def _collect_candidate_groups(
             continue
 
         # Create and validate group
-        group = _create_group_from_keys(member_keys, key_to_sig, threshold)
+        group = _create_group_from_keys(member_keys, key_to_sig, similarity_percent)
         if group is not None:
             groups.append(group)
 
@@ -286,8 +281,7 @@ def _collect_candidate_groups(
 
 
 def find_similar_groups(
-    signatures: list[RegionSignature],
-    threshold: float
+    signatures: list[RegionSignature], similarity_percent: float
 ) -> list[SimilarRegionGroup]:
     """Find similar region groups using LSH."""
     if len(signatures) < 2:
@@ -295,17 +289,17 @@ def find_similar_groups(
         return []
 
     logger.info(
-        "Finding similar groups using LSH (threshold=%.2f) for %d region(s)",
-        threshold,
+        "Finding similar groups using LSH (similarity_percent=%.2f) for %d region(s)",
+        similarity_percent,
         len(signatures),
     )
 
-    lsh = _create_lsh_index(signatures, threshold)
-    groups = _collect_candidate_groups(signatures, lsh, threshold)
+    lsh = _create_lsh_index(signatures, similarity_percent)
+    groups = _collect_candidate_groups(signatures, lsh, similarity_percent)
 
     groups.sort(key=lambda g: g.similarity, reverse=True)
     logger.info(
-        "Found %d similar group(s) above threshold",
+        "Found %d similar group(s) above similarity_percent",
         len(groups),
     )
 
@@ -315,38 +309,37 @@ def find_similar_groups(
 def _verify_and_filter_groups(
     candidate_groups: list[SimilarRegionGroup],
     shingled_regions: list[ShingledRegion],
-    min_similarity: float,
+    similarity_percent: float,
 ) -> list[SimilarRegionGroup]:
-    """Verify candidate groups and filter by minimum similarity threshold."""
+    """Verify candidate groups and filter by minimum similarity similarity_percent."""
     from covey.pipeline.verification import verify_similar_groups
 
     logger.info("Verifying %d candidate group(s)", len(candidate_groups))
     verified_groups = verify_similar_groups(candidate_groups, shingled_regions)
 
     # Filter groups that fall below minimum similarity after verification
-    similar_groups = [g for g in verified_groups if g.similarity >= min_similarity]
+    similar_groups = [g for g in verified_groups if g.similarity >= similarity_percent]
     if len(similar_groups) < len(verified_groups):
         logger.info(
-            "Filtered %d group(s) below min_similarity threshold (%.1f%%) after verification",
+            "Filtered %d group(s) below similarity_percent similarity_percent (%.1f%%) after verification",
             len(verified_groups) - len(similar_groups),
-            min_similarity * 100,
+            similarity_percent * 100,
         )
     return similar_groups
 
 
 def detect_similarity(
     signatures: list[RegionSignature],
-    threshold: float,
-    min_similarity: float,
+    similarity_percent: float,
     failed_files: dict[Path, str],
     shingled_regions: list[ShingledRegion],
 ) -> SimilarityResult:
-    """Detect similar regions using LSH. """
-    candidate_groups = find_similar_groups(signatures, threshold)
+    """Detect similar regions using LSH."""
+    candidate_groups = find_similar_groups(signatures, similarity_percent)
 
     if len(candidate_groups) > 0:
         similar_groups = _verify_and_filter_groups(
-            candidate_groups, shingled_regions, min_similarity
+            candidate_groups, shingled_regions, similarity_percent
         )
     else:
         similar_groups = candidate_groups

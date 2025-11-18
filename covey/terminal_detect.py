@@ -92,15 +92,7 @@ def _is_response_complete(response: str, max_length: int) -> bool:
 
 
 def _read_terminal_response(timeout: float = 0.1, max_length: int = 100) -> str:
-    """Read response from terminal with timeout.
-
-    Args:
-        timeout: Maximum time to wait for response in seconds
-        max_length: Maximum response length to read
-
-    Returns:
-        The terminal response string
-    """
+    """Read response from terminal with timeout. """
     response = ""
     while True:
         # Check if data is available
@@ -170,14 +162,7 @@ def _detect_via_osc11() -> BackgroundMode:
 
 
 def _interpret_color_code(bg_code: int) -> BackgroundMode:
-    """Interpret ANSI color code to determine background mode.
-
-    Args:
-        bg_code: ANSI color code (0-15 typically)
-
-    Returns:
-        BackgroundMode based on color code brightness
-    """
+    """Interpret ANSI color code to determine background mode. """
     # 0: black (dark)
     # 7: white/light gray (light)
     # 15: bright white (light)
@@ -250,14 +235,7 @@ class DiffColors:
         left_fg: str,
         right_fg: str,
     ):
-        """Initialize diff color scheme.
-
-        Args:
-            left_bg: Background color for left side (deletions/changes)
-            right_bg: Background color for right side (additions/changes)
-            left_fg: Foreground color for character-level diffs on left
-            right_fg: Foreground color for character-level diffs on right
-        """
+        """Initialize diff color scheme. """
         self.left_bg = left_bg
         self.right_bg = right_bg
         self.left_fg = left_fg

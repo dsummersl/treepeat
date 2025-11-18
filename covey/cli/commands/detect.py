@@ -27,13 +27,13 @@ def _create_rules_settings(ruleset: str) -> RulesSettings:
 
 def _configure_settings(
     ruleset: str,
-    threshold: float,
+    similarity_percent: float,
     min_lines: int,
     ignore: str,
     ignore_files: str,
 ) -> None:
     """Configure pipeline settings."""
-    lsh_settings = LSHSettings(threshold=threshold, min_lines=min_lines)
+    lsh_settings = LSHSettings(similarity_percent=similarity_percent / 100.0, min_lines=min_lines)
 
     settings = PipelineSettings(
         rules=_create_rules_settings(ruleset),
@@ -289,16 +289,16 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 @click.argument("path", type=click.Path(exists=True, path_type=Path))
 @click.pass_context
 @click.option(
-    "--threshold",
-    "-t",
-    type=float,
-    default=1.0,
-    help="Filter threshold for similarity",
+    "--similarity",
+    "-s",
+    type=click.IntRange(5, 100),
+    default=100,
+    help="Percent similarity threshold (default: 100)",
 )
 @click.option(
     "--min-lines",
     "-ml",
-    type=int,
+    type=click.IntRange(1),
     default=5,
     help="Minimum number of lines to be considered similar (default: 5)",
 )
@@ -339,8 +339,7 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     help="Show side-by-side diff between the first two files in each similar group (console format only)",
 )
 @click.option(
-    "--strict",
-    "-s",
+    "--fail",
     is_flag=True,
     default=False,
     help="Exit with error code 1 if any similar blocks are detected",
@@ -348,14 +347,14 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
 def detect(
     ctx: click.Context,
     path: Path,
-    threshold: float,
+    similarity: float,
     min_lines: int,
     output_format: str,
     output: Path | None,
     ignore: str,
     ignore_files: str,
     diff: bool,
-    strict: bool,
+    fail: bool,
 ) -> None:
     """Detect similar code regions of files in a path."""
     log_level = ctx.obj["log_level"]
@@ -363,7 +362,7 @@ def detect(
 
     _configure_settings(
         ruleset,
-        threshold,
+        similarity,
         min_lines,
         ignore,
         ignore_files,
@@ -373,5 +372,5 @@ def detect(
     _handle_output(result, output_format, output, log_level, diff)
 
     # Exit with error code 1 in strict mode if any similar blocks are detected
-    if strict and result.similar_groups:
+    if fail and result.similar_groups:
         sys.exit(1)

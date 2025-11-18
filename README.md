@@ -15,17 +15,17 @@ Scan a codebase for similar or duplicate code blocks using tree-sitter AST analy
 
 Key flags:
 - `--ruleset`: Normalization ruleset to use (`none`, `default`, `loose`) - controls how code is normalized before comparison
-- `--threshold`: Similarity threshold from 0.0-1.0 (default: 1.0 for exact duplicates)
+- `--similarity`: Percent similarity from 1-100 (default: 100 for exact duplicates)
 - `--min-lines`: Minimum number of lines for a match (default: 5)
 - `--diff`: Show side-by-side comparisons of similar blocks
 - `--format`: Output format - `console` (default) or `sarif` for CI integration
 
 ```bash
-# Find exact duplicates (default threshold=1.0)
+# Find exact duplicates
 covey detect /path/to/codebase
 
 # Find near-duplicates with 80% similarity threshold
-covey detect --threshold 0.8 /path/to/codebase
+covey detect --similarity 80 /path/to/codebase
 
 # Show diffs between similar blocks and use loose ruleset
 covey --ruleset loose detect --diff --min-lines 10 /path/to/codebase

@@ -19,15 +19,7 @@ def load_fixture(path: Path) -> bytes:
 
 
 def parse_fixture(path: Path, language: str) -> ParsedFile:
-    """Parse a fixture file for any language.
-
-    Args:
-        path: Path to the fixture file
-        language: Language name (e.g., "python", "javascript", "html")
-
-    Returns:
-        ParsedFile object with parsed tree
-    """
+    """Parse a fixture file for any language. """
     parser = get_parser(language)
     fixture = load_fixture(path)
     tree = parser.parse(fixture)

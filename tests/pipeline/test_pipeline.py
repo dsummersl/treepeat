@@ -41,7 +41,7 @@ def test_dissimilar_files():
     )
 
     signatures = compute_region_signatures(shingled_regions)
-    result = detect_similarity(signatures, 0.5, 0.6, {}, shingled_regions)
+    result = detect_similarity(signatures, 0.5, {}, shingled_regions)
     assert len(result.similar_groups) == 0
 
 
@@ -68,15 +68,14 @@ fixture_comprehensive = css_fixtures / "comprehensive.css"
 fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.css"
 
 @pytest.mark.parametrize(
-    "ruleset, path, threshold, similar_groups, expected_regions",
+    "ruleset, path, similarity_threshold, similar_groups, expected_regions",
     [
-        # TODO this is clearly wrong for CSS - this has to do with WINDOW_OFFSET_LIMITATION.md
-        ("none", css_fixtures, 100, 0, []),
+        ("none", css_fixtures, 1.0, 0, []),
         ("none", class_with_methods_file, 0.1, 1, []),
-        ("none", class_with_methods_file, 0.9, 2, []),  # Region-only matching with high threshold finds 2 groups
+        ("none", class_with_methods_file, 0.9, 2, []),  # Region-only matching with high similarity_threshold finds 2 groups
         ("default", class_with_methods_file, 0.1, 1, []),
         ("default", class_with_methods_file, 0.3, 2, []),
-        ("default", class_with_methods_file, 0.5, 3, [(classA_region, classB_region)]),
+        ("default", class_with_methods_file, 0.5, 4, [(classA_region, classB_region)]),
         (
             "none",
             python_fixtures,
@@ -198,21 +197,18 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
         ),
     ],
 )
-def test_match_counts(ruleset, path, threshold, similar_groups, expected_regions):
+def test_match_counts(ruleset, path, similarity_threshold, similar_groups, expected_regions):
     """Testing with different rulesets and LSH thresholds."""
     set_settings(
         PipelineSettings(
             rules=RulesSettings(ruleset=ruleset),
             shingle=ShingleSettings(),
             minhash=MinHashSettings(),
-            lsh=LSHSettings(
-                region_threshold=threshold,
-                region_min_similarity=threshold,
-            ),
+            lsh=LSHSettings(similarity_percent=similarity_threshold),
         )
     )
     result = run_pipeline(path)
 
     assert len(result.similar_groups) == similar_groups
     for region1, region2 in expected_regions:
-        assert_regions_in_same_group(result, region1, region2).similarity > threshold
+        assert_regions_in_same_group(result, region1, region2).similarity > similarity_threshold
