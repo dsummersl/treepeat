@@ -1,4 +1,4 @@
-.PHONY: help setup test lint type adr new coverage benchmark benchmark-compare
+.PHONY: help setup test lint type adr new coverage
 
 help:
 	@echo "Available targets:"
@@ -8,8 +8,6 @@ help:
 	@echo "  fix              - Auto-fix linting issues"
 	@echo "  type             - Run type checking with mypy"
 	@echo "  radon            - Run radon complexity checks"
-	@echo "  benchmark        - Run duplication detection benchmarks"
-	@echo "  benchmark-compare - Compare results across tools"
 	@echo "  ci               - Run all CI checks (lint, type, test, radon)"
 
 setup:
@@ -30,15 +28,5 @@ type:
 
 radon:
 	uv run .github/scripts/check_radon.sh
-
-benchmark:
-	@echo "Running testing framework benchmarks..."
-	@cd benchmark-tests && python3 run_tests.py $(ARGS)
-	@echo "Results available in benchmark-tests/reports/"
-
-benchmark-compare:
-	@echo "Comparing tool results..."
-	@cd benchmark-tests && python3 compare_results.py tools
-	@echo "Comparison complete!"
 
 ci: lint type test radon

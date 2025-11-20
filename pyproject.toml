@@ -41,10 +41,7 @@ package = true
 
 [tool.ruff]
 line-length = 100
-exclude = [".venv", ".git", "build", "dist", "tests/fixtures", "benchmark-tests/codebases"]
-
-[tool.pyright]
-exclude = ["benchmark-tests"]
+exclude = [".venv", ".git", "build", "dist", "tests/fixtures"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -53,4 +50,3 @@ packages = ["treepeat"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=treepeat  --cov-report=term-missing"
-norecursedirs = "benchmark-tests"
