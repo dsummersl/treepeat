@@ -25,26 +25,16 @@ class ParsedFile(BaseModel):
 class ParseResult(BaseModel):
     """Result of parsing one or more files."""
 
-    model_config = {"arbitrary_types_allowed": True}
-
     parsed_files: list[ParsedFile] = Field(
         default_factory=list, description="Successfully parsed files"
-    )
-    failed_files: dict[Path, str] = Field(
-        default_factory=dict, description="Failed files with error messages"
     )
 
     @property
     def total_files(self) -> int:
         """Total number of files processed."""
-        return len(self.parsed_files) + len(self.failed_files)
+        return len(self.parsed_files)
 
     @property
     def success_count(self) -> int:
         """Number of successfully parsed files."""
         return len(self.parsed_files)
-
-    @property
-    def failure_count(self) -> int:
-        """Number of failed files."""
-        return len(self.failed_files)

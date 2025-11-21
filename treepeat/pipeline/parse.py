@@ -287,8 +287,7 @@ def parse_files(files: list[Path], result: ParseResult) -> None:
             parsed = parse_file(file_path)
             result.parsed_files.append(parsed)
         except Exception as e:
-            logger.error(f"Failed to parse {file_path}: {e}")
-            result.failed_files[file_path] = str(e)
+            logger.warning(f"Failed to parse {file_path}: {e}")
 
 
 def parse_path(target_path: Path) -> ParseResult:
@@ -299,12 +298,11 @@ def parse_path(target_path: Path) -> ParseResult:
     files = collect_source_files(target_path)
 
     if not files:
-        logger.error(f"Path does not exist or contains no source files: {target_path}")
-        result.failed_files[target_path] = "Path does not exist or contains no source files"
+        logger.warning(f"Path does not exist or contains no source files: {target_path}")
         return result
 
     parse_files(files, result)
 
-    logger.info(f"Parse complete: {result.success_count} succeeded, {result.failure_count} failed")
+    logger.info(f"Parse complete: {result.success_count} succeeded")
 
     return result

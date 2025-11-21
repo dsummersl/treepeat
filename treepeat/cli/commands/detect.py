@@ -143,18 +143,6 @@ def display_similar_groups(result: SimilarityResult, show_diff: bool = False) ->
         _display_group(group, show_diff=show_diff)
 
 
-def display_failed_files(result: SimilarityResult, show_details: bool) -> None:
-    """Display failed files with optional error details."""
-    if not result.failed_files:
-        return
-
-    console.print("\n[bold red]Failed Files:[/bold red]")
-    for file_path, error in result.failed_files.items():
-        console.print(f"  [red]✗[/red] {file_path}")
-        if show_details:
-            console.print(f"    [dim]{error}[/dim]")
-
-
 def _init_language_stats(
     stats_by_format: dict[str, dict[str, int | set[Path]]], language: str
 ) -> None:
@@ -283,17 +271,15 @@ def _handle_output(
         _write_output(output_text, output_path)
     else:  # console
         display_similar_groups(result, show_diff=show_diff)
-        display_failed_files(result, show_details=(log_level.upper() == "DEBUG"))
         display_summary_table(result)
         console.print()
 
 
 def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     """Check for errors in the result and exit if necessary."""
-    if result.success_count == 0 and result.failure_count > 0:
+    if result.success_count == 0:
         if output_format.lower() == "console":
             console.print("[bold red]Error:[/bold red] Failed to parse any files")
-            display_failed_files(result, show_details=True)
         sys.exit(1)
 
 
