@@ -111,25 +111,29 @@ def _print_replaced_lines(lines1: list[str], lines2: list[str], i1: int, i2: int
     """Print replaced (changed) lines side-by-side with character-level diff highlighting."""
     max_len = max(i2 - i1, j2 - j1)
     for idx in range(max_len):
-        if idx < (i2 - i1):
+        has_left = idx < (i2 - i1)
+        has_right = idx < (j2 - j1)
+
+        if has_left and has_right:
             left_line = _truncate_line(lines1[i1 + idx], col_width)
-
-            # If we have a corresponding right line, do character-level diff
-            if idx < (j2 - j1):
-                right_line = _truncate_line(lines2[j1 + idx], col_width)
-                left, right = _highlight_char_diff(left_line, right_line, col_width)
-            else:
-                # No corresponding right line - just soft background full width
-                padding = col_width - len(left_line)
-                left = f"[{_colors.left_bg}]{left_line}{' ' * padding}[/{_colors.left_bg}]"
-                right = f"[{_colors.right_bg}]{' ' * col_width}[/{_colors.right_bg}]"
-        else:
-            # No left line, only right
             right_line = _truncate_line(lines2[j1 + idx], col_width)
-            padding = col_width - len(right_line)
-            left = f"[{_colors.left_bg}]{' ' * col_width}[/{_colors.left_bg}]"
-            right = f"[{_colors.right_bg}]{right_line}{' ' * padding}[/{_colors.right_bg}]"
+            left, right = _highlight_char_diff(left_line, right_line, col_width)
+            console.print(f"{left}│{right}")
+            continue
 
+        if has_left:
+            left_line = _truncate_line(lines1[i1 + idx], col_width)
+            padding = col_width - len(left_line)
+            left = f"[{_colors.left_bg}]{left_line}{' ' * padding}[/{_colors.left_bg}]"
+            right = f"[{_colors.right_bg}]{' ' * col_width}[/{_colors.right_bg}]"
+            console.print(f"{left}│{right}")
+            continue
+
+        # No left line, only right
+        right_line = _truncate_line(lines2[j1 + idx], col_width)
+        padding = col_width - len(right_line)
+        left = f"[{_colors.left_bg}]{' ' * col_width}[/{_colors.left_bg}]"
+        right = f"[{_colors.right_bg}]{right_line}{' ' * padding}[/{_colors.right_bg}]"
         console.print(f"{left}│{right}")
 
 
