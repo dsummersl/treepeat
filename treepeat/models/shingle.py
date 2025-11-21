@@ -64,8 +64,6 @@ class ShingleList(BaseModel):
 class ShingledFile(BaseModel):
     """A file with its extracted shingles."""
 
-    model_config = {"arbitrary_types_allowed": True}
-
     path: Path = Field(description="Path to the source file")
     language: str = Field(description="Programming language of the file")
     shingles: ShingleList = Field(description="Set of shingles extracted from the AST")
@@ -78,8 +76,6 @@ class ShingledFile(BaseModel):
 
 class ShingledRegion(BaseModel):
     """A region with its extracted shingles."""
-
-    model_config = {"arbitrary_types_allowed": True}
 
     region: Region = Field(description="The code region")
     shingles: ShingleList = Field(description="Set of shingles extracted from the region")
@@ -96,21 +92,13 @@ class ShingleResult(BaseModel):
     shingled_files: list[ShingledFile] = Field(
         default_factory=list, description="Successfully shingled files"
     )
-    failed_files: dict[Path, str] = Field(
-        default_factory=dict, description="Files that failed to shingle with error messages"
-    )
 
     @property
     def total_files(self) -> int:
         """Total number of files processed."""
-        return len(self.shingled_files) + len(self.failed_files)
+        return len(self.shingled_files)
 
     @property
     def success_count(self) -> int:
         """Number of successfully shingled files."""
         return len(self.shingled_files)
-
-    @property
-    def failure_count(self) -> int:
-        """Number of files that failed to shingle."""
-        return len(self.failed_files)

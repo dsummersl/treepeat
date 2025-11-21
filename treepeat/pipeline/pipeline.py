@@ -24,9 +24,8 @@ def _run_parse_stage(target_path: Path) -> ParseResult:
     logger.info("Stage 1/5: Parsing...")
     parse_result = parse_path(target_path)
     logger.info(
-        "Parse complete: %d succeeded, %d failed",
+        "Parse complete: %d succeeded",
         parse_result.success_count,
-        parse_result.failure_count,
     )
     return parse_result
 
@@ -118,14 +117,12 @@ def _run_lsh_stage(
     signatures: list[RegionSignature],
     shingled_regions: list[ShingledRegion],
     threshold: float,
-    failed_files: dict[Path, str],
 ) -> SimilarityResult:
     """Run LSH similarity detection stage. """
     logger.info("Stage 5/5: Finding similar pairs...")
     similarity_result = detect_similarity(
         signatures,
         similarity_percent=threshold,
-        failed_files=failed_files,
         shingled_regions=shingled_regions,
     )
     logger.info(
@@ -194,7 +191,6 @@ def _run_region_matching(
         region_signatures,
         region_shingled,
         settings.lsh.similarity_percent,
-        {},
     )
 
     # Filter by min_lines
@@ -225,7 +221,7 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
     parse_result = _run_parse_stage(target_path)
     if parse_result.success_count == 0:
         logger.warning("No files successfully parsed, returning empty result")
-        return SimilarityResult(failed_files=parse_result.failed_files)
+        return SimilarityResult()
 
     # Run Region Matching
     similar_groups, signatures = _run_region_matching(
@@ -236,7 +232,6 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
     final_result = SimilarityResult(
         signatures=signatures,
         similar_groups=similar_groups,
-        failed_files=parse_result.failed_files,
     )
 
     logger.info("Pipeline complete: %d groups found", len(similar_groups))

@@ -86,9 +86,6 @@ class SimilarityResult(BaseModel):
     similar_groups: list[SimilarRegionGroup] = Field(
         default_factory=list, description="Groups of similar regions above threshold"
     )
-    failed_files: dict[Path, str] = Field(
-        default_factory=dict, description="Files that failed processing"
-    )
 
     @property
     def total_regions(self) -> int:
@@ -99,17 +96,12 @@ class SimilarityResult(BaseModel):
     def total_files(self) -> int:
         """Total number of unique files processed."""
         files = {sig.region.path for sig in self.signatures}
-        return len(files) + len(self.failed_files)
+        return len(files)
 
     @property
     def success_count(self) -> int:
         """Number of successfully processed regions."""
         return len(self.signatures)
-
-    @property
-    def failure_count(self) -> int:
-        """Number of files that failed."""
-        return len(self.failed_files)
 
     @property
     def group_count(self) -> int:

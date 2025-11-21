@@ -1,7 +1,6 @@
 """LSH stage for finding similar region pairs."""
 
 import logging
-from pathlib import Path
 from typing import Hashable
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
@@ -341,7 +340,6 @@ def _verify_and_filter_groups(
 def detect_similarity(
     signatures: list[RegionSignature],
     similarity_percent: float,
-    failed_files: dict[Path, str],
     shingled_regions: list[ShingledRegion],
 ) -> SimilarityResult:
     """Detect similar regions using LSH."""
@@ -357,5 +355,4 @@ def detect_similarity(
     return SimilarityResult(
         signatures=signatures,
         similar_groups=similar_groups,
-        failed_files=failed_files or {},
     )

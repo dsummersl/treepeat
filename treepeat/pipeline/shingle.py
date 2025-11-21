@@ -197,25 +197,21 @@ def shingle_files(
 
     shingler = ASTShingler(rule_engine=rule_engine, k=k)
     shingled_files = []
-    failed_files = dict(parse_result.failed_files)  # Start with parse failures
 
     for parsed_file in parse_result.parsed_files:
         try:
             shingled_file = shingler.shingle_file(parsed_file)
             shingled_files.append(shingled_file)
         except Exception as e:
-            logger.error("Failed to shingle %s: %s", parsed_file.path, e)
-            failed_files[parsed_file.path] = str(e)
+            logger.warning("Failed to shingle %s: %s", parsed_file.path, e)
 
     logger.info(
-        "Shingling complete: %d succeeded, %d failed",
+        "Shingling complete: %d succeeded",
         len(shingled_files),
-        len(failed_files) - len(parse_result.failed_files),
     )
 
     return ShingleResult(
         shingled_files=shingled_files,
-        failed_files=failed_files,
     )
 
 
