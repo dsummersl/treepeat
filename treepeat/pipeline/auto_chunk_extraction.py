@@ -67,10 +67,7 @@ def _find_leaf_chunks(root: Node, min_lines: int) -> list[Node]:
             return False
 
         # Check if any children are large enough to be chunks
-        has_chunk_children = False
-        for child in node.children:
-            if traverse(child):
-                has_chunk_children = True
+        has_chunk_children = any(traverse(child) for child in node.children)
 
         # If no children are chunks, this node is a leaf chunk
         if not has_chunk_children:
@@ -80,9 +77,7 @@ def _find_leaf_chunks(root: Node, min_lines: int) -> list[Node]:
                 node.type,
                 node_lines,
             )
-            return True
 
-        # Otherwise, we've already processed children, this node is not a chunk
         return True
 
     traverse(root)

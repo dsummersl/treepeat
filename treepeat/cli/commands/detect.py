@@ -68,14 +68,14 @@ def _write_output(text: str, output_path: Path | None) -> None:
 
 def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
     """Run the pipeline with appropriate UI feedback based on output format."""
-    if output_format.lower() == "console":
-        from treepeat.config import get_settings
-        settings = get_settings()
-        console.print(f"\nRuleset: [cyan]{settings.rules.ruleset}[/cyan]")
-        console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
-        with console.status("[bold green]Running pipeline..."):
-            return run_pipeline(path)
-    else:
+    if output_format.lower() != "console":
+        return run_pipeline(path)
+
+    from treepeat.config import get_settings
+    settings = get_settings()
+    console.print(f"\nRuleset: [cyan]{settings.rules.ruleset}[/cyan]")
+    console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
+    with console.status("[bold green]Running pipeline..."):
         return run_pipeline(path)
 
 
@@ -277,10 +277,13 @@ def _handle_output(
 
 def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     """Check for errors in the result and exit if necessary."""
-    if result.success_count == 0:
-        if output_format.lower() == "console":
-            console.print("[bold red]Error:[/bold red] Failed to parse any files")
-        sys.exit(1)
+    if result.success_count != 0:
+        return
+
+    if output_format.lower() == "console":
+        console.print("[bold red]Error:[/bold red] Failed to parse any files")
+
+    sys.exit(1)
 
 
 @click.command()

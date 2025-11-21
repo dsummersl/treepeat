@@ -345,12 +345,15 @@ def detect_similarity(
     """Detect similar regions using LSH."""
     candidate_groups = find_similar_groups(signatures, similarity_percent)
 
-    if len(candidate_groups) > 0:
-        similar_groups = _verify_and_filter_groups(
-            candidate_groups, shingled_regions, similarity_percent
+    if not candidate_groups:
+        return SimilarityResult(
+            signatures=signatures,
+            similar_groups=[],
         )
-    else:
-        similar_groups = candidate_groups
+
+    similar_groups = _verify_and_filter_groups(
+        candidate_groups, shingled_regions, similarity_percent
+    )
 
     return SimilarityResult(
         signatures=signatures,

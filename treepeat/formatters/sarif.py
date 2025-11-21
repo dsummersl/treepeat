@@ -26,10 +26,8 @@ def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:
     """Format similarity detection results as SARIF JSON. """
     sarif_log = _create_sarif_log(result)
 
-    if pretty:
-        json_output: str = sarif_log.model_dump_json(indent=2, exclude_none=True)
-        return json_output
-    json_output = sarif_log.model_dump_json(exclude_none=True)
+    indent = 2 if pretty else None
+    json_output: str = sarif_log.model_dump_json(indent=indent, exclude_none=True)
     return json_output
 
 

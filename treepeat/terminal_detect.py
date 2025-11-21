@@ -135,30 +135,18 @@ def _detect_via_osc11() -> BackgroundMode:
         return BackgroundMode.UNKNOWN
 
     try:
-        # Save current terminal settings
         old_settings = termios.tcgetattr(sys.stdin.fileno())
-
-        try:
-            # Set terminal to raw mode to read response
-            tty.setraw(sys.stdin.fileno())
-
-            # Query terminal and read response
-            response = _query_terminal_background()
-
-            # Parse and convert to mode
-            rgb = _parse_osc11_response(response)
-            if rgb:
-                return _rgb_to_background_mode(rgb)
-
-            return BackgroundMode.UNKNOWN
-
-        finally:
-            # Restore terminal settings
-            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
-
     except (OSError, termios.error):
-        # Terminal control not available (e.g., in tests, pipes, etc.)
         return BackgroundMode.UNKNOWN
+
+    try:
+        tty.setraw(sys.stdin.fileno())
+        response = _query_terminal_background()
+        rgb = _parse_osc11_response(response)
+
+        return _rgb_to_background_mode(rgb) if rgb else BackgroundMode.UNKNOWN
+    finally:
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_settings)
 
 
 def _interpret_color_code(bg_code: int) -> BackgroundMode:
