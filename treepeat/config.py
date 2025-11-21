@@ -56,6 +56,18 @@ class LSHSettings(BaseSettings):
         description="Minimum number of lines for a match to be considered valid",
     )
 
+    max_lines_per_language: int = Field(
+        default=1000,
+        ge=1,
+        description="Maximum total lines to sample per language for region extraction",
+    )
+
+    max_lines_per_file: int = Field(
+        default=300,
+        ge=1,
+        description="Maximum lines to read from any single file during region extraction",
+    )
+
     similarity_percent: float = Field(default=0.8, ge=0.0, le=1.0, description="% treesitter similarity")
 
     ignore_node_types: list[str] = Field(
