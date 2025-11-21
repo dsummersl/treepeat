@@ -7,9 +7,16 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from treepeat.config import LSHSettings, MinHashSettings, PipelineSettings, RulesSettings, ShingleSettings, set_settings
-from treepeat.formatters import format_as_sarif
-from treepeat.models.similarity import Region, RegionSignature, SimilarRegionGroup, SimilarityResult
+from treepeat.config import (
+    LSHSettings,
+    MinHashSettings,
+    PipelineSettings,
+    RulesSettings,
+    ShingleSettings,
+    set_settings,
+)
+from treepeat.formatters.sarif import format_as_sarif
+from treepeat.models.similarity import Region, RegionSignature, SimilarityResult, SimilarRegionGroup
 from treepeat.pipeline.pipeline import run_pipeline
 
 console = Console()
