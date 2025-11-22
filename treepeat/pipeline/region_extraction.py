@@ -12,6 +12,7 @@ from treepeat.models.similarity import Region
 from treepeat.config import get_settings
 
 from treepeat.pipeline.rules.engine import RuleEngine
+from treepeat.pipeline.verbose_metrics import record_used_node_type
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,10 @@ def extract_regions(
     )
     regions = [_create_target_region(node, region_type, parsed_file) for node, region_type in matching_nodes_list]
 
+    # Record used node types for verbose output
+    for region in regions:
+        record_used_node_type(parsed_file.language, region.region.region_type)
+
     logger.debug("Extracted %d explicit region(s) from %s", len(regions), parsed_file.path)
     return regions
 
@@ -198,6 +203,119 @@ def _log_region_type_statistics(regions: list[ExtractedRegion], method: str) -> 
         logger.info("  ... and %d more type(s)", len(type_counts) - 10)
 
 
+def _group_files_by_language(parsed_files: list[ParsedFile]) -> dict[str, list[ParsedFile]]:
+    """Group parsed files by language."""
+    by_language: dict[str, list[ParsedFile]] = {}
+    for pf in parsed_files:
+        if pf.language not in by_language:
+            by_language[pf.language] = []
+        by_language[pf.language].append(pf)
+    return by_language
+
+
+def _get_file_line_count(parsed_file: ParsedFile) -> int:
+    """Get line count for a file."""
+    return parsed_file.root_node.end_point[0] + 1
+
+
+def _select_sample_files(files: list[ParsedFile], max_files: int = 5) -> list[ParsedFile]:
+    """Select the largest files as a sample."""
+    sorted_files = sorted(files, key=_get_file_line_count, reverse=True)
+    return sorted_files[:max_files]
+
+
+def _count_chunks_in_sample(
+    sample_files: list[ParsedFile],
+    min_lines: int,
+    max_lines_per_file: int,
+) -> tuple[Counter[str], int]:
+    """Count chunk types in sample files, limiting to first max_lines_per_file lines."""
+    from treepeat.pipeline.statistical_chunk_extraction import _collect_all_chunks
+
+    all_chunks_by_type: Counter[str] = Counter()
+    total_chunks = 0
+
+    for pf in sample_files:
+        chunks = _collect_all_chunks(pf.root_node, min_lines)
+        for chunk in chunks:
+            if chunk.start_point[0] < max_lines_per_file:
+                all_chunks_by_type[chunk.type] += 1
+                total_chunks += 1
+
+    return all_chunks_by_type, total_chunks
+
+
+def _identify_frequent_types(
+    chunks_by_type: Counter[str],
+    total_chunks: int,
+    threshold: float = 0.5,
+) -> set[str]:
+    """Identify node types that appear more frequently than threshold."""
+    frequent_types = set()
+    for node_type, count in chunks_by_type.items():
+        ratio = count / total_chunks
+        if ratio > threshold:
+            frequent_types.add(node_type)
+            logger.debug(
+                "Sample analysis: '%s' too frequent (%.1f%%), will filter",
+                node_type,
+                ratio * 100,
+            )
+    return frequent_types
+
+
+def _analyze_sample_for_frequent_types(
+    sample_files: list[ParsedFile],
+    min_lines: int,
+    max_lines_per_file: int = 500,
+) -> set[str]:
+    """Analyze sample files to find frequently occurring node types.
+
+    Returns set of node types that appear too frequently (>50% of all chunks).
+    """
+    chunks_by_type, total_chunks = _count_chunks_in_sample(
+        sample_files, min_lines, max_lines_per_file
+    )
+
+    if total_chunks == 0:
+        return set()
+
+    return _identify_frequent_types(chunks_by_type, total_chunks)
+
+
+def _run_sample_analysis(
+    parsed_files: list[ParsedFile],
+    min_lines: int,
+) -> dict[str, set[str]]:
+    """Run sample analysis to find frequent node types per language."""
+    by_language = _group_files_by_language(parsed_files)
+    frequent_types_by_lang: dict[str, set[str]] = {}
+
+    for language, files in by_language.items():
+        if len(files) < 3:
+            # Not enough files to sample, skip optimization
+            continue
+
+        sample = _select_sample_files(files, max_files=5)
+        logger.debug(
+            "Analyzing %d sample files for %s (of %d total)",
+            len(sample),
+            language,
+            len(files),
+        )
+
+        frequent = _analyze_sample_for_frequent_types(sample, min_lines)
+        if frequent:
+            frequent_types_by_lang[language] = frequent
+            logger.info(
+                "Sample analysis for %s: will filter %d frequent types",
+                language,
+                len(frequent),
+            )
+
+    return frequent_types_by_lang
+
+
 def extract_all_regions(
     parsed_files: list[ParsedFile],
     rule_engine: "RuleEngine",
@@ -207,11 +325,17 @@ def extract_all_regions(
     Hybrid extraction combines:
     - Explicit rules (semantic labels like "function", "class")
     - Statistical auto-chunking (discovers patterns rules miss)
+
+    Optimization: Runs sample analysis on 5 largest files per language first
+    to detect overly frequent node types before processing all files.
     """
     from treepeat.pipeline.statistical_chunk_extraction import extract_chunks_statistical
 
     settings = get_settings()
     logger.info("Using hybrid region extraction (explicit + statistical)")
+
+    # Run sample analysis to find frequent node types per language
+    frequent_types_by_lang = _run_sample_analysis(parsed_files, settings.lsh.min_lines)
 
     all_regions: list[ExtractedRegion] = []
 
@@ -220,9 +344,17 @@ def extract_all_regions(
             # Get explicit regions from rules
             explicit_regions = extract_regions(parsed_file, rule_engine)
 
-            # Get statistical chunks
+            # Get statistical chunks with optimized max_frequency_ratio
+            # if we found frequent types in sample analysis
+            max_freq = 0.4  # default
+            if parsed_file.language in frequent_types_by_lang:
+                # Lower threshold since we already know some types are too frequent
+                max_freq = 0.3
+
             statistical_regions = extract_chunks_statistical(
-                parsed_file, min_lines=settings.lsh.min_lines
+                parsed_file,
+                min_lines=settings.lsh.min_lines,
+                max_frequency_ratio=max_freq,
             )
 
             # Combine and deduplicate (prefer explicit when overlapping)
