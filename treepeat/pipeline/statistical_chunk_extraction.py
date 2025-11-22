@@ -10,6 +10,7 @@ from treepeat.pipeline.auto_chunk_extraction import (
     _calculate_node_lines,
     _create_chunk_region,
 )
+from treepeat.pipeline.verbose_metrics import record_ignored_node_type, record_used_node_type
 
 logger = logging.getLogger(__name__)
 
@@ -233,23 +234,35 @@ def _filter_by_size_range(
     return filtered
 
 
+def _partition_chunks_by_ignore(
+    chunks: list[Node],
+    ignore_node_types: list[str],
+) -> tuple[list[Node], Counter[str]]:
+    """Partition chunks into kept and ignored, returning counts of ignored types."""
+    filtered = []
+    ignored_counts: Counter[str] = Counter()
+    ignore_set = set(ignore_node_types)
+    for chunk in chunks:
+        if chunk.type in ignore_set:
+            ignored_counts[chunk.type] += 1
+        else:
+            filtered.append(chunk)
+    return filtered, ignored_counts
+
+
 def _filter_by_ignored_types(
     chunks: list[Node],
     ignore_node_types: list[str],
 ) -> list[Node]:
-    """Filter out chunks whose node type is in the ignore list.
-
-    Args:
-        chunks: List of chunk nodes
-        ignore_node_types: List of node type names to filter out
-
-    Returns:
-        Filtered list of chunks
-    """
+    """Filter out chunks whose node type is in the ignore list."""
     if not ignore_node_types:
         return chunks
 
-    filtered = [chunk for chunk in chunks if chunk.type not in ignore_node_types]
+    filtered, ignored_counts = _partition_chunks_by_ignore(chunks, ignore_node_types)
+
+    # Record ignored node types for verbose output
+    for node_type, count in ignored_counts.items():
+        record_ignored_node_type(node_type, count)
 
     if len(filtered) < len(chunks):
         ignored_count = len(chunks) - len(filtered)
@@ -366,6 +379,11 @@ def extract_chunks_statistical(
 
     # Convert to ExtractedRegion objects
     regions = [_create_chunk_region(node, parsed_file) for node in chunks]
+
+    # Record used node types for verbose output
+    type_counts = Counter(r.region.region_type for r in regions)
+    for node_type, count in type_counts.items():
+        record_used_node_type(parsed_file.language, node_type, count)
 
     logger.info(
         "Statistical chunking: %d -> %d chunks after filtering",

@@ -1,7 +1,9 @@
 """Detect command - find similar code regions."""
 
 import sys
+import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
@@ -18,6 +20,10 @@ from treepeat.config import (
 from treepeat.formatters.sarif import format_as_sarif
 from treepeat.models.similarity import Region, RegionSignature, SimilarityResult, SimilarRegionGroup
 from treepeat.pipeline.pipeline import run_pipeline
+from treepeat.pipeline.verbose_metrics import get_verbose_metrics, reset_verbose_metrics
+
+if TYPE_CHECKING:
+    from treepeat.pipeline.verbose_metrics import VerboseMetrics
 
 console = Console()
 
@@ -286,6 +292,38 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     sys.exit(1)
 
 
+def _display_ignored_node_types(metrics: "VerboseMetrics") -> None:
+    """Display ignored node types section."""
+    if not metrics.ignored_node_types:
+        return
+    console.print("\n  [bold]Ignored node types:[/bold]")
+    for node_type, count in sorted(metrics.ignored_node_types.items()):
+        console.print(f"    {node_type}: {count}")
+
+
+def _display_used_node_types(metrics: "VerboseMetrics") -> None:
+    """Display used node types by language section."""
+    if not metrics.used_node_types_by_language:
+        return
+    console.print("\n  [bold]Used node types by language:[/bold]")
+    for language in sorted(metrics.used_node_types_by_language.keys()):
+        node_types = metrics.used_node_types_by_language[language]
+        console.print(f"    [cyan]{language}[/cyan]:")
+        for node_type, count in sorted(node_types.items(), key=lambda x: -x[1]):
+            console.print(f"      {node_type}: {count}")
+
+
+def _display_verbose_metrics(elapsed_time: float) -> None:
+    """Display verbose metrics about the pipeline run."""
+    metrics = get_verbose_metrics()
+
+    console.print("\n[bold cyan]Verbose Metrics:[/bold cyan]")
+    console.print(f"  Total time: [green]{elapsed_time:.2f}s[/green]")
+    _display_ignored_node_types(metrics)
+    _display_used_node_types(metrics)
+    console.print()
+
+
 @click.command()
 @click.argument("path", type=click.Path(exists=True, path_type=Path))
 @click.pass_context
@@ -352,6 +390,13 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     default="",
     help="Comma-separated list of AST node types to ignore during region extraction (e.g., 'parameters,argument_list')",
 )
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    default=False,
+    help="Show verbose output including timing, ignored nodes, and used node types per language",
+)
 def detect(
     ctx: click.Context,
     path: Path,
@@ -364,6 +409,7 @@ def detect(
     diff: bool,
     fail: bool,
     ignore_node_types: str,
+    verbose: bool,
 ) -> None:
     """Detect similar code regions of files in a path."""
     log_level = ctx.obj["log_level"]
@@ -377,9 +423,21 @@ def detect(
         ignore_files,
         ignore_node_types,
     )
+
+    # Reset and track timing for verbose output
+    reset_verbose_metrics()
+    start_time = time.time()
+
     result = _run_pipeline_with_ui(path, output_format)
+
+    elapsed_time = time.time() - start_time
+
     _check_result_errors(result, output_format)
     _handle_output(result, output_format, output, log_level, diff)
+
+    # Display verbose metrics if requested
+    if verbose and output_format.lower() == "console":
+        _display_verbose_metrics(elapsed_time)
 
     # Exit with error code 1 in strict mode if any similar blocks are detected
     if fail and result.similar_groups:
