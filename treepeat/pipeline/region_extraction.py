@@ -123,9 +123,8 @@ def extract_regions(
     regions = [_create_target_region(node, region_type, parsed_file) for node, region_type in matching_nodes_list]
 
     # Record used node types for verbose output
-    type_counts: Counter[str] = Counter(r.region.region_type for r in regions)
-    for region_type, count in type_counts.items():
-        record_used_node_type(parsed_file.language, region_type, count)
+    for region in regions:
+        record_used_node_type(parsed_file.language, region.region.region_type)
 
     logger.debug("Extracted %d explicit region(s) from %s", len(regions), parsed_file.path)
     return regions

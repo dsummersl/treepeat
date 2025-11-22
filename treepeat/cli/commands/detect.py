@@ -3,7 +3,6 @@
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
@@ -21,9 +20,6 @@ from treepeat.formatters.sarif import format_as_sarif
 from treepeat.models.similarity import Region, RegionSignature, SimilarityResult, SimilarRegionGroup
 from treepeat.pipeline.pipeline import run_pipeline
 from treepeat.pipeline.verbose_metrics import get_verbose_metrics, reset_verbose_metrics
-
-if TYPE_CHECKING:
-    from treepeat.pipeline.verbose_metrics import VerboseMetrics
 
 console = Console()
 
@@ -292,36 +288,32 @@ def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
     sys.exit(1)
 
 
-def _display_ignored_node_types(metrics: "VerboseMetrics") -> None:
-    """Display ignored node types section."""
-    if not metrics.ignored_node_types:
-        return
-    console.print("\n  [bold]Ignored node types:[/bold]")
-    for node_type, count in sorted(metrics.ignored_node_types.items()):
-        console.print(f"    {node_type}: {count}")
-
-
-def _display_used_node_types(metrics: "VerboseMetrics") -> None:
-    """Display used node types by language section."""
-    if not metrics.used_node_types_by_language:
-        return
-    console.print("\n  [bold]Used node types by language:[/bold]")
-    for language in sorted(metrics.used_node_types_by_language.keys()):
-        node_types = metrics.used_node_types_by_language[language]
-        console.print(f"    [cyan]{language}[/cyan]:")
-        for node_type, count in sorted(node_types.items(), key=lambda x: -x[1]):
-            console.print(f"      {node_type}: {count}")
+def _format_language_node_types(
+    language: str,
+    node_types: set[str],
+    excluded: set[str],
+) -> str:
+    """Format node types for a language with exclusions."""
+    sorted_types = ", ".join(sorted(node_types))
+    if excluded:
+        excluded_str = ", ".join(sorted(excluded))
+        return f"{language}: {sorted_types} (excluded: {excluded_str})"
+    return f"{language}: {sorted_types}"
 
 
 def _display_verbose_metrics(elapsed_time: float) -> None:
     """Display verbose metrics about the pipeline run."""
     metrics = get_verbose_metrics()
 
-    console.print("\n[bold cyan]Verbose Metrics:[/bold cyan]")
-    console.print(f"  Total time: [green]{elapsed_time:.2f}s[/green]")
-    _display_ignored_node_types(metrics)
-    _display_used_node_types(metrics)
-    console.print()
+    if metrics.used_node_types_by_language:
+        console.print("\nNodes analyzed by region:")
+        for language in sorted(metrics.used_node_types_by_language.keys()):
+            node_types = metrics.used_node_types_by_language[language]
+            excluded = metrics.excluded_node_types_by_language.get(language, set())
+            line = _format_language_node_types(language, node_types, excluded)
+            console.print(f"  {line}")
+
+    console.print(f"\nTotal time: [green]{elapsed_time:.2f}s[/green]\n")
 
 
 @click.command()

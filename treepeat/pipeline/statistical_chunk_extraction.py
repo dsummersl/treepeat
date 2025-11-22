@@ -10,7 +10,7 @@ from treepeat.pipeline.auto_chunk_extraction import (
     _calculate_node_lines,
     _create_chunk_region,
 )
-from treepeat.pipeline.verbose_metrics import record_ignored_node_type, record_used_node_type
+from treepeat.pipeline.verbose_metrics import record_excluded_node_type, record_used_node_type
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +253,7 @@ def _partition_chunks_by_ignore(
 def _filter_by_ignored_types(
     chunks: list[Node],
     ignore_node_types: list[str],
+    language: str,
 ) -> list[Node]:
     """Filter out chunks whose node type is in the ignore list."""
     if not ignore_node_types:
@@ -260,9 +261,9 @@ def _filter_by_ignored_types(
 
     filtered, ignored_counts = _partition_chunks_by_ignore(chunks, ignore_node_types)
 
-    # Record ignored node types for verbose output
-    for node_type, count in ignored_counts.items():
-        record_ignored_node_type(node_type, count)
+    # Record excluded node types for verbose output
+    for node_type in ignored_counts:
+        record_excluded_node_type(language, node_type)
 
     if len(filtered) < len(chunks):
         ignored_count = len(chunks) - len(filtered)
@@ -300,13 +301,15 @@ def _apply_statistical_filters(
     return filtered
 
 
-def _apply_ignore_node_types_filter(chunks: list[Node], file_path: str) -> list[Node] | None:
+def _apply_ignore_node_types_filter(
+    chunks: list[Node], file_path: str, language: str
+) -> list[Node] | None:
     """Apply ignore_node_types filter if configured. Returns None if all chunks filtered out."""
     settings = get_settings()
     if not settings.lsh.ignore_node_types:
         return chunks
 
-    filtered = _filter_by_ignored_types(chunks, settings.lsh.ignore_node_types)
+    filtered = _filter_by_ignored_types(chunks, settings.lsh.ignore_node_types, language)
     if not filtered:
         logger.info("All chunks filtered out by ignore_node_types for %s", file_path)
         return None
@@ -365,7 +368,9 @@ def extract_chunks_statistical(
     logger.debug("Initial chunks: %d", len(all_chunks))
 
     # Filter out ignored node types early
-    filtered_chunks = _apply_ignore_node_types_filter(all_chunks, str(parsed_file.path))
+    filtered_chunks = _apply_ignore_node_types_filter(
+        all_chunks, str(parsed_file.path), parsed_file.language
+    )
     if filtered_chunks is None:
         return []
     all_chunks = filtered_chunks
@@ -381,9 +386,8 @@ def extract_chunks_statistical(
     regions = [_create_chunk_region(node, parsed_file) for node in chunks]
 
     # Record used node types for verbose output
-    type_counts = Counter(r.region.region_type for r in regions)
-    for node_type, count in type_counts.items():
-        record_used_node_type(parsed_file.language, node_type, count)
+    for region in regions:
+        record_used_node_type(parsed_file.language, region.region.region_type)
 
     logger.info(
         "Statistical chunking: %d -> %d chunks after filtering",

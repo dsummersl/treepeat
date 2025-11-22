@@ -1,6 +1,5 @@
 """Verbose metrics collection for pipeline runs."""
 
-from collections import Counter
 from dataclasses import dataclass, field
 
 
@@ -8,8 +7,8 @@ from dataclasses import dataclass, field
 class VerboseMetrics:
     """Container for verbose metrics collected during pipeline run."""
 
-    ignored_node_types: Counter[str] = field(default_factory=Counter)
-    used_node_types_by_language: dict[str, Counter[str]] = field(default_factory=dict)
+    excluded_node_types_by_language: dict[str, set[str]] = field(default_factory=dict)
+    used_node_types_by_language: dict[str, set[str]] = field(default_factory=dict)
 
 
 # Global metrics instance
@@ -27,13 +26,15 @@ def reset_verbose_metrics() -> None:
     _metrics = VerboseMetrics()
 
 
-def record_ignored_node_type(node_type: str, count: int = 1) -> None:
-    """Record that a node type was ignored."""
-    _metrics.ignored_node_types[node_type] += count
+def record_excluded_node_type(language: str, node_type: str) -> None:
+    """Record that a node type was excluded via --ignore-node-types for a language."""
+    if language not in _metrics.excluded_node_types_by_language:
+        _metrics.excluded_node_types_by_language[language] = set()
+    _metrics.excluded_node_types_by_language[language].add(node_type)
 
 
-def record_used_node_type(language: str, node_type: str, count: int = 1) -> None:
-    """Record that a node type was used for a language."""
+def record_used_node_type(language: str, node_type: str) -> None:
+    """Record that a node type was used for region analysis."""
     if language not in _metrics.used_node_types_by_language:
-        _metrics.used_node_types_by_language[language] = Counter()
-    _metrics.used_node_types_by_language[language][node_type] += count
+        _metrics.used_node_types_by_language[language] = set()
+    _metrics.used_node_types_by_language[language].add(node_type)
