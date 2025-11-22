@@ -56,14 +56,14 @@ class LSHSettings(BaseSettings):
         description="Minimum number of lines for a match to be considered valid",
     )
 
-    max_lines_per_language: int = Field(
-        default=1000,
+    max_files_per_language: int = Field(
+        default=5,
         ge=1,
-        description="Maximum total lines to sample per language for region extraction",
+        description="Maximum number of files per language to extract regions from (largest files prioritized)",
     )
 
     max_lines_per_file: int = Field(
-        default=300,
+        default=500,
         ge=1,
         description="Maximum lines to read from any single file during region extraction",
     )

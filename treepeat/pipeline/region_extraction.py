@@ -1,7 +1,6 @@
 """Extract regions (functions, classes, sections, etc) from parsed files."""
 
 import logging
-import random
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 
@@ -199,32 +198,10 @@ def _log_region_type_statistics(regions: list[ExtractedRegion], method: str) -> 
         logger.info("  ... and %d more type(s)", len(type_counts) - 10)
 
 
-def _count_lines(source: bytes) -> int:
-    """Count lines in source bytes."""
-    return source.count(b'\n') + (1 if source and not source.endswith(b'\n') else 0)
-
-
-def _select_files_up_to_budget(
-    files: list[ParsedFile], max_lines: int, max_lines_per_file: int
-) -> tuple[list[ParsedFile], int]:
-    """Select files from a shuffled list up to the line budget."""
-    selected: list[ParsedFile] = []
-    total_lines = 0
-
-    for pf in files:
-        file_lines = min(_count_lines(pf.source), max_lines_per_file)
-        if total_lines + file_lines > max_lines and selected:
-            break
-        selected.append(pf)
-        total_lines += file_lines
-
-    return selected, total_lines
-
-
-def _sample_files_by_lines(
-    parsed_files: list[ParsedFile], max_lines: int, max_lines_per_file: int
+def _filter_largest_files_per_language(
+    parsed_files: list[ParsedFile], max_per_language: int
 ) -> list[ParsedFile]:
-    """Sample files randomly until reaching max_lines budget per language."""
+    """Filter files to keep only the largest N files per language."""
     if not parsed_files:
         return parsed_files
 
@@ -233,26 +210,21 @@ def _sample_files_by_lines(
     for pf in parsed_files:
         files_by_language[pf.language].append(pf)
 
-    # Sample from each language group
-    sampled: list[ParsedFile] = []
+    # Sort each group by size (descending) and keep top N
+    filtered: list[ParsedFile] = []
     for language, files in files_by_language.items():
-        shuffled = files.copy()
-        random.shuffle(shuffled)
-
-        selected, total_lines = _select_files_up_to_budget(shuffled, max_lines, max_lines_per_file)
-        sampled.extend(selected)
-
-        if len(selected) < len(files):
+        sorted_files = sorted(files, key=lambda f: len(f.source), reverse=True)
+        kept = sorted_files[:max_per_language]
+        filtered.extend(kept)
+        if len(files) > max_per_language:
             logger.info(
-                "Sampled %d of %d %s files (~%d lines, max %d/file)",
-                len(selected),
-                len(files),
+                "Limited %s files from %d to %d (largest by size)",
                 language,
-                total_lines,
-                max_lines_per_file,
+                len(files),
+                len(kept),
             )
 
-    return sampled
+    return filtered
 
 
 def extract_all_regions(
@@ -265,25 +237,25 @@ def extract_all_regions(
     - Explicit rules (semantic labels like "function", "class")
     - Statistical auto-chunking (discovers patterns rules miss)
 
-    Files are randomly sampled up to a line budget per language for performance.
+    Files are filtered to the largest N per language for performance.
+    Regions beyond max_lines_per_file are excluded.
     """
     from treepeat.pipeline.statistical_chunk_extraction import extract_chunks_statistical
 
     settings = get_settings()
     logger.info("Using hybrid region extraction (explicit + statistical)")
 
-    # Sample files by line budget for performance
-    filtered_files = _sample_files_by_lines(
-        parsed_files,
-        settings.lsh.max_lines_per_language,
-        settings.lsh.max_lines_per_file,
+    # Filter to largest files per language for performance
+    filtered_files = _filter_largest_files_per_language(
+        parsed_files, settings.lsh.max_files_per_language
     )
+    max_lines = settings.lsh.max_lines_per_file
     logger.info(
-        "Processing %d of %d files (max %d lines/lang, %d lines/file)",
+        "Processing %d of %d files (max %d per language, %d lines/file)",
         len(filtered_files),
         len(parsed_files),
-        settings.lsh.max_lines_per_language,
-        settings.lsh.max_lines_per_file,
+        settings.lsh.max_files_per_language,
+        max_lines,
     )
 
     all_regions: list[ExtractedRegion] = []
@@ -302,8 +274,20 @@ def extract_all_regions(
             combined = explicit_regions + statistical_regions
             regions = _deduplicate_regions(combined)
 
+            # Filter regions beyond max_lines_per_file
+            if max_lines > 0:
+                before_count = len(regions)
+                regions = [r for r in regions if r.region.start_line <= max_lines]
+                if len(regions) < before_count:
+                    logger.debug(
+                        "%s: filtered %d regions beyond line %d",
+                        parsed_file.path.name,
+                        before_count - len(regions),
+                        max_lines,
+                    )
+
             logger.debug(
-                "%s: %d explicit + %d statistical -> %d after dedup",
+                "%s: %d explicit + %d statistical -> %d after dedup/filter",
                 parsed_file.path.name,
                 len(explicit_regions),
                 len(statistical_regions),
