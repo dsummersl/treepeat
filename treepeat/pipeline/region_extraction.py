@@ -17,6 +17,20 @@ from treepeat.pipeline.verbose_metrics import record_used_node_type
 logger = logging.getLogger(__name__)
 
 
+def _extract_node_types_from_query(query: str) -> set[str]:
+    """Extract tree-sitter node type names from a query string.
+
+    Parses queries like "(function_definition) @region" to extract "function_definition".
+    Also handles alternatives like "[(func_a) (func_b)] @region".
+    """
+    import re
+    # Match node types in parentheses: (node_type) or (node_type ...)
+    # This handles both simple matches and matches with predicates/children
+    pattern = r'\((\w+)(?:\s|[)\]])'
+    matches = re.findall(pattern, query)
+    return set(matches)
+
+
 class ExtractedRegion(BaseModel):
     """A region with its AST node(s) for further processing."""
 
@@ -42,6 +56,18 @@ def _get_region_mappings_from_engine(engine: "RuleEngine", language: str) -> lis
     for query, region_type in rules:
         mappings.append(RegionTypeMapping(query=query, region_type=region_type))
     return mappings
+
+
+def _get_explicit_node_types(engine: "RuleEngine", language: str) -> set[str]:
+    """Get the tree-sitter node types that explicit rules target for a language.
+
+    This is used to exclude these types from statistical extraction to avoid duplicates.
+    """
+    rules = engine.get_region_extraction_rules(language)
+    node_types: set[str] = set()
+    for query, _ in rules:
+        node_types.update(_extract_node_types_from_query(query))
+    return node_types
 
 
 def _extract_node_name(node: Node, source: bytes) -> str:
@@ -344,6 +370,9 @@ def extract_all_regions(
             # Get explicit regions from rules
             explicit_regions = extract_regions(parsed_file, rule_engine)
 
+            # Get node types covered by explicit rules to exclude from statistical extraction
+            explicit_node_types = _get_explicit_node_types(rule_engine, parsed_file.language)
+
             # Get statistical chunks with optimized max_frequency_ratio
             # if we found frequent types in sample analysis
             max_freq = 0.4  # default
@@ -355,6 +384,7 @@ def extract_all_regions(
                 parsed_file,
                 min_lines=settings.lsh.min_lines,
                 max_frequency_ratio=max_freq,
+                exclude_node_types=explicit_node_types,
             )
 
             # Combine and deduplicate (prefer explicit when overlapping)
