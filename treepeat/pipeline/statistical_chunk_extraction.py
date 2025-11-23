@@ -318,11 +318,56 @@ def _apply_ignore_node_types_filter(
     return filtered
 
 
+def _filter_by_explicit_node_types(
+    chunks: list[Node], exclude_node_types: set[str] | None
+) -> list[Node]:
+    """Filter out node types already covered by explicit rules to avoid duplicates."""
+    if not exclude_node_types:
+        return chunks
+
+    before_count = len(chunks)
+    filtered = [c for c in chunks if c.type not in exclude_node_types]
+    excluded_count = before_count - len(filtered)
+    if excluded_count > 0:
+        logger.debug(
+            "Excluded %d chunks with types already covered by explicit rules: %s",
+            excluded_count,
+            ", ".join(sorted(exclude_node_types)),
+        )
+    return filtered
+
+
 def _log_chunk_type_summary(regions: list[ExtractedRegion]) -> None:
     """Log summary of region types found."""
     type_counts = Counter(r.region.region_type for r in regions)
     for node_type, count in type_counts.most_common():
         logger.debug("  %s: %d chunks", node_type, count)
+
+
+def _collect_and_filter_chunks(
+    parsed_file: ParsedFile,
+    min_lines: int,
+    exclude_node_types: set[str] | None,
+) -> list[Node] | None:
+    """Collect chunks and apply early filters. Returns None if no chunks remain."""
+    all_chunks = _collect_all_chunks(parsed_file.root_node, min_lines)
+    if not all_chunks:
+        logger.info("No chunks found for %s", parsed_file.path)
+        return None
+
+    logger.debug("Initial chunks: %d", len(all_chunks))
+
+    # Filter out node types already covered by explicit rules
+    all_chunks = _filter_by_explicit_node_types(all_chunks, exclude_node_types)
+    if not all_chunks:
+        logger.info("No chunks remaining after excluding explicit types for %s", parsed_file.path)
+        return None
+
+    # Filter out ignored node types
+    filtered_chunks = _apply_ignore_node_types_filter(
+        all_chunks, str(parsed_file.path), parsed_file.language
+    )
+    return filtered_chunks
 
 
 def extract_chunks_statistical(
@@ -332,6 +377,7 @@ def extract_chunks_statistical(
     min_percentile: float = 0.3,
     min_file_ratio: float = 0.0,  # Disabled by default (min_lines handles this)
     max_file_ratio: float = 1.0,  # Disabled by default
+    exclude_node_types: set[str] | None = None,
 ) -> list[ExtractedRegion]:
     """Extract chunks using statistical filtering.
 
@@ -348,6 +394,7 @@ def extract_chunks_statistical(
         min_percentile: Min size percentile to keep (default: 30%)
         min_file_ratio: Min chunk size as ratio of file (default: 0% = disabled)
         max_file_ratio: Max chunk size as ratio of file (default: 100% = disabled)
+        exclude_node_types: Node types to exclude (e.g., types already covered by explicit rules)
 
     Returns:
         Filtered list of extracted regions
@@ -359,21 +406,10 @@ def extract_chunks_statistical(
         min_lines,
     )
 
-    # Collect all potential chunks
-    all_chunks = _collect_all_chunks(parsed_file.root_node, min_lines)
+    # Collect and apply early filters
+    all_chunks = _collect_and_filter_chunks(parsed_file, min_lines, exclude_node_types)
     if not all_chunks:
-        logger.info("No chunks found for %s", parsed_file.path)
         return []
-
-    logger.debug("Initial chunks: %d", len(all_chunks))
-
-    # Filter out ignored node types early
-    filtered_chunks = _apply_ignore_node_types_filter(
-        all_chunks, str(parsed_file.path), parsed_file.language
-    )
-    if filtered_chunks is None:
-        return []
-    all_chunks = filtered_chunks
 
     # Analyze statistics and apply filters
     file_lines = _calculate_node_lines(parsed_file.root_node)
