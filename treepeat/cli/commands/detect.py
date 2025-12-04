@@ -15,6 +15,7 @@ from treepeat.config import (
     RulesSettings,
     ShingleSettings,
     set_settings,
+    get_settings,
 )
 from treepeat.formatters.sarif import format_as_sarif
 from treepeat.models.similarity import Region, RegionSignature, SimilarityResult, SimilarRegionGroup
@@ -27,6 +28,81 @@ console = Console()
 def _parse_patterns(pattern_string: str) -> list[str]:
     """Parse comma-separated pattern string into list."""
     return [p.strip() for p in pattern_string.split(",") if p.strip()]
+
+
+def _parse_add_region_arg(region_spec: str) -> tuple[str, set[str]]:
+    """Parse '<language>:node1,node2,...' for additional regions."""
+    import re
+
+    m = re.match(r"^\s*([\w+\-]+)\s*:(.+)$", region_spec)
+    if not m:
+        raise click.ClickException(
+            f"Invalid --add-regions value '{region_spec}'. Expected '<language>:node1,node2,...'"
+        )
+
+    language = m.group(1).lower()
+    nodes_str = m.group(2)
+    node_types = {n.strip() for n in nodes_str.split(",") if n.strip()}
+    if not node_types:
+        raise click.ClickException(
+            f"Invalid --add-regions value '{region_spec}'. Must include at least one node type"
+        )
+    return language, node_types
+
+
+def _parse_exclude_region_arg(region_spec: str) -> tuple[str, set[str]]:
+    """Parse '<language>:label1,label2,...' for excluding regions."""
+    import re
+
+    m = re.match(r"^\s*([\w+\-]+)\s*:(.+)$", region_spec)
+    if not m:
+        raise click.ClickException(
+            f"Invalid --exclude-regions value '{region_spec}'. Expected '<language>:label1,label2,...'"
+        )
+
+    language = m.group(1).lower()
+    labels_str = m.group(2)
+    labels = {l.strip() for l in labels_str.split(",") if l.strip()}
+    if not labels:
+        raise click.ClickException(
+            f"Invalid --exclude-regions value '{region_spec}'. Must include at least one label"
+        )
+    return language, labels
+
+
+def _build_additional_region_rules(region_specs: tuple[str, ...]) -> dict[str, set[str]]:
+    """Build a language -> node types mapping from repeated --add-regions args."""
+    rules: dict[str, set[str]] = {}
+    for spec in region_specs:
+        lang, nodes = _parse_add_region_arg(spec)
+        if lang not in rules:
+            rules[lang] = set()
+        rules[lang].update(nodes)
+    return rules
+
+
+def _build_excluded_region_rules(region_specs: tuple[str, ...]) -> dict[str, set[str]]:
+    """Build a language -> labels mapping from repeated --exclude-regions args."""
+    rules: dict[str, set[str]] = {}
+    for spec in region_specs:
+        lang, labels = _parse_exclude_region_arg(spec)
+        if lang not in rules:
+            rules[lang] = set()
+        rules[lang].update(labels)
+    return rules
+
+
+def _merge_region_mappings(
+    base: dict[str, set[str]] | None,
+    extra: dict[str, set[str]],
+) -> dict[str, set[str]]:
+    """Merge two region mapping dictionaries without mutating the originals."""
+    merged: dict[str, set[str]] = {lang: set(nodes) for lang, nodes in (base or {}).items()}
+    for lang, nodes in extra.items():
+        if lang not in merged:
+            merged[lang] = set()
+        merged[lang].update(nodes)
+    return merged
 
 
 def _create_rules_settings(ruleset: str) -> RulesSettings:
@@ -342,6 +418,22 @@ def _display_verbose_metrics(elapsed_time: float) -> None:
     help="Output format (default: console)",
 )
 @click.option(
+    "--add-regions",
+    "-ar",
+    "add_regions",
+    multiple=True,
+    default=(),
+    help="Add region extraction rules as '<language>:node1,node2,...' (e.g., 'python:function_definition,class_definition')",
+)
+@click.option(
+    "--exclude-regions",
+    "-er",
+    "exclude_regions",
+    multiple=True,
+    default=(),
+    help="Exclude region extraction rules by label as '<language>:label1,label2,...' (e.g., 'python:function_definition,class_definition')",
+)
+@click.option(
     "--output",
     "-o",
     type=click.Path(path_type=Path),
@@ -402,6 +494,8 @@ def detect(
     fail: bool,
     ignore_node_types: str,
     verbose: bool,
+    add_regions: tuple[str, ...],
+    exclude_regions: tuple[str, ...],
 ) -> None:
     """Detect similar code regions of files in a path."""
     log_level = ctx.obj["log_level"]
@@ -415,6 +509,21 @@ def detect(
         ignore_files,
         ignore_node_types,
     )
+
+    settings = get_settings()
+    additional_regions = _build_additional_region_rules(add_regions)
+    if additional_regions:
+        settings.rules.additional_regions = _merge_region_mappings(
+            getattr(settings.rules, "additional_regions", {}),
+            additional_regions,
+        )
+
+    excluded_regions = _build_excluded_region_rules(exclude_regions)
+    if excluded_regions:
+        settings.rules.excluded_regions = _merge_region_mappings(
+            getattr(settings.rules, "excluded_regions", {}),
+            excluded_regions,
+        )
 
     # Reset and track timing for verbose output
     reset_verbose_metrics()

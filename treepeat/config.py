@@ -14,6 +14,28 @@ class RulesSettings(BaseSettings):
         description="Ruleset profile to use",
     )
 
+    # Mapping of language -> allowed region node types to extract
+    # When provided, only these languages and node types are used to build
+    # region-extraction and normalization rules for the rule engine.
+    region_filters: dict[str, set[str]] = Field(
+        default_factory=dict,
+        description="Limit rules to these languages and region node types (e.g., {'python': {'function_definition'}})",
+    )
+    additional_regions: dict[str, set[str]] = Field(
+        default_factory=dict,
+        description=(
+            "Additional region extraction rules to include, mapping language to node types "
+            "(e.g., {'python': {'decorated_definition'}})"
+        ),
+    )
+    excluded_regions: dict[str, set[str]] = Field(
+        default_factory=dict,
+        description=(
+            "Region extraction rules to exclude by label, mapping language to labels "
+            "(e.g., {'python': {'function_definition', 'class_definition'}})"
+        ),
+    )
+
 
 class ShingleSettings(BaseSettings):
     """Settings for shingling."""
