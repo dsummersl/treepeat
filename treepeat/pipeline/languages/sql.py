@@ -50,4 +50,9 @@ class SQLConfig(LanguageConfig):
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
-        return []
+        return [
+            RegionExtractionRule.from_node_type("create_table"),
+            RegionExtractionRule.from_node_type("select"),
+            RegionExtractionRule.from_node_type("insert"),
+            RegionExtractionRule.from_node_type("delete"),
+        ]

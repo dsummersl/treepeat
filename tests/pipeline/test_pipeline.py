@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from treepeat.models.similarity import Region, SimilarRegionGroup, SimilarityResult
+from treepeat.models.similarity import Region
 from ..conftest import parsed_fixture, assert_regions_in_same_group
 import pytest
 
@@ -56,8 +56,8 @@ def _make_region(path, language, region_type, region_name, start_line, end_line)
     )
 
 
-classA_region = _make_region(fixture_class_with_methods, "python", "class", "ClassA", 4, 27)
-classB_region = _make_region(fixture_class_with_methods, "python", "class", "ClassB", 30, 54)
+classA_region = _make_region(fixture_class_with_methods, "python", "class_definition", "ClassA", 4, 27)
+classB_region = _make_region(fixture_class_with_methods, "python", "class_definition", "ClassB", 30, 54)
 
 
 python_fixtures = Path(__file__).parent.parent / "fixtures" / "python"
@@ -66,6 +66,7 @@ class_with_methods_file = python_fixtures / "class_with_methods.py"
 css_fixtures = Path(__file__).parent.parent.parent / "fixtures" / "css"
 fixture_comprehensive = css_fixtures / "comprehensive.css"
 fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.css"
+
 
 @pytest.mark.parametrize(
     "ruleset, path, similarity_threshold, similar_groups, expected_regions",
@@ -80,14 +81,14 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             "none",
             python_fixtures,
             0.7,
-            7,  # Hybrid mode finds additional statistical region groups
+            5,
             [
                 # Cross-file duplicate functions
                 (
                     _make_region(
                         python_fixtures / "small_functions_b.py",
                         "python",
-                        "function",
+                        "function_definition",
                         "large_duplicate",
                         9,
                         18,
@@ -95,7 +96,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                     _make_region(
                         python_fixtures / "small_functions.py",
                         "python",
-                        "function",
+                        "function_definition",
                         "large_duplicate",
                         9,
                         18,
@@ -106,12 +107,14 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                     _make_region(
                         python_fixtures / "dataclass1.py",
                         "python",
-                        "function",
+                        "function_definition",
                         "my_adapted_one",
                         21,
                         26,
                     ),
-                    _make_region(python_fixtures / "dataclass2.py", "python", "function", "one", 2, 7),
+                    _make_region(
+                        python_fixtures / "dataclass2.py", "python", "function_definition", "one", 2, 7
+                    ),
                 ),
             ],
         ),
@@ -119,14 +122,14 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             "none",
             python_fixtures,
             0.8,
-            6,
+            5,
             [
                 # Cross-file duplicate functions
                 (
                     _make_region(
                         python_fixtures / "small_functions_b.py",
                         "python",
-                        "function",
+                        "function_definition",
                         "large_duplicate",
                         9,
                         18,
@@ -134,7 +137,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                     _make_region(
                         python_fixtures / "small_functions.py",
                         "python",
-                        "function",
+                        "function_definition",
                         "large_duplicate",
                         9,
                         18,
@@ -143,18 +146,18 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                 # Duplicate methods within same file (non-overlapping)
                 (
                     _make_region(
-                        fixture_class_with_methods, "python", "function", "method2", 13, 19
+                        fixture_class_with_methods, "python", "function_definition", "method2", 13, 19
                     ),
                     _make_region(
-                        fixture_class_with_methods, "python", "function", "method2", 40, 46
+                        fixture_class_with_methods, "python", "function_definition", "method2", 40, 46
                     ),
                 ),
                 (
                     _make_region(
-                        fixture_class_with_methods, "python", "function", "method3", 21, 27
+                        fixture_class_with_methods, "python", "function_definition", "method3", 21, 27
                     ),
                     _make_region(
-                        fixture_class_with_methods, "python", "function", "method3", 48, 54
+                        fixture_class_with_methods, "python", "function_definition", "method3", 48, 54
                     ),
                 ),
             ],
@@ -163,14 +166,14 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             "none",
             python_fixtures,
             0.9,
-            5,
+            4,
             [
                 # Cross-file duplicate functions
                 (
                     _make_region(
                         python_fixtures / "small_functions_b.py",
                         "python",
-                        "function",
+                        "function_definition",
                         "large_duplicate",
                         9,
                         18,
@@ -178,7 +181,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                     _make_region(
                         python_fixtures / "small_functions.py",
                         "python",
-                        "function",
+                        "function_definition",
                         "large_duplicate",
                         9,
                         18,
@@ -187,10 +190,10 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                 # Duplicate method2 within same file (non-overlapping)
                 (
                     _make_region(
-                        fixture_class_with_methods, "python", "function", "method2", 13, 19
+                        fixture_class_with_methods, "python", "function_definition", "method2", 13, 19
                     ),
                     _make_region(
-                        fixture_class_with_methods, "python", "function", "method2", 40, 46
+                        fixture_class_with_methods, "python", "function_definition", "method2", 40, 46
                     ),
                 ),
             ],

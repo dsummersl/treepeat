@@ -7,9 +7,15 @@ from treepeat.pipeline.rules.models import Rule
 @dataclass
 class RegionExtractionRule:
     """Configuration for extracting a specific type of region from a language."""
+    label: str
+    query: str
 
-    query: str  # TreeSitter query to match nodes (e.g., "(function_definition) @region")
-    region_type: str  # Region type label (e.g., "function")
+    @classmethod
+    def from_node_type(cls, node_type: str) -> "RegionExtractionRule":
+        return cls(
+            label=node_type,
+            query=f"({node_type}) @region"
+        )
 
 
 class LanguageConfig(ABC):

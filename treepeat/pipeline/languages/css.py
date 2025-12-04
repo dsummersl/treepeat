@@ -56,16 +56,7 @@ class CSSConfig(LanguageConfig):
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
         return [
-            RegionExtractionRule(
-                query="(rule_set) @region",
-                region_type="rule"
-            ),
-            RegionExtractionRule(
-                query="(media_statement) @region",
-                region_type="media"
-            ),
-            RegionExtractionRule(
-                query="(keyframes_statement) @region",
-                region_type="keyframes"
-            ),
+            RegionExtractionRule.from_node_type("rule_set"),
+            RegionExtractionRule.from_node_type("media_statement"),
+            RegionExtractionRule.from_node_type("keyframes_statement"),
         ]

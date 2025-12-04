@@ -15,7 +15,7 @@ fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "css"
 
 
 @pytest.mark.parametrize("rules,expected_min_regions", [
-    ([], 1),  # No rules, entire file as one region
+    ([], 0),  # No rules, entire file is ignored
     ([rule for rule, _ in build_default_rules()], 1),  # CSS no longer has region extraction rules
     ([rule for rule, _ in build_loose_rules()], 1)  # Same behavior with loose rules
 ])

@@ -55,4 +55,8 @@ class BashConfig(LanguageConfig):
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
-        return []
+        return [
+            RegionExtractionRule.from_node_type("function_definition"),
+            RegionExtractionRule.from_node_type("if_statement"),
+            RegionExtractionRule.from_node_type("while_statement"),
+        ]

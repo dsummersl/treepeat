@@ -21,10 +21,10 @@ class MarkdownConfig(LanguageConfig):
         return [
             RegionExtractionRule(
                 query="[(atx_heading) (setext_heading) (section)] @region",
-                region_type="heading",
+                label="heading",
             ),
             RegionExtractionRule(
                 query="[(fenced_code_block) (indented_code_block)] @region",
-                region_type="code_block",
+                label="code_block",
             ),
         ]

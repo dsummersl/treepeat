@@ -14,38 +14,32 @@ def test_extract_regions_dataclass1():
     engine = default_rule_engine()
     regions = extract_all_regions([parsed], engine)
 
-    # With hybrid mode, we get explicit regions (classes, functions) + statistical regions (blocks)
-    # Filter to only explicit regions for verification
-    explicit_regions = [r for r in regions if r.region.region_type in ("class", "function")]
-
-    assert [r.region.region_name for r in explicit_regions] == [
+    assert [r.region.region_name for r in regions] == [
         "Model1",
         "Model2",
         "my_adapted_one",
     ]
 
-    assert [r.region.region_type for r in explicit_regions] == ["class", "class", "function"]
-
-    assert [r.node.type for r in explicit_regions] == [
+    assert [r.node.type for r in regions] == [
         "class_definition",
         "class_definition",
         "function_definition",
     ]
 
     # First explicit region should be the class definition node
-    assert explicit_regions[0].node.type == "class_definition"
+    assert regions[0].node.type == "class_definition"
     # Verify the node includes the entire class definition
-    class_text = parsed.source[explicit_regions[0].node.start_byte : explicit_regions[0].node.end_byte].decode(
-        "utf-8"
-    )
+    class_text = parsed.source[
+        regions[0].node.start_byte : regions[0].node.end_byte
+    ].decode("utf-8")
     assert class_text.startswith("class Model1")
     assert "region: Region" in class_text
 
     # Second explicit region should be the class definition node
-    assert explicit_regions[1].node.type == "class_definition"
-    class_text = parsed.source[explicit_regions[1].node.start_byte : explicit_regions[1].node.end_byte].decode(
-        "utf-8"
-    )
+    assert regions[1].node.type == "class_definition"
+    class_text = parsed.source[
+        regions[1].node.start_byte : regions[1].node.end_byte
+    ].decode("utf-8")
     assert class_text.startswith("class Model2")
     assert "minhash: MinHash" in class_text
 
@@ -56,33 +50,40 @@ def test_extract_regions_dataclass2():
     regions = extract_all_regions([parsed], engine)
 
     # With hybrid mode, filter to explicit function regions
-    explicit_regions = [r for r in regions if r.region.region_type == "function"]
+    regions = [r for r in regions if r.region.region_type == "function_definition"]
 
     # Should have 2 function regions (two functions, no section regions)
-    assert len(explicit_regions) == 2
+    assert len(regions) == 2
 
     # Check region names
-    region_names = [r.region.region_name for r in explicit_regions]
+    region_names = [r.region.region_name for r in regions]
     assert region_names == ["one", "one_prime"]
 
     # Check region types
-    region_types = [r.region.region_type for r in explicit_regions]
-    assert region_types == ["function", "function"]
+    region_types = [r.region.region_type for r in regions]
+    assert region_types == [
+      "function_definition",
+      "function_definition"
+    ]
 
     # Check line ranges (functions start at line 2 and 9)
-    assert explicit_regions[0].region.start_line == 2
-    assert explicit_regions[0].region.end_line == 7
-    assert explicit_regions[1].region.start_line == 9
-    assert explicit_regions[1].region.end_line == 14
+    assert regions[0].region.start_line == 2
+    assert regions[0].region.end_line == 7
+    assert regions[1].region.start_line == 9
+    assert regions[1].region.end_line == 14
 
     # Verify function nodes are function_definition and include the entire function
-    assert explicit_regions[0].node.type == "function_definition"
-    func_text = parsed.source[explicit_regions[0].node.start_byte : explicit_regions[0].node.end_byte].decode("utf-8")
+    assert regions[0].node.type == "function_definition"
+    func_text = parsed.source[
+        regions[0].node.start_byte : regions[0].node.end_byte
+    ].decode("utf-8")
     assert func_text.startswith("def one()")
     assert "return total" in func_text
 
-    assert explicit_regions[1].node.type == "function_definition"
-    func_text = parsed.source[explicit_regions[1].node.start_byte : explicit_regions[1].node.end_byte].decode("utf-8")
+    assert regions[1].node.type == "function_definition"
+    func_text = parsed.source[
+        regions[1].node.start_byte : regions[1].node.end_byte
+    ].decode("utf-8")
     assert func_text.startswith("def one_prime()")
     assert "return sum" in func_text
 
@@ -93,7 +94,7 @@ def test_region_nodes_include_all_children():
     regions = extract_all_regions([parsed], engine)
 
     # Filter to only function regions (skip the comment region)
-    function_regions = [r for r in regions if r.region.region_type == "function"]
+    function_regions = [r for r in regions if r.region.region_type == "function_definition"]
 
     # For each function region, verify it includes the identifier child
     for region in function_regions:
@@ -136,12 +137,7 @@ def test_nested_function_included_in_outer():
 
 
 def test_include_sections_false_extracts_all_recursively():
-    """Test that recursive extraction gets ALL functions/methods/classes.
-
-    This is the Level 1 behavior - extract everything that could potentially match,
-    including nested functions, methods within classes, etc. This allows detection
-    of duplicate methods even when their containing classes differ.
-    """
+    """Test that recursive extraction gets ALL functions/methods/classes. """
     parsed = parsed_fixture(fixture_nested)
     engine = default_rule_engine()
 
@@ -149,8 +145,7 @@ def test_include_sections_false_extracts_all_recursively():
     regions = extract_all_regions([parsed], engine)
 
     # With hybrid mode, filter to explicit regions (class/function types)
-    explicit_regions = [r for r in regions if r.region.region_type in ("class", "function")]
-    region_names = [r.region.region_name for r in explicit_regions]
+    region_names = [r.region.region_name for r in regions]
 
     # Should have ALL functions (top-level and nested)
     assert "outer_function" in region_names
@@ -175,16 +170,11 @@ def test_include_sections_false_extracts_all_recursively():
     # Should have 10 explicit regions total (all functions/methods + class)
     # outer_function, inner_function_1, inner_function_2, another_outer, process, transform,
     # ClassWithMethods, method_with_nested, helper, simple_method
-    assert len(explicit_regions) == 10
+    assert len(regions) == 10
 
 
 def test_class_methods_extracted_separately():
-    """Test that methods within classes are extracted as separate regions.
-
-    This demonstrates the scenario where ClassA and ClassB have some duplicate
-    methods and some different methods. With recursive extraction, individual
-    methods can be matched even if the classes overall don't match.
-    """
+    """Test that methods within classes are extracted as separate regions. """
     parsed = parsed_fixture(fixture_class_methods)
     engine = default_rule_engine()
 
@@ -192,9 +182,8 @@ def test_class_methods_extracted_separately():
     regions = extract_all_regions([parsed], engine)
 
     # With hybrid mode, filter to explicit regions (class/function types)
-    explicit_regions = [r for r in regions if r.region.region_type in ("class", "function")]
-    region_names = [r.region.region_name for r in explicit_regions]
-    region_types = {r.region.region_name: r.region.region_type for r in explicit_regions}
+    region_names = [r.region.region_name for r in regions]
+    region_types = {r.region.region_name: r.region.region_type for r in regions}
 
     # Should have all three classes
     assert "ClassA" in region_names
@@ -209,8 +198,8 @@ def test_class_methods_extracted_separately():
     # Should have ALL methods from ClassB (including renamed method1)
     assert "method1_renamed" in region_names
     # method2 and method3 appear twice (once for ClassA, once for ClassB)
-    method2_regions = [r for r in explicit_regions if r.region.region_name == "method2"]
-    method3_regions = [r for r in explicit_regions if r.region.region_name == "method3"]
+    method2_regions = [r for r in regions if r.region.region_name == "method2"]
+    method3_regions = [r for r in regions if r.region.region_name == "method3"]
     assert len(method2_regions) == 2  # One in ClassA, one in ClassB
     assert len(method3_regions) == 2  # One in ClassA, one in ClassB
 
@@ -219,11 +208,18 @@ def test_class_methods_extracted_separately():
     assert "another_different_method" in region_names
 
     # Verify all methods are typed as "function" (Python treats methods as function_definition)
-    for method_name in ["method1", "method2", "method3", "method1_renamed", "different_method", "another_different_method"]:
-        assert region_types[method_name] == "function"
+    for method_name in [
+        "method1",
+        "method2",
+        "method3",
+        "method1_renamed",
+        "different_method",
+        "another_different_method",
+    ]:
+        assert region_types[method_name] == "function_definition"
 
     # Total: 3 classes + 3 methods (ClassA) + 3 methods (ClassB) + 2 methods (ClassC) = 11 regions
-    assert len(explicit_regions) == 11
+    assert len(regions) == 11
 
     # Verify that method2 from ClassA and method2 from ClassB have different line ranges
     # but identical code (they would match at high similarity)

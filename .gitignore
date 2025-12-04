@@ -1,5 +1,4 @@
 __pycache__/
-*.py[cod]
 
 # Build artifacts
 *.egg-info/
@@ -10,7 +9,4 @@ __pycache__/
 .htmlcov/
 .pytest_cache/
 .aider*
-
-# Test files
-test_*.py
-test_*.yaml
+sample-data/

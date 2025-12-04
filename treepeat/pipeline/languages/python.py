@@ -121,12 +121,6 @@ class PythonConfig(LanguageConfig):
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
         return [
-            RegionExtractionRule(
-                query="(function_definition) @region",
-                region_type="function"
-            ),
-            RegionExtractionRule(
-                query="(class_definition) @region",
-                region_type="class"
-            ),
+            RegionExtractionRule.from_node_type("function_definition"),
+            RegionExtractionRule.from_node_type("class_definition"),
         ]

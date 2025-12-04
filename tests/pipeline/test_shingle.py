@@ -14,18 +14,14 @@ def test_shingle_regions_basic():
         rule_engine=RuleEngine([]),
     )
 
-    # With hybrid mode, filter to explicit regions (class/function types)
-    explicit_shingled = [r for r in shingled_regions if r.region.region_type in ("class", "function")]
-
-    # With recursive extraction, we get 3 explicit regions (no section regions)
-    assert len(explicit_shingled) == 3
-    assert [r.region.region_name for r in explicit_shingled] == [
+    assert len(shingled_regions) == 3
+    assert [r.region.region_name for r in shingled_regions] == [
         "Model1",
         "Model2",
         "my_adapted_one",
     ]
-    assert {r.region.path for r in explicit_shingled} == {fixture_path1}
-    assert {r.region.language for r in explicit_shingled} == {"python"}
+    assert {r.region.path for r in shingled_regions} == {fixture_path1}
+    assert {r.region.language for r in shingled_regions} == {"python"}
 
 
 def test_identical_functions():
@@ -38,7 +34,7 @@ def test_identical_functions():
     )
 
     # With hybrid mode, filter to explicit regions (function types)
-    explicit_shingled = [r for r in shingled_regions if r.region.region_type == "function"]
+    explicit_shingled = [r for r in shingled_regions if r.region.region_type == "function_definition"]
 
     # With recursive extraction, we get 2 explicit regions (no section regions)
     assert len(explicit_shingled) == 2

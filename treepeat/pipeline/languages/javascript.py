@@ -65,14 +65,8 @@ class JavaScriptConfig(LanguageConfig):
         return [
             RegionExtractionRule(
                 query="[(function_declaration) (function_expression) (arrow_function)] @region",
-                region_type="function",
+                label="function",
             ),
-            RegionExtractionRule(
-                query="(method_definition) @region",
-                region_type="method"
-            ),
-            RegionExtractionRule(
-                query="(class_declaration) @region",
-                region_type="class"
-            ),
+            RegionExtractionRule.from_node_type("method_definition"),
+            RegionExtractionRule.from_node_type("class_declaration"),
         ]

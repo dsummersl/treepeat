@@ -51,10 +51,10 @@ class HTMLConfig(LanguageConfig):
         return [
             RegionExtractionRule(
                 query="(element (start_tag (tag_name) @tag_name) (#eq? @tag_name \"head\")) @region",
-                region_type="head"
+                label="head"
             ),
             RegionExtractionRule(
                 query="(element (start_tag (tag_name) @tag_name) (#eq? @tag_name \"body\")) @region",
-                region_type="body"
+                label="body"
             ),
         ]

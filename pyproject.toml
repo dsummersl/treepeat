@@ -50,3 +50,7 @@ packages = ["treepeat"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=treepeat  --cov-report=term-missing"
+norecursedirs = ["sample-data"]
+
+[tool.pyright]
+exclude = ["sample-data"]

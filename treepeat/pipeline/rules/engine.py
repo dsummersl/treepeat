@@ -274,12 +274,12 @@ def build_region_extraction_rules() -> list[tuple[Rule, str]]:
             # Create a query-based Rule from RegionExtractionRule
             # Use the query directly from the region rule
             rule = Rule(
-                name=f"Extract {region_rule.region_type} regions for {lang_name}",
+                name=f"Extract {region_rule.label} regions for {lang_name}",
                 languages=[lang_name],
                 query=region_rule.query,
                 action=RuleAction.EXTRACT_REGION,
                 params={
-                    "region_type": region_rule.region_type,
+                    "region_type": region_rule.label,
                 },
             )
             rules.append((rule, rule.name))

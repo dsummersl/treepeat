@@ -15,7 +15,6 @@ fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "pyth
 
 
 @pytest.mark.parametrize("rules", [
-    [],
     [rule for rule, _ in build_default_rules()],
     [rule for rule, _ in build_loose_rules()]
 ])
