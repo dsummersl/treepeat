@@ -1,5 +1,3 @@
-"""Factory for building rule engines from settings."""
-
 import logging
 
 from treepeat.config import PipelineSettings
@@ -60,7 +58,11 @@ def _filter_rules_by_region_filters(
             region_type = rule.params.get("region_type") if hasattr(rule, "params") else None
             if not region_type:
                 return False
-            return any(region_type in filters.get(lang, set()) for lang in rule.languages if lang in allowed_langs)
+            return any(
+                region_type in filters.get(lang, set())
+                for lang in rule.languages
+                if lang in allowed_langs
+            )
         # For normalization rules, just language match is enough
         return True
 
@@ -84,45 +86,37 @@ def _build_additional_region_rules(additional_regions: dict[str, set[str]]) -> l
 
 
 def _load_ruleset_rules(ruleset: str, filters: dict[str, set[str]] | None = None) -> list[Rule]:
-    """Load rules from a predefined ruleset, honoring optional filters. """
+    """Load rules from a predefined ruleset, honoring optional filters."""
     rules_with_descriptions = get_ruleset_with_descriptions(ruleset, filters)
     if rules_with_descriptions:
         logger.info("Using '%s' ruleset", ruleset)
     return [rule for rule, _ in rules_with_descriptions]
 
 
+def _is_excluded_region_type(rule: Rule, excluded_regions: dict[str, set[str]]) -> bool:
+    region_type = rule.params.get("region_type", None)
+    if not region_type:
+        return False
+
+    return any(region_type in excluded_regions.get(lang, set()) for lang in rule.languages)
+
+def _filter_extract_region_rules(rules: list[Rule]) -> list[Rule]:
+    return [rule for rule in rules if rule.action == RuleAction.EXTRACT_REGION]
+
+
 def _filter_excluded_regions(
     rules: list[Rule], excluded_regions: dict[str, set[str]]
 ) -> list[Rule]:
-    """Filter out rules that match excluded region labels."""
     if not excluded_regions:
         return rules
 
-    filtered_rules = []
-    for rule in rules:
-        # Only filter EXTRACT_REGION rules
-        if rule.action == RuleAction.EXTRACT_REGION:
-            region_type = rule.params.get("region_type") if hasattr(rule, "params") else None
-            if region_type:
-                # Check if this rule's region type is excluded for any of its languages
-                should_exclude = any(
-                    region_type in excluded_regions.get(lang, set())
-                    for lang in rule.languages
-                )
-                if should_exclude:
-                    logger.debug(
-                        "Excluding region extraction rule: %s (region_type=%s, languages=%s)",
-                        rule.name,
-                        region_type,
-                        ",".join(rule.languages),
-                    )
-                    continue
-        filtered_rules.append(rule)
-    return filtered_rules
+    return [
+        rule for rule in _filter_extract_region_rules(rules) if not _is_excluded_region_type(rule, excluded_regions)
+    ]
 
 
 def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
-    """Build a rule engine from settings. """
+    """Build a rule engine from settings."""
     filters = getattr(settings.rules, "region_filters", {}) or {}
     additional_regions = getattr(settings.rules, "additional_regions", {}) or {}
     excluded_regions = getattr(settings.rules, "excluded_regions", {}) or {}

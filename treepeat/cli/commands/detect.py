@@ -62,7 +62,7 @@ def _parse_exclude_region_arg(region_spec: str) -> tuple[str, set[str]]:
 
     language = m.group(1).lower()
     labels_str = m.group(2)
-    labels = {l.strip() for l in labels_str.split(",") if l.strip()}
+    labels = {label.strip() for label in labels_str.split(",") if label.strip()}
     if not labels:
         raise click.ClickException(
             f"Invalid --exclude-regions value '{region_spec}'. Must include at least one label"
@@ -117,8 +117,9 @@ def _configure_settings(
     ignore: str,
     ignore_files: str,
     ignore_node_types: str,
+    add_regions: tuple[str, ...],
+    exclude_regions: tuple[str, ...],
 ) -> None:
-    """Configure pipeline settings."""
     lsh_settings = LSHSettings(
         similarity_percent=similarity_percent / 100.0,
         min_lines=min_lines,
@@ -133,6 +134,22 @@ def _configure_settings(
         ignore_patterns=_parse_patterns(ignore),
         ignore_file_patterns=_parse_patterns(ignore_files),
     )
+
+    settings = get_settings()
+    additional_regions = _build_additional_region_rules(add_regions)
+    if additional_regions:
+        settings.rules.additional_regions = _merge_region_mappings(
+            getattr(settings.rules, "additional_regions", {}),
+            additional_regions,
+        )
+
+    excluded_regions = _build_excluded_region_rules(exclude_regions)
+    if excluded_regions:
+        settings.rules.excluded_regions = _merge_region_mappings(
+            getattr(settings.rules, "excluded_regions", {}),
+            excluded_regions,
+        )
+
     set_settings(settings)
 
 
@@ -497,7 +514,6 @@ def detect(
     add_regions: tuple[str, ...],
     exclude_regions: tuple[str, ...],
 ) -> None:
-    """Detect similar code regions of files in a path."""
     log_level = ctx.obj["log_level"]
     ruleset = ctx.obj["ruleset"]
 
@@ -508,22 +524,9 @@ def detect(
         ignore,
         ignore_files,
         ignore_node_types,
+        add_regions,
+        exclude_regions,
     )
-
-    settings = get_settings()
-    additional_regions = _build_additional_region_rules(add_regions)
-    if additional_regions:
-        settings.rules.additional_regions = _merge_region_mappings(
-            getattr(settings.rules, "additional_regions", {}),
-            additional_regions,
-        )
-
-    excluded_regions = _build_excluded_region_rules(exclude_regions)
-    if excluded_regions:
-        settings.rules.excluded_regions = _merge_region_mappings(
-            getattr(settings.rules, "excluded_regions", {}),
-            excluded_regions,
-        )
 
     # Reset and track timing for verbose output
     reset_verbose_metrics()
