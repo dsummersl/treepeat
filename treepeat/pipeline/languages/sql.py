@@ -1,5 +1,3 @@
-"""SQL language configuration."""
-
 from treepeat.pipeline.rules.models import Rule, RuleAction
 
 from .base import LanguageConfig, RegionExtractionRule
@@ -14,13 +12,13 @@ class SQLConfig(LanguageConfig):
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
-                name="Skip SQL comments",
+                name="Ignore comments",
                 languages=["sql"],
                 query="[(comment) (marginalia)] @comment",
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Anonymize SQL identifiers",
+                name="Anonymize identifiers",
                 languages=["sql"],
                 query="[(identifier) (object_reference)] @var",
                 action=RuleAction.ANONYMIZE,
@@ -32,7 +30,7 @@ class SQLConfig(LanguageConfig):
         return [
             *self.get_default_rules(),
             Rule(
-                name="Replace SQL literal values",
+                name="Anonymize literal values",
                 languages=["sql"],
                 query="(literal) @lit",
                 action=RuleAction.REPLACE_VALUE,
@@ -41,7 +39,7 @@ class SQLConfig(LanguageConfig):
             # Note: SQL grammar doesn't have a generic (keyword) node type
             # Keywords are specific types like keyword_insert, keyword_into, etc.
             Rule(
-                name="Replace SQL expressions",
+                name="Anonymize expressions",
                 languages=["sql"],
                 query="[(binary_expression) (unary_expression)] @exp",
                 action=RuleAction.RENAME,

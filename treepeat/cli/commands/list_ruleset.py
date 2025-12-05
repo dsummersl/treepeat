@@ -1,5 +1,3 @@
-"""List-ruleset command - display rules in a ruleset."""
-
 from typing import Any
 
 import click
@@ -10,10 +8,9 @@ console = Console()
 
 def _print_rule_spec(rule: Any) -> None:
     """Print rule specification."""
-    query_preview = rule.query[:60] + "..." if len(rule.query) > 60 else rule.query
-    rule_spec = f"languages={','.join(rule.languages)}, action={rule.action.value if rule.action else 'none'}"
-    console.print(f"    [dim]{rule_spec}[/dim]")
-    console.print(f"    [dim]query: {query_preview}[/dim]\n")
+    rule_spec = f"action: {rule.action.value}"
+    console.print(f"    {rule_spec}")
+    console.print(f"    query: {rule.query}\n")
 
 
 def _build_ruleset_header(ruleset_name: str, language_filter: str | None) -> str:
@@ -57,7 +54,7 @@ def _print_rulesets(ruleset_name: str, language_filter: str | None = None) -> No
 
     console.print(f"[dim]{len(rules_with_descriptions)} rule(s):[/dim]\n")
     for rule, description in rules_with_descriptions:
-        console.print(f"  [cyan]•[/cyan] {description}")
+        console.print(f"  [cyan]*[/cyan] {description}")
         _print_rule_spec(rule)
 
 

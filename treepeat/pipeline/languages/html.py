@@ -1,5 +1,3 @@
-"""HTML language configuration."""
-
 from treepeat.pipeline.rules.models import Rule, RuleAction
 
 from .base import LanguageConfig, RegionExtractionRule
@@ -14,7 +12,7 @@ class HTMLConfig(LanguageConfig):
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
-                name="Skip HTML comments",
+                name="Ignore comments",
                 languages=["html"],
                 query="(comment) @comment",
                 action=RuleAction.REMOVE,
@@ -25,21 +23,21 @@ class HTMLConfig(LanguageConfig):
         return [
             *self.get_default_rules(),
             Rule(
-                name="Replace HTML literal values",
+                name="Anonymize literal values",
                 languages=["html"],
                 query="[(attribute_value) (text)] @lit",
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),
             Rule(
-                name="Replace HTML tags",
+                name="Anonymize tags",
                 languages=["html"],
                 query="[(element) (tag_name)] @tag",
                 action=RuleAction.RENAME,
                 params={"token": "<TAG>"},
             ),
             Rule(
-                name="Replace HTML attributes",
+                name="Anonymize attributes",
                 languages=["html"],
                 query="(attribute_name) @attr",
                 action=RuleAction.RENAME,

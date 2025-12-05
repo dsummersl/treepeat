@@ -1,9 +1,10 @@
-# Treepeat - finding groups of similar code
+# Treepeat
 
-`treepeat` is a CLI tool that detects similar code using treesitter AST analysis with locality-sensitive hashing:
+`treepeat` is a CLI tool that analyzes treesitter ASTs to find similarities in a codebase.
+
 - Find **duplicate** code blocks meaningful to the language (classes/functions), not just lines.
-- near-duplicates
-- structurally similar text.
+- near-duplicates, ignore whitespace, variable names, strings, and more.
+- structurally similar code, ignoring 
 
 Helpers: This is very much an proof of concept - I'm happy with it, but I haven't supported very many languages at present. PRs welcome!
 

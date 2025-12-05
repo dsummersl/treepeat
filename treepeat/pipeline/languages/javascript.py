@@ -1,5 +1,3 @@
-"""JavaScript language configuration."""
-
 from treepeat.pipeline.rules.models import Rule, RuleAction
 
 from .base import LanguageConfig, RegionExtractionRule
@@ -15,19 +13,19 @@ class JavaScriptConfig(LanguageConfig):
 
         return [
             Rule(
-                name="Skip JavaScript import/export statements",
+                name="Ignore import/export statements",
                 languages=["javascript"],
                 query="[(import_statement) (export_statement)] @import",
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Skip JavaScript comments",
+                name="Ignore comments",
                 languages=["javascript"],
                 query="(comment) @comment",
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Anonymize JavaScript identifiers",
+                name="Anonymize identifiers",
                 languages=["javascript"],
                 query="(identifier) @var",
                 action=RuleAction.ANONYMIZE,
@@ -39,21 +37,21 @@ class JavaScriptConfig(LanguageConfig):
         return [
             *self.get_default_rules(),
             Rule(
-                name="Replace JavaScript literal values",
+                name="Anonymize literal values",
                 languages=["javascript"],
                 query="[(string) (number) (template_string)] @lit",
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),
             Rule(
-                name="Replace JavaScript collections",
+                name="Anonymize collections",
                 languages=["javascript"],
                 query="[(array) (object)] @coll",
                 action=RuleAction.RENAME,
                 params={"token": "<COLL>"},
             ),
             Rule(
-                name="Replace JavaScript expressions",
+                name="Anonymize expressions",
                 languages=["javascript"],
                 query="[(binary_expression) (unary_expression) (update_expression) (assignment_expression) (ternary_expression)] @exp",
                 action=RuleAction.RENAME,

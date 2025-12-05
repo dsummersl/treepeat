@@ -1,5 +1,3 @@
-"""Markdown language configuration."""
-
 from treepeat.pipeline.rules.models import Rule
 
 from .base import LanguageConfig, RegionExtractionRule

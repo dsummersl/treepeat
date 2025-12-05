@@ -1,5 +1,3 @@
-"""TypeScript language configuration."""
-
 from .javascript import JavaScriptConfig
 
 

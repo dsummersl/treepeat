@@ -1,5 +1,3 @@
-"""Rule engine for applying tree-sitter query-based rules to syntax tree nodes."""
-
 from typing import Any, Callable, Optional
 
 from tree_sitter import Node, Query, QueryCursor
@@ -42,8 +40,6 @@ class RuleEngine:
             RuleAction.RENAME: self._handle_rename,
             RuleAction.REPLACE_VALUE: self._handle_replace_value,
             RuleAction.ANONYMIZE: self._handle_anonymize,
-            RuleAction.CANONICALIZE: self._handle_canonicalize,
-            RuleAction.EXTRACT_REGION: self._handle_extract_region,
         }
 
     def _get_anonymized_identifier(self, prefix: str, original_value: str) -> str:
@@ -151,18 +147,6 @@ class RuleEngine:
         else:
             original_value = value or "unknown"
         return name, self._get_anonymized_identifier(prefix, original_value)
-
-    def _handle_canonicalize(
-        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
-    ) -> tuple[Optional[str], Optional[str]]:
-        """Handle CANONICALIZE action - canonicalize types."""
-        return rule.params.get("token", "<TYPE>"), value
-
-    def _handle_extract_region(
-        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
-    ) -> tuple[Optional[str], Optional[str]]:
-        """Handle EXTRACT_REGION action - mark regions for extraction (no-op for normalization)."""
-        return name, value
 
     def _apply_action(
         self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]

@@ -1,5 +1,3 @@
-"""Python language configuration."""
-
 from treepeat.pipeline.rules.models import Rule, RuleAction
 
 from .base import LanguageConfig, RegionExtractionRule
@@ -15,13 +13,13 @@ class PythonConfig(LanguageConfig):
 
         return [
             Rule(
-                name="Skip Python import statements",
+                name="Ignore import statements",
                 languages=["python"],
                 query="[(import_statement) (import_from_statement) (future_import_statement)] @import",
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Skip Python TYPE_CHECKING blocks",
+                name="Ignore TYPE_CHECKING blocks",
                 languages=["python"],
                 query="""(if_statement
                     condition: (attribute
@@ -32,7 +30,7 @@ class PythonConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Skip Python TypeVar declarations",
+                name="Ignore TypeVar declarations",
                 languages=["python"],
                 query="""(expression_statement
                     (assignment
@@ -47,26 +45,26 @@ class PythonConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Skip Python comments",
+                name="Ignore comments",
                 languages=["python"],
                 query="(comment) @comment",
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Ignore Python docstrings",
+                name="Ignore docstrings",
                 languages=["python"],
                 query="(expression_statement (string))",
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Anonymize Python functions",
+                name="Anonymize function names",
                 languages=["python"],
                 query="(function_definition name: (identifier) @func)",
                 action=RuleAction.ANONYMIZE,
                 params={"prefix": "FUNC"},
             ),
             Rule(
-                name="Anonymize Python classes",
+                name="Anonymize class names",
                 languages=["python"],
                 query="(class_definition name: (identifier) @class)",
                 action=RuleAction.ANONYMIZE,
@@ -78,40 +76,41 @@ class PythonConfig(LanguageConfig):
         return [
             *self.get_default_rules(),
             Rule(
-                name="Remove Python string content",
+                name="Ignore string content",
                 languages=["python"],
                 query="(string_content) @content",
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Anonymize Python identifiers",
+                name="Anonymize identifiers",
                 languages=["python"],
                 query="(identifier) @var",
                 action=RuleAction.ANONYMIZE,
                 params={"prefix": "VAR"},
             ),
             Rule(
-                name="Replace Python literal values",
+                name="Anonymize literals",
                 languages=["python"],
                 query="[(string) (integer) (float) (true) (false) (none)] @lit",
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),
             Rule(
-                name="Replace Python operators",
+                name="Anonymize operators",
                 languages=["python"],
                 query="[(binary_operator) (boolean_operator) (comparison_operator) (unary_operator)] @op",
                 action=RuleAction.RENAME,
                 params={"token": "<OP>"},
             ),
             Rule(
-                name="Canonicalize Python types",
+                name="Anonymize types",
                 languages=["python"],
                 query="(type) @type",
-                action=RuleAction.CANONICALIZE,
+                action=RuleAction.RENAME,
+                params={"type": "<T>"},
             ),
             Rule(
-                name="Replace Python collections",
+                name="Anonymize collections",
                 languages=["python"],
                 query="[(list) (dictionary) (tuple) (set)] @coll",
                 action=RuleAction.RENAME,
