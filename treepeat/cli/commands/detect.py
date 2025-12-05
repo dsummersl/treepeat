@@ -135,6 +135,7 @@ def _configure_settings(
         ignore_file_patterns=_parse_patterns(ignore_files),
     )
 
+    set_settings(settings)
     settings = get_settings()
     additional_regions = _build_additional_region_rules(add_regions)
     if additional_regions:

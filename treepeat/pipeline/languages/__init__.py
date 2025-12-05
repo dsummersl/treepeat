@@ -9,6 +9,7 @@ from .css import CSSConfig
 from .sql import SQLConfig
 from .bash import BashConfig
 from .markdown import MarkdownConfig
+from .go import GoConfig
 
 # Registry mapping language names to their configurations
 LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
@@ -22,6 +23,7 @@ LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
     "sql": SQLConfig(),
     "bash": BashConfig(),
     "markdown": MarkdownConfig(),
+    "go": GoConfig(),
 }
 
 LANGUAGE_EXTENSIONS: dict[SupportedLanguage, list[str]] = {
@@ -33,6 +35,7 @@ LANGUAGE_EXTENSIONS: dict[SupportedLanguage, list[str]] = {
     "sql": [".sql"],
     "bash": [".sh", ".bash"],
     "markdown": [".md", ".markdown"],
+    "go": [".go"],
 }
 
 __all__ = [

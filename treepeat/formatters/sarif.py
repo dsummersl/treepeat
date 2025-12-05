@@ -52,10 +52,10 @@ def _create_tool() -> Tool:
     """Create the SARIF tool descriptor."""
     return Tool(
         driver=ToolDriver(
-            name="whorl",
-            informationUri="https://github.com/dsummersl/whorl",
-            version="1.0.0",
-            semanticVersion="1.0.0",
+            name="treepeat",
+            informationUri="https://github.com/dsummersl/treepeat",
+            version="0.0.1",
+            semanticVersion="0.0.1",
             rules=[
                 ReportingDescriptor(
                     id="similar-code",

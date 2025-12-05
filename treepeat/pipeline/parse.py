@@ -1,5 +1,3 @@
-"""Parse stage of the whorl pipeline."""
-
 import logging
 from fnmatch import fnmatch
 from pathlib import Path

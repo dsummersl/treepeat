@@ -2,11 +2,13 @@
 
 `treepeat` is a CLI tool that analyzes treesitter ASTs to find similarities in a codebase.
 
-- Find **duplicate** code blocks meaningful to the language (classes/functions), not just lines.
-- near-duplicates, ignore whitespace, variable names, strings, and more.
-- structurally similar code, ignoring 
+- Find **duplicate** code blocks meaningful to the language (classes/functions), not just lines (`--ruleset none`)
+- Find **near-duplicates**, ignore whitespace, strings, high level AST nodes such as function and names (`--ruleset default`)
+- Find **structurally similar** code, ignoring anonymizing identifiers, constants, etc (`--ruleset loose`)
 
-Helpers: This is very much an proof of concept - I'm happy with it, but I haven't supported very many languages at present. PRs welcome!
+Pull requests welcome: This is very much an proof of concept - I'm happy with it, but I haven't supported very many languages at present. PRs welcome!
+
+Current languages supported so far: bash, css, go, html, javascript, markdown, python, sql, typescript
 
 ## Usage
 
