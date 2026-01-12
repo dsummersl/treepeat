@@ -136,17 +136,6 @@ def _get_relative_path(file_path: Path, base_path: Path) -> str | None:
         return None
 
 
-def _check_directory_pattern(file_path: Path, pattern: str) -> tuple[bool, str]:
-    """Check if directory-only pattern matches, return (should_continue, cleaned_pattern)."""
-    if not pattern.endswith("/"):
-        return (True, pattern)
-
-    if not file_path.is_dir():
-        return (False, pattern)
-
-    return (True, pattern.rstrip("/"))
-
-
 def _match_simple_pattern(rel_path_str: str, file_name: str, pattern: str) -> bool:
     """Match simple patterns (non-anchored, non-recursive)."""
     if fnmatch(rel_path_str, pattern) or fnmatch(file_name, pattern):
@@ -165,9 +154,17 @@ def matches_pattern(file_path: Path, pattern: str, base_path: Path) -> bool:
     if rel_path_str is None:
         return False
 
-    should_continue, pattern = _check_directory_pattern(file_path, pattern)
-    if not should_continue:
-        return False
+    # Check if this is a directory pattern (ends with /)
+    if pattern.endswith("/"):
+        dir_name = pattern.rstrip("/")
+        # Check if file is the directory itself or inside it
+        if file_path.is_dir():
+            # Directory itself - check exact match
+            return fnmatch(rel_path_str, dir_name) or fnmatch(file_path.name, dir_name)
+        else:
+            # File - check if it's inside the directory
+            # rel_path_str should start with dir_name/
+            return rel_path_str.startswith(dir_name + "/")
 
     if pattern.startswith("/"):
         return fnmatch(rel_path_str, pattern.lstrip("/"))
