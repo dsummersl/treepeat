@@ -28,7 +28,9 @@ def read_source_file(file_path: Path) -> bytes:
         raise ValueError(f"Failed to read file {file_path}: {e}") from e
 
 
-def parse_source_code(source: bytes, language_name: SupportedLanguage, file_path: Path) -> ParsedFile:
+def parse_source_code(
+    source: bytes, language_name: SupportedLanguage, file_path: Path
+) -> ParsedFile:
     """Parse source code using tree-sitter."""
     try:
         parser = get_parser(language_name)
@@ -136,17 +138,6 @@ def _get_relative_path(file_path: Path, base_path: Path) -> str | None:
         return None
 
 
-def _check_directory_pattern(file_path: Path, pattern: str) -> tuple[bool, str]:
-    """Check if directory-only pattern matches, return (should_continue, cleaned_pattern)."""
-    if not pattern.endswith("/"):
-        return (True, pattern)
-
-    if not file_path.is_dir():
-        return (False, pattern)
-
-    return (True, pattern.rstrip("/"))
-
-
 def _match_simple_pattern(rel_path_str: str, file_name: str, pattern: str) -> bool:
     """Match simple patterns (non-anchored, non-recursive)."""
     if fnmatch(rel_path_str, pattern) or fnmatch(file_name, pattern):
@@ -154,6 +145,18 @@ def _match_simple_pattern(rel_path_str: str, file_name: str, pattern: str) -> bo
     if "**" in pattern:
         return _match_double_star_pattern(rel_path_str, file_name, pattern)
     return False
+
+
+def _check_directory_pattern(rel_path_str: str, file_path: Path, pattern: str) -> tuple[bool, bool]:
+    """Check if pattern is a directory pattern and match accordingly."""
+    if pattern.endswith("/"):
+        dir_name = pattern.rstrip("/")
+        if file_path.is_dir():
+            return True, (fnmatch(rel_path_str, dir_name) or fnmatch(file_path.name, dir_name))
+        else:
+            return True, rel_path_str.startswith(dir_name + "/")
+
+    return False, False
 
 
 def matches_pattern(file_path: Path, pattern: str, base_path: Path) -> bool:
@@ -165,9 +168,9 @@ def matches_pattern(file_path: Path, pattern: str, base_path: Path) -> bool:
     if rel_path_str is None:
         return False
 
-    should_continue, pattern = _check_directory_pattern(file_path, pattern)
-    if not should_continue:
-        return False
+    should_return, is_match = _check_directory_pattern(rel_path_str, file_path, pattern)
+    if should_return:
+        return is_match
 
     if pattern.startswith("/"):
         return fnmatch(rel_path_str, pattern.lstrip("/"))

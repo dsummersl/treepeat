@@ -69,6 +69,30 @@ class TestMatchesPattern:
         file.touch()
         assert not matches_pattern(file, "node_modules/", tmp_path)
 
+    def test_directory_pattern_matches_contents(self, tmp_path):
+        """Test that directory patterns match files inside the directory."""
+        # Create build directory with files
+        build_dir = tmp_path / "build"
+        build_dir.mkdir()
+
+        file_in_build = build_dir / "output.js"
+        file_in_build.touch()
+
+        nested_dir = build_dir / "nested"
+        nested_dir.mkdir()
+        file_in_nested = nested_dir / "file.js"
+        file_in_nested.touch()
+
+        # Pattern "build/" should match files inside build/
+        assert matches_pattern(file_in_build, "build/", tmp_path)
+        assert matches_pattern(file_in_nested, "build/", tmp_path)
+
+        # But should not match files outside build/
+        other_file = tmp_path / "src" / "main.js"
+        other_file.parent.mkdir()
+        other_file.touch()
+        assert not matches_pattern(other_file, "build/", tmp_path)
+
     def test_double_star_pattern(self, tmp_path):
         """Test ** (recursive) patterns."""
         subdir = tmp_path / "src" / "utils"
@@ -288,3 +312,39 @@ class TestCollectSourceFilesWithIgnore:
 
         assert file1 in files
         assert file2 in files
+
+    def test_collect_ignores_build_directory(self, tmp_path):
+        """Test that files in build/ directory are ignored when build/ is in .gitignore."""
+        # Create .gitignore with build/ pattern
+        gitignore = tmp_path / ".gitignore"
+        gitignore.write_text("build/\n")
+
+        # Create source files in regular directories
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        src_file = src_dir / "main.py"
+        src_file.write_text("print('main')")
+
+        # Create build directory with files that should be ignored
+        build_dir = tmp_path / "build"
+        build_dir.mkdir()
+        build_file = build_dir / "output.py"
+        build_file.write_text("print('build')")
+
+        nested_build_dir = build_dir / "nested"
+        nested_build_dir.mkdir()
+        nested_build_file = nested_build_dir / "nested.py"
+        nested_build_file.write_text("print('nested')")
+
+        # Configure settings to use .gitignore
+        settings = PipelineSettings(ignore_file_patterns=["**/.gitignore"])
+        set_settings(settings)
+
+        files = collect_source_files(tmp_path)
+
+        # src file should be collected
+        assert src_file in files
+
+        # build files should be ignored
+        assert build_file not in files
+        assert nested_build_file not in files
