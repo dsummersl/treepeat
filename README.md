@@ -1,6 +1,6 @@
-# Treepeat
+# Overview
 
-`treepeat` is a CLI tool that analyzes treesitter ASTs to find similarities in a codebase.
+`treepeat` is a tool that analyzes finds similarities in your codebase.
 
 - Find **duplicate** code blocks meaningful to the language (classes/functions), not just lines (`--ruleset none`)
 - Find **near-duplicates**, ignore whitespace, strings, high level AST nodes such as function and names (`--ruleset default`)

@@ -1,7 +1,7 @@
 [project]
 name = "treepeat"
-version = "0.1.0"
-description = "treepeat: a treesitter-based CLI tool to find similarities in a codebase"
+version = "0.1.1"
+description = "treepeat: a tool to find similarities in a codebase"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Dane Summers", email = "dsummersl@gmail.com" }]
