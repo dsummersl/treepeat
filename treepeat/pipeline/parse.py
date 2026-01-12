@@ -28,7 +28,9 @@ def read_source_file(file_path: Path) -> bytes:
         raise ValueError(f"Failed to read file {file_path}: {e}") from e
 
 
-def parse_source_code(source: bytes, language_name: SupportedLanguage, file_path: Path) -> ParsedFile:
+def parse_source_code(
+    source: bytes, language_name: SupportedLanguage, file_path: Path
+) -> ParsedFile:
     """Parse source code using tree-sitter."""
     try:
         parser = get_parser(language_name)
@@ -145,6 +147,18 @@ def _match_simple_pattern(rel_path_str: str, file_name: str, pattern: str) -> bo
     return False
 
 
+def _check_directory_pattern(rel_path_str: str, file_path: Path, pattern: str) -> tuple[bool, bool]:
+    """Check if pattern is a directory pattern and match accordingly."""
+    if pattern.endswith("/"):
+        dir_name = pattern.rstrip("/")
+        if file_path.is_dir():
+            return True, (fnmatch(rel_path_str, dir_name) or fnmatch(file_path.name, dir_name))
+        else:
+            return True, rel_path_str.startswith(dir_name + "/")
+
+    return False, False
+
+
 def matches_pattern(file_path: Path, pattern: str, base_path: Path) -> bool:
     """Check if a file matches an ignore pattern."""
     if pattern.startswith("!"):
@@ -154,17 +168,9 @@ def matches_pattern(file_path: Path, pattern: str, base_path: Path) -> bool:
     if rel_path_str is None:
         return False
 
-    # Check if this is a directory pattern (ends with /)
-    if pattern.endswith("/"):
-        dir_name = pattern.rstrip("/")
-        # Check if file is the directory itself or inside it
-        if file_path.is_dir():
-            # Directory itself - check exact match
-            return fnmatch(rel_path_str, dir_name) or fnmatch(file_path.name, dir_name)
-        else:
-            # File - check if it's inside the directory
-            # rel_path_str should start with dir_name/
-            return rel_path_str.startswith(dir_name + "/")
+    should_return, is_match = _check_directory_pattern(rel_path_str, file_path, pattern)
+    if should_return:
+        return is_match
 
     if pattern.startswith("/"):
         return fnmatch(rel_path_str, pattern.lstrip("/"))
