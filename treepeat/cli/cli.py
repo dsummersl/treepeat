@@ -5,10 +5,18 @@ import logging
 import click
 from rich.console import Console
 from rich.logging import RichHandler
+from importlib.metadata import version, PackageNotFoundError
 
 from treepeat.cli.commands import detect, list_ruleset, treesitter
 
 console = Console()
+
+
+def get_version():
+    try:
+        return version("treepeat")
+    except PackageNotFoundError:
+        return "unknown"
 
 
 def setup_logging(log_level: str) -> None:
@@ -22,6 +30,7 @@ def setup_logging(log_level: str) -> None:
 
 @click.group()
 @click.pass_context
+@click.version_option(version=get_version(), prog_name="treepeat")
 @click.option(
     "--log-level",
     "-l",
