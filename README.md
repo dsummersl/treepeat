@@ -8,7 +8,7 @@
 
 Pull requests welcome: This is very much an proof of concept - I'm happy with it, but I haven't supported very many languages at present. PRs welcome!
 
-Current languages supported so far: bash, css, go, html, javascript, markdown, python, sql, typescript
+Current languages supported so far: bash, css, go, html, javascript, markdown, python, sql, typescript, java, kotlin
 
 ## Usage
 

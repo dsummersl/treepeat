@@ -10,6 +10,8 @@ from .sql import SQLConfig
 from .bash import BashConfig
 from .markdown import MarkdownConfig
 from .go import GoConfig
+from .java import JavaConfig
+from .kotlin import KotlinConfig
 
 # Registry mapping language names to their configurations
 LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
@@ -24,6 +26,8 @@ LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
     "bash": BashConfig(),
     "markdown": MarkdownConfig(),
     "go": GoConfig(),
+    "java": JavaConfig(),
+    "kotlin": KotlinConfig(),
 }
 
 LANGUAGE_EXTENSIONS: dict[SupportedLanguage, list[str]] = {
@@ -36,6 +40,8 @@ LANGUAGE_EXTENSIONS: dict[SupportedLanguage, list[str]] = {
     "bash": [".sh", ".bash"],
     "markdown": [".md", ".markdown"],
     "go": [".go"],
+    "java": [".java"],
+    "kotlin": [".kt", ".kts"],
 }
 
 __all__ = [
@@ -47,6 +53,7 @@ __all__ = [
     "HTMLConfig",
     "CSSConfig",
     "JavaConfig",
+    "KotlinConfig",
     "SQLConfig",
     "BashConfig",
     "RustConfig",
