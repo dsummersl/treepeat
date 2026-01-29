@@ -12,7 +12,7 @@ from treepeat.cli.commands import detect, list_ruleset, treesitter
 console = Console()
 
 
-def get_version():
+def get_version() -> str:
     try:
         return version("treepeat")
     except PackageNotFoundError:
