@@ -56,8 +56,12 @@ def _make_region(path, language, region_type, region_name, start_line, end_line)
     )
 
 
-classA_region = _make_region(fixture_class_with_methods, "python", "class_definition", "ClassA", 4, 27)
-classB_region = _make_region(fixture_class_with_methods, "python", "class_definition", "ClassB", 30, 54)
+classA_region = _make_region(
+    fixture_class_with_methods, "python", "class_definition", "ClassA", 4, 27
+)
+classB_region = _make_region(
+    fixture_class_with_methods, "python", "class_definition", "ClassB", 30, 54
+)
 
 
 python_fixtures = Path(__file__).parent.parent / "fixtures" / "python"
@@ -76,7 +80,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
         ("none", class_with_methods_file, 0.9, 3, []),
         ("default", class_with_methods_file, 0.1, 1, []),
         ("default", class_with_methods_file, 0.3, 2, []),
-        ("default", class_with_methods_file, 0.5, 3, [(classA_region, classB_region)]),
+        ("default", class_with_methods_file, 0.5, 2, [(classA_region, classB_region)]),
         (
             "none",
             python_fixtures,
@@ -113,7 +117,12 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         26,
                     ),
                     _make_region(
-                        python_fixtures / "dataclass2.py", "python", "function_definition", "one", 2, 7
+                        python_fixtures / "dataclass2.py",
+                        "python",
+                        "function_definition",
+                        "one",
+                        2,
+                        7,
                     ),
                 ),
             ],
@@ -146,18 +155,38 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                 # Duplicate methods within same file (non-overlapping)
                 (
                     _make_region(
-                        fixture_class_with_methods, "python", "function_definition", "method2", 13, 19
+                        fixture_class_with_methods,
+                        "python",
+                        "function_definition",
+                        "method2",
+                        13,
+                        19,
                     ),
                     _make_region(
-                        fixture_class_with_methods, "python", "function_definition", "method2", 40, 46
+                        fixture_class_with_methods,
+                        "python",
+                        "function_definition",
+                        "method2",
+                        40,
+                        46,
                     ),
                 ),
                 (
                     _make_region(
-                        fixture_class_with_methods, "python", "function_definition", "method3", 21, 27
+                        fixture_class_with_methods,
+                        "python",
+                        "function_definition",
+                        "method3",
+                        21,
+                        27,
                     ),
                     _make_region(
-                        fixture_class_with_methods, "python", "function_definition", "method3", 48, 54
+                        fixture_class_with_methods,
+                        "python",
+                        "function_definition",
+                        "method3",
+                        48,
+                        54,
                     ),
                 ),
             ],
@@ -190,10 +219,20 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                 # Duplicate method2 within same file (non-overlapping)
                 (
                     _make_region(
-                        fixture_class_with_methods, "python", "function_definition", "method2", 13, 19
+                        fixture_class_with_methods,
+                        "python",
+                        "function_definition",
+                        "method2",
+                        13,
+                        19,
                     ),
                     _make_region(
-                        fixture_class_with_methods, "python", "function_definition", "method2", 40, 46
+                        fixture_class_with_methods,
+                        "python",
+                        "function_definition",
+                        "method2",
+                        40,
+                        46,
                     ),
                 ),
             ],

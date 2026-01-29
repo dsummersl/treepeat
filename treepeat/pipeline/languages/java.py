@@ -26,15 +26,15 @@ class JavaConfig(LanguageConfig):
                 name="Anonymize method names",
                 languages=["java"],
                 query="(method_declaration name: (identifier) @name)",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "METHOD"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "METHOD"},
             ),
             Rule(
                 name="Anonymize class names",
                 languages=["java"],
                 query="(class_declaration name: (identifier) @name)",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "CLASS"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "CLASS"},
             ),
         ]
 

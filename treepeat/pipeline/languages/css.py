@@ -21,8 +21,8 @@ class CSSConfig(LanguageConfig):
                 name="Anonymize selectors",
                 languages=["css"],
                 query="[(class_name) (id_name) (tag_name)] @sel",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "SEL"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "SEL"},
             ),
         ]
 

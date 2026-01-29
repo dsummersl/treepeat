@@ -10,7 +10,6 @@ class PythonConfig(LanguageConfig):
         return "python"
 
     def get_default_rules(self) -> list[Rule]:
-
         return [
             Rule(
                 name="Ignore import statements",
@@ -60,15 +59,15 @@ class PythonConfig(LanguageConfig):
                 name="Anonymize function names",
                 languages=["python"],
                 query="(function_definition name: (identifier) @func)",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "FUNC"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "FUNC"},
             ),
             Rule(
                 name="Anonymize class names",
                 languages=["python"],
                 query="(class_definition name: (identifier) @class)",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "CLASS"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "CLASS"},
             ),
         ]
 
