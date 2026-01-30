@@ -28,8 +28,8 @@ class BashConfig(LanguageConfig):
                 name="Anonymize variables",
                 languages=["bash"],
                 query="(variable_name) @var",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "VAR"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "<VAR>"},
             ),
         ]
 
@@ -37,11 +37,18 @@ class BashConfig(LanguageConfig):
         return [
             *self.get_default_rules(),
             Rule(
-                name="Anonymize literal values",
+                name="Anonymize strings",
                 languages=["bash"],
-                query="[(string) (raw_string) (simple_expansion) (number)] @lit",
+                query="[(string) (raw_string) (string_content)] @str",
                 action=RuleAction.REPLACE_VALUE,
-                params={"value": "<LIT>"},
+                params={"value": "<STR>"},
+            ),
+            Rule(
+                name="Anonymize numbers",
+                languages=["bash"],
+                query="(number) @num",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "<NUM>"},
             ),
             Rule(
                 name="Anonymize commands",

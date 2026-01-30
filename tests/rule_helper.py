@@ -14,7 +14,16 @@ class RuleTester:
         """Verify a single rule's effect on source code."""
         # 1. Find the rule
         loose_rules = config.get_loose_rules()
-        rule = next((r for r in loose_rules if r.name == rule_name), None)
+        lang_name = config.get_language_name()
+
+        # Try to find rule matching both name AND language
+        rule = next(
+            (r for r in loose_rules if r.name == rule_name and r.matches_language(lang_name)), None
+        )
+
+        # Fallback: find by name only (legacy/loose behavior)
+        if not rule:
+            rule = next((r for r in loose_rules if r.name == rule_name), None)
 
         if not rule:
             raise ValueError(f"Rule '{rule_name}' not found in {config.__class__.__name__}")

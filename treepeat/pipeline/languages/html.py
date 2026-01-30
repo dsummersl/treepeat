@@ -23,13 +23,6 @@ class HTMLConfig(LanguageConfig):
         return [
             *self.get_default_rules(),
             Rule(
-                name="Anonymize literal values",
-                languages=["html"],
-                query="[(attribute_value) (text)] @lit",
-                action=RuleAction.REPLACE_VALUE,
-                params={"value": "<LIT>"},
-            ),
-            Rule(
                 name="Anonymize tags",
                 languages=["html"],
                 query="[(element) (tag_name)] @tag",
@@ -40,8 +33,21 @@ class HTMLConfig(LanguageConfig):
                 name="Anonymize attributes",
                 languages=["html"],
                 query="(attribute_name) @attr",
-                action=RuleAction.REPLACE_NODE_TYPE,
-                params={"token": "<ATTR>"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "<ATTR>"},
+            ),
+            Rule(
+                name="Anonymize attribute values",
+                languages=["html"],
+                query="(attribute_value) @val",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "<VAL>"},
+            ),
+            Rule(
+                name="Ignore text content",
+                languages=["html"],
+                query="(text) @text",
+                action=RuleAction.REMOVE,
             ),
         ]
 

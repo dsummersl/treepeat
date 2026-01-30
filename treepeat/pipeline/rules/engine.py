@@ -1,5 +1,8 @@
 from typing import Any, Callable, Optional
 
+from collections import defaultdict
+from typing import DefaultDict, Iterable
+
 from tree_sitter import Node, Query, QueryCursor
 from tree_sitter_language_pack import get_language
 
@@ -68,39 +71,49 @@ class RuleEngine:
         query_str: str,
         match_id: int,
         captures_dict: dict[str, list[Node]],
+        rule: Rule,
     ) -> None:
         """Index captures from a single query match by node ID."""
         for capture_name, nodes in captures_dict.items():
+            # Check if this rule has a target capture name.
+            # If so, only index nodes that match that capture name.
+            if rule.target and capture_name != rule.target:
+                continue
+
             for node in nodes:
-                if node.id not in all_matches:
-                    all_matches[node.id] = []
+                # Store match info for this node.
+                # We append to a list because multiple rules might match the same node.
                 all_matches[node.id].append(
                     {
                         "query": query_str,
                         "match_id": match_id,
                         "captures": captures_dict,
                         "capture_name": capture_name,
+                        "rule": rule,  # Store rule for precedence check
                     }
                 )
 
     def _get_all_matches(
-        self, root_node: Node, query_strings: list[str], language: str
+        self, root_node: Node, rules: list[Rule], language: str
     ) -> dict[int, list[dict[str, Any]]]:
         """Execute multiple queries and collect all matches indexed by node ID."""
-        all_matches: dict[int, list[dict[str, Any]]] = {}
+        all_matches: DefaultDict[int, list[dict[str, Any]]] = defaultdict(list)
 
-        for query_str in query_strings:
+        # Apply rules in ORDER. Later rules for the SAME node will overwrite earlier ones.
+        for rule in rules:
+            query_str = rule.query
             query = self._get_compiled_query(language, query_str)
             cursor = QueryCursor(query)
 
             for match_id, captures_dict in cursor.matches(root_node):
-                self._index_query_captures(all_matches, query_str, match_id, captures_dict)
+                self._index_query_captures(all_matches, query_str, match_id, captures_dict, rule)
 
-        return all_matches
+        return dict(all_matches)
 
-    def _get_query_match_result(self, rule: Rule) -> str:
+    def _get_query_match_result(self, match_info: dict[str, Any]) -> str:
         """Get the result to return for a query match."""
-        return rule.target or "match"
+        rule = match_info["rule"]
+        return str(rule.target) or match_info["capture_name"]
 
     def _check_node_matches_query(
         self, node: Node, rule: Rule, language: str, root_node: Node
@@ -111,10 +124,10 @@ class RuleEngine:
         """
         # Look up node in the pre-computed cache
         if node.id in self._query_matches_cache:
-            # Check if any of the matches are for this rule's query
+            # Check if any of the matches are for this rule's query string
             for match_info in self._query_matches_cache[node.id]:
                 if match_info["query"] == rule.query:
-                    return self._get_query_match_result(rule)
+                    return self._get_query_match_result(match_info)
 
         return None
 
@@ -209,6 +222,29 @@ class RuleEngine:
             return self._apply_action(rule, node, node_type, language, name, value)
         return name, value
 
+    def _iter_matching_rules(self, language: str) -> Iterable[Rule]:
+        for rule in self.rules:
+            if rule.matches_language(language):
+                yield rule
+
+    def _apply_rule_state(
+        self,
+        rule: Rule,
+        node: Node,
+        node_type: str,
+        language: str,
+        root_node: Node,
+        name: Optional[str],
+        value: Optional[str],
+    ) -> tuple[Optional[str], Optional[str]]:
+        res_name, res_value = self._apply_matching_rule(
+            rule, node, node_type, language, root_node, name, value
+        )
+        return (
+            res_name if res_name is not None else name,
+            res_value if res_value is not None else value,
+        )
+
     def apply_rules(
         self,
         node: Node,
@@ -222,11 +258,12 @@ class RuleEngine:
         value = None
         root_node = root_node or node
 
-        for rule in self.rules:
-            if rule.matches_language(language):
-                name, value = self._apply_matching_rule(
-                    rule, node, node_type, language, root_node, name, value
-                )
+        # Apply rules in the order they are defined.
+        # Later matching rules for the same node component (name or value) will overwrite earlier ones.
+        for rule in self._iter_matching_rules(language):
+            name, value = self._apply_rule_state(
+                rule, node, node_type, language, root_node, name, value
+            )
 
         return name, value
 
@@ -247,11 +284,10 @@ class RuleEngine:
         # Store source for use in anonymization
         self._source = source
 
-        # Collect all query strings for this language
-        query_strings = [rule.query for rule in self.rules if rule.matches_language(language)]
-
-        # Execute all queries once and cache results indexed by node.id
-        self._query_matches_cache = self._get_all_matches(root_node, query_strings, language)
+        # Pre-execute all queries once and cache results indexed by node.id
+        self._query_matches_cache = self._get_all_matches(
+            root_node, [r for r in self.rules if r.matches_language(language)], language
+        )
 
     def get_region_extraction_rules(self, language: str) -> list[tuple[str, str]]:
         """Get region extraction rules for a language.
