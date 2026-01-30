@@ -26,15 +26,15 @@ class KotlinConfig(LanguageConfig):
                 name="Anonymize function names",
                 languages=["kotlin"],
                 query="(function_declaration (simple_identifier) @name)",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "FUNC"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "FUNC"},
             ),
             Rule(
                 name="Anonymize class names",
                 languages=["kotlin"],
                 query="(class_declaration (type_identifier) @name)",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "CLASS"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "CLASS"},
             ),
         ]
 

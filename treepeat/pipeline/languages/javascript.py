@@ -10,7 +10,6 @@ class JavaScriptConfig(LanguageConfig):
         return "javascript"
 
     def get_default_rules(self) -> list[Rule]:
-
         return [
             Rule(
                 name="Ignore import/export statements",
@@ -23,6 +22,20 @@ class JavaScriptConfig(LanguageConfig):
                 languages=["javascript"],
                 query="(comment) @comment",
                 action=RuleAction.REMOVE,
+            ),
+            Rule(
+                name="Anonymize function names",
+                languages=["javascript"],
+                query="[(function_declaration name: (identifier) @name) (method_definition name: (property_identifier) @name)]",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "FUNC"},
+            ),
+            Rule(
+                name="Anonymize class names",
+                languages=["javascript"],
+                query="(class_declaration name: (identifier) @name)",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "CLASS"},
             ),
             Rule(
                 name="Anonymize identifiers",

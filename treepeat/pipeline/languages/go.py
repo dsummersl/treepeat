@@ -10,7 +10,6 @@ class GoConfig(LanguageConfig):
         return "go"
 
     def get_default_rules(self) -> list[Rule]:
-
         return [
             Rule(
                 name="Ignore import declarations",
@@ -34,22 +33,22 @@ class GoConfig(LanguageConfig):
                 name="Anonymize function names",
                 languages=["go"],
                 query="(function_declaration name: (identifier) @func)",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "FUNC"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "FUNC"},
             ),
             Rule(
                 name="Anonymize method names",
                 languages=["go"],
                 query="(method_declaration name: (field_identifier) @method)",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "METHOD"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "METHOD"},
             ),
             Rule(
                 name="Anonymize type names",
                 languages=["go"],
                 query="(type_declaration (type_spec name: (type_identifier) @type))",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "TYPE"},
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "TYPE"},
             ),
         ]
 

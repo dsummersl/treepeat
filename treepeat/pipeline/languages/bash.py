@@ -18,6 +18,13 @@ class BashConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
+                name="Anonymize function names",
+                languages=["bash"],
+                query="(function_definition name: (word) @name)",
+                action=RuleAction.REPLACE_VALUE,
+                params={"value": "FUNC"},
+            ),
+            Rule(
                 name="Anonymize variables",
                 languages=["bash"],
                 query="(variable_name) @var",
