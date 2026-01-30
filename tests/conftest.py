@@ -1,15 +1,26 @@
 from pathlib import Path
-from tree_sitter_language_pack import get_parser
-from treepeat.models.ast import ParsedFile
-from treepeat.models.similarity import Region, SimilarRegionGroup, SimilarityResult
-from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules
 
+import pytest
+from tree_sitter_language_pack import get_parser
+
+from tests.rule_helper import RuleTester
+from treepeat.models.ast import ParsedFile
+from treepeat.models.similarity import Region, SimilarityResult, SimilarRegionGroup
+from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules
 
 # Legacy fixture paths (for backward compatibility)
 fixture_path1 = Path(__file__).parent / "fixtures" / "python" / "dataclass1.py"
 fixture_path2 = Path(__file__).parent / "fixtures" / "python" / "dataclass2.py"
 fixture_nested = Path(__file__).parent / "fixtures" / "python" / "nested_functions.py"
 fixture_class_methods = Path(__file__).parent / "fixtures" / "python" / "class_with_methods.py"
+
+
+
+
+@pytest.fixture
+def rule_tester():
+    """Fixture for testing language rules."""
+    return RuleTester()
 
 
 def load_fixture(path: Path) -> bytes:
@@ -19,7 +30,7 @@ def load_fixture(path: Path) -> bytes:
 
 
 def parse_fixture(path: Path, language: str) -> ParsedFile:
-    """Parse a fixture file for any language. """
+    """Parse a fixture file for any language."""
     parser = get_parser(language)
     fixture = load_fixture(path)
     tree = parser.parse(fixture)

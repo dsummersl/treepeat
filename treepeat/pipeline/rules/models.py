@@ -4,10 +4,11 @@ from enum import Enum
 
 class RuleAction(Enum):
     REMOVE = "remove"
-    RENAME = "rename"
-    REPLACE_VALUE = "replace_value"
+    REPLACE_NODE_TYPE = (
+        "replace_node_type"  # Replaces the structural node type (e.g., 'binary_operator' -> '<OP>')
+    )
+    REPLACE_VALUE = "replace_value"  # Replaces the leaf node value (e.g., 'foo' -> 'FUNC')
     ANONYMIZE = "anonymize"
-    CANONICALIZE = "canonicalize"
     EXTRACT_REGION = "extract_region"
 
 

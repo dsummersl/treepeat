@@ -87,14 +87,14 @@ class GoConfig(LanguageConfig):
                 name="Anonymize binary expressions",
                 languages=["go"],
                 query="(binary_expression) @binop",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<BINOP>"},
             ),
             Rule(
                 name="Anonymize unary expressions",
                 languages=["go"],
                 query="(unary_expression) @unop",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<UNOP>"},
             ),
         ]

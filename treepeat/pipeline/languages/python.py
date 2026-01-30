@@ -52,7 +52,7 @@ class PythonConfig(LanguageConfig):
             Rule(
                 name="Ignore docstrings",
                 languages=["python"],
-                query="(expression_statement (string))",
+                query="(expression_statement (string)) @doc",
                 action=RuleAction.REMOVE,
             ),
             Rule(
@@ -73,7 +73,6 @@ class PythonConfig(LanguageConfig):
 
     def get_loose_rules(self) -> list[Rule]:
         return [
-            *self.get_default_rules(),
             Rule(
                 name="Ignore string content",
                 languages=["python"],
@@ -98,23 +97,24 @@ class PythonConfig(LanguageConfig):
                 name="Anonymize operators",
                 languages=["python"],
                 query="[(binary_operator) (boolean_operator) (comparison_operator) (unary_operator)] @op",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<OP>"},
             ),
             Rule(
                 name="Anonymize types",
                 languages=["python"],
                 query="(type) @type",
-                action=RuleAction.RENAME,
-                params={"type": "<T>"},
+                action=RuleAction.REPLACE_NODE_TYPE,
+                params={"token": "<T>"},
             ),
             Rule(
                 name="Anonymize collections",
                 languages=["python"],
                 query="[(list) (dictionary) (tuple) (set)] @coll",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<COLL>"},
             ),
+            *self.get_default_rules(),
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:

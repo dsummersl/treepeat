@@ -4,7 +4,12 @@ from pathlib import Path
 from treepeat.config import PipelineSettings, get_settings
 from treepeat.models.ast import ParsedFile, ParseResult
 from treepeat.models.shingle import ShingledRegion
-from treepeat.models.similarity import RegionSignature, SimilarRegionGroup, SimilarRegionPair, SimilarityResult
+from treepeat.models.similarity import (
+    RegionSignature,
+    SimilarRegionGroup,
+    SimilarRegionPair,
+    SimilarityResult,
+)
 from treepeat.pipeline.lsh_stage import detect_similarity
 from treepeat.pipeline.minhash_stage import compute_region_signatures
 from treepeat.pipeline.parse import parse_path
@@ -49,8 +54,7 @@ def _filter_groups_by_min_lines(
     for group in groups:
         # Check if all regions meet the min_lines threshold
         all_meet_threshold = all(
-            region.end_line - region.start_line + 1 >= min_lines
-            for region in group.regions
+            region.end_line - region.start_line + 1 >= min_lines for region in group.regions
         )
         if all_meet_threshold:
             filtered.append(group)
@@ -105,7 +109,9 @@ def _run_shingle_stage(
     return shingled_regions
 
 
-def _run_minhash_stage(shingled_regions: list[ShingledRegion], num_perm: int) -> list[RegionSignature]:
+def _run_minhash_stage(
+    shingled_regions: list[ShingledRegion], num_perm: int
+) -> list[RegionSignature]:
     """Run MinHash signature computation stage."""
     logger.info("Stage 4/5: Computing MinHash signatures...")
     signatures = compute_region_signatures(shingled_regions, num_perm=num_perm)
@@ -117,13 +123,15 @@ def _run_lsh_stage(
     signatures: list[RegionSignature],
     shingled_regions: list[ShingledRegion],
     threshold: float,
+    min_lines: int,
 ) -> SimilarityResult:
-    """Run LSH similarity detection stage. """
+    """Run LSH similarity detection stage."""
     logger.info("Stage 5/5: Finding similar pairs...")
     similarity_result = detect_similarity(
         signatures,
         similarity_percent=threshold,
         shingled_regions=shingled_regions,
+        min_lines=min_lines,
     )
     logger.info(
         "Similarity detection complete: found %d similar group(s) (%d self-similar)",
@@ -191,18 +199,36 @@ def _run_region_matching(
         region_signatures,
         region_shingled,
         settings.lsh.similarity_percent,
+        settings.lsh.min_lines,
     )
 
     # Filter by min_lines
-    logger.debug("Region matching: Filtering %d groups by min_lines=%d", len(region_result.similar_groups), settings.lsh.min_lines)
+    logger.debug(
+        "Region matching: Filtering %d groups by min_lines=%d",
+        len(region_result.similar_groups),
+        settings.lsh.min_lines,
+    )
     for group in region_result.similar_groups:
-        logger.debug("  Group: %d regions, similarity=%.2f%%", len(group.regions), group.similarity * 100)
+        logger.debug(
+            "  Group: %d regions, similarity=%.2f%%", len(group.regions), group.similarity * 100
+        )
         for region in group.regions:
             lines = region.end_line - region.start_line + 1
-            logger.debug("    - %s [%d:%d] (%d lines)", region.region_name, region.start_line, region.end_line, lines)
-    region_filtered_groups = _filter_groups_by_min_lines(region_result.similar_groups, settings.lsh.min_lines)
-    logger.info("Region matching complete: %d groups after filtering (was %d)",
-                len(region_filtered_groups), len(region_result.similar_groups))
+            logger.debug(
+                "    - %s [%d:%d] (%d lines)",
+                region.region_name,
+                region.start_line,
+                region.end_line,
+                lines,
+            )
+    region_filtered_groups = _filter_groups_by_min_lines(
+        region_result.similar_groups, settings.lsh.min_lines
+    )
+    logger.info(
+        "Region matching complete: %d groups after filtering (was %d)",
+        len(region_filtered_groups),
+        len(region_result.similar_groups),
+    )
 
     return region_filtered_groups, region_signatures
 

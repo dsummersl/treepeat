@@ -57,18 +57,6 @@ def _get_region_mappings_from_engine(engine: "RuleEngine", language: str) -> lis
     return mappings
 
 
-def _get_explicit_node_types(engine: "RuleEngine", language: str) -> set[str]:
-    """Get the tree-sitter node types that explicit rules target for a language.
-
-    This is used to exclude these types from statistical extraction to avoid duplicates.
-    """
-    rules = engine.get_region_extraction_rules(language)
-    node_types: set[str] = set()
-    for query, _ in rules:
-        node_types.update(_extract_node_types_from_query(query))
-    return node_types
-
-
 def _extract_node_name(node: Node, source: bytes) -> str:
     """Extract the name of a function/class/method from its node."""
     # Look for 'name', 'identifier', or 'property_identifier' child node

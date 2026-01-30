@@ -42,7 +42,7 @@ class SQLConfig(LanguageConfig):
                 name="Anonymize expressions",
                 languages=["sql"],
                 query="[(binary_expression) (unary_expression)] @exp",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<EXP>"},
             ),
         ]

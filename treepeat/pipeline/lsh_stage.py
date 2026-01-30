@@ -1,6 +1,7 @@
 """LSH stage for finding similar region pairs."""
 
 import logging
+from pathlib import Path
 from typing import Hashable
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
@@ -206,7 +207,9 @@ def _build_union_find_from_lsh(
             len(similar_keys),
         )
 
-        _append_pairwise_similar(uf, current_key, similar_keys, sig, signatures, min_pair_similarity)
+        _append_pairwise_similar(
+            uf, current_key, similar_keys, sig, signatures, min_pair_similarity
+        )
 
     return uf, key_to_sig
 
@@ -337,25 +340,93 @@ def _verify_and_filter_groups(
     return similar_groups
 
 
+def _line_count(region: Region) -> int:
+    return region.end_line - region.start_line + 1
+
+
+def _should_keep_signature(sig: RegionSignature, min_lines: int) -> bool:
+    lines = _line_count(sig.region)
+    if lines >= min_lines:
+        return True
+    logger.debug(
+        "Skipping region %s [%d:%d] (%d lines) below min_lines=%d",
+        sig.region.region_name,
+        sig.region.start_line,
+        sig.region.end_line,
+        lines,
+        min_lines,
+    )
+    return False
+
+
+def _filter_signatures_by_min_lines(
+    signatures: list[RegionSignature], min_lines: int
+) -> tuple[list[RegionSignature], set[tuple[Path, int]]]:
+    filtered: list[RegionSignature] = []
+    kept_keys: set[tuple[Path, int]] = set()
+
+    for sig in signatures:
+        if _should_keep_signature(sig, min_lines):
+            filtered.append(sig)
+            kept_keys.add((sig.region.path, sig.region.start_line))
+
+    return filtered, kept_keys
+
+
+def _filter_by_min_lines(
+    signatures: list[RegionSignature],
+    shingled_regions: list[ShingledRegion],
+    min_lines: int,
+) -> tuple[list[RegionSignature], list[ShingledRegion]]:
+    if min_lines <= 1:
+        return signatures, shingled_regions
+
+    filtered_signatures, kept_keys = _filter_signatures_by_min_lines(signatures, min_lines)
+
+    if not filtered_signatures:
+        return [], []
+
+    filtered_shingled = [
+        sr for sr in shingled_regions if (sr.region.path, sr.region.start_line) in kept_keys
+    ]
+
+    return filtered_signatures, filtered_shingled
+
+
 def detect_similarity(
     signatures: list[RegionSignature],
     similarity_percent: float,
     shingled_regions: list[ShingledRegion],
+    min_lines: int = 5,
 ) -> SimilarityResult:
     """Detect similar regions using LSH."""
-    candidate_groups = find_similar_groups(signatures, similarity_percent)
+    filtered_signatures, filtered_shingled = _filter_by_min_lines(
+        signatures, shingled_regions, min_lines
+    )
+
+    if len(filtered_signatures) < len(signatures):
+        logger.info(
+            "Filtered out %d region(s) below min_lines=%d before similarity detection",
+            len(signatures) - len(filtered_signatures),
+            min_lines,
+        )
+
+    if not filtered_signatures:
+        return SimilarityResult(signatures=[], similar_groups=[])
+
+    candidate_groups = find_similar_groups(filtered_signatures, similarity_percent)
 
     if not candidate_groups:
         return SimilarityResult(
-            signatures=signatures,
+            signatures=filtered_signatures,
             similar_groups=[],
         )
 
     similar_groups = _verify_and_filter_groups(
-        candidate_groups, shingled_regions, similarity_percent
+        candidate_groups, filtered_shingled, similarity_percent
     )
 
     return SimilarityResult(
-        signatures=signatures,
+        signatures=filtered_signatures,
         similar_groups=similar_groups,
     )
