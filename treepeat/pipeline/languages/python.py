@@ -73,7 +73,6 @@ class PythonConfig(LanguageConfig):
 
     def get_loose_rules(self) -> list[Rule]:
         return [
-            *self.get_default_rules(),
             Rule(
                 name="Ignore string content",
                 languages=["python"],
@@ -115,6 +114,7 @@ class PythonConfig(LanguageConfig):
                 action=RuleAction.RENAME,
                 params={"token": "<COLL>"},
             ),
+            *self.get_default_rules(),
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:

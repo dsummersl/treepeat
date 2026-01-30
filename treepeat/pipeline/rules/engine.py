@@ -74,17 +74,19 @@ class RuleEngine:
             for node in nodes:
                 if node.id not in all_matches:
                     all_matches[node.id] = []
-                all_matches[node.id].append({
-                    'query': query_str,
-                    'match_id': match_id,
-                    'captures': captures_dict,
-                    'capture_name': capture_name
-                })
+                all_matches[node.id].append(
+                    {
+                        "query": query_str,
+                        "match_id": match_id,
+                        "captures": captures_dict,
+                        "capture_name": capture_name,
+                    }
+                )
 
     def _get_all_matches(
         self, root_node: Node, query_strings: list[str], language: str
     ) -> dict[int, list[dict[str, Any]]]:
-        """Execute multiple queries and collect all matches indexed by node ID. """
+        """Execute multiple queries and collect all matches indexed by node ID."""
         all_matches: dict[int, list[dict[str, Any]]] = {}
 
         for query_str in query_strings:
@@ -111,13 +113,19 @@ class RuleEngine:
         if node.id in self._query_matches_cache:
             # Check if any of the matches are for this rule's query
             for match_info in self._query_matches_cache[node.id]:
-                if match_info['query'] == rule.query:
+                if match_info["query"] == rule.query:
                     return self._get_query_match_result(rule)
 
         return None
 
     def _handle_remove(
-        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self,
+        rule: Rule,
+        node: Node,
+        node_type: str,
+        language: str,
+        name: Optional[str],
+        value: Optional[str],
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle REMOVE action - skip/remove matched nodes."""
         raise SkipNodeException(
@@ -125,19 +133,37 @@ class RuleEngine:
         )
 
     def _handle_rename(
-        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self,
+        rule: Rule,
+        node: Node,
+        node_type: str,
+        language: str,
+        name: Optional[str],
+        value: Optional[str],
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle RENAME action - rename matched nodes."""
         return rule.params.get("token", "<NODE>"), value
 
     def _handle_replace_value(
-        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self,
+        rule: Rule,
+        node: Node,
+        node_type: str,
+        language: str,
+        name: Optional[str],
+        value: Optional[str],
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle REPLACE_VALUE action - replace node values."""
         return name, rule.params.get("value", "<LIT>")
 
     def _handle_anonymize(
-        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self,
+        rule: Rule,
+        node: Node,
+        node_type: str,
+        language: str,
+        name: Optional[str],
+        value: Optional[str],
     ) -> tuple[Optional[str], Optional[str]]:
         """Handle ANONYMIZE action - anonymize identifiers."""
         prefix = rule.params.get("prefix", "VAR")
@@ -149,7 +175,13 @@ class RuleEngine:
         return name, self._get_anonymized_identifier(prefix, original_value)
 
     def _apply_action(
-        self, rule: Rule, node: Node, node_type: str, language: str, name: Optional[str], value: Optional[str]
+        self,
+        rule: Rule,
+        node: Node,
+        node_type: str,
+        language: str,
+        name: Optional[str],
+        value: Optional[str],
     ) -> tuple[Optional[str], Optional[str]]:
         """Apply a rule action."""
         if not rule.action:
@@ -184,7 +216,7 @@ class RuleEngine:
         node_name: Optional[str] = None,
         root_node: Optional[Node] = None,
     ) -> tuple[Optional[str], Optional[str]]:
-        """Apply all matching rules to a node. """
+        """Apply all matching rules to a node."""
         node_type = node_name or node.type
         name = None
         value = None
@@ -204,7 +236,9 @@ class RuleEngine:
         self._identifier_mapping.clear()
         self._query_matches_cache.clear()
 
-    def precompute_queries(self, root_node: Node, language: str, source: bytes | None = None) -> None:
+    def precompute_queries(
+        self, root_node: Node, language: str, source: bytes | None = None
+    ) -> None:
         """Pre-execute all queries for a root node to populate the cache.
 
         This executes all queries once and indexes matches by node ID for O(1) lookup.
@@ -214,14 +248,10 @@ class RuleEngine:
         self._source = source
 
         # Collect all query strings for this language
-        query_strings = [
-            rule.query for rule in self.rules if rule.matches_language(language)
-        ]
+        query_strings = [rule.query for rule in self.rules if rule.matches_language(language)]
 
         # Execute all queries once and cache results indexed by node.id
-        self._query_matches_cache = self._get_all_matches(
-            root_node, query_strings, language
-        )
+        self._query_matches_cache = self._get_all_matches(root_node, query_strings, language)
 
     def get_region_extraction_rules(self, language: str) -> list[tuple[str, str]]:
         """Get region extraction rules for a language.
@@ -236,8 +266,10 @@ class RuleEngine:
                     region_rules.append((rule.query, region_type))
         return region_rules
 
-    def get_nodes_matching_query(self, root_node: Node, query_str: str, language: str) -> list[Node]:
-        """Execute a query and return all matching nodes. """
+    def get_nodes_matching_query(
+        self, root_node: Node, query_str: str, language: str
+    ) -> list[Node]:
+        """Execute a query and return all matching nodes."""
         query = self._get_compiled_query(language, query_str)
         cursor = QueryCursor(query)
         matching_nodes = []
@@ -283,16 +315,13 @@ def build_default_rules() -> list[tuple[Rule, str]]:
 
 
 def build_loose_rules() -> list[tuple[Rule, str]]:
-    """Build loose rules (default + loose) from language configurations."""
-    rules = list(build_default_rules())
+    """Build loose rules from language configurations."""
+    rules = []
+    rules.extend(build_region_extraction_rules())
 
     for lang_name, lang_config in LANGUAGE_CONFIGS.items():
-        # Get loose rules which include default rules
-        loose_rules = lang_config.get_loose_rules()
-        # Filter out rules that are already in default
-        default_rules = lang_config.get_default_rules()
-        for rule in loose_rules:
-            if rule not in default_rules:
-                rules.append((rule, rule.name))
+        # Respect the order defined in the config (loose rules include default)
+        for rule in lang_config.get_loose_rules():
+            rules.append((rule, rule.name))
 
     return rules

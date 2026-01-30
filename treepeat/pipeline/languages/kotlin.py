@@ -40,7 +40,6 @@ class KotlinConfig(LanguageConfig):
 
     def get_loose_rules(self) -> list[Rule]:
         return [
-            *self.get_default_rules(),
             Rule(
                 name="Anonymize identifiers",
                 languages=["kotlin"],
@@ -55,6 +54,7 @@ class KotlinConfig(LanguageConfig):
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),
+            *self.get_default_rules(),
         ]
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:

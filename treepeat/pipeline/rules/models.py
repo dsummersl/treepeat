@@ -7,7 +7,6 @@ class RuleAction(Enum):
     RENAME = "rename"
     REPLACE_VALUE = "replace_value"
     ANONYMIZE = "anonymize"
-    CANONICALIZE = "canonicalize"
     EXTRACT_REGION = "extract_region"
 
 
