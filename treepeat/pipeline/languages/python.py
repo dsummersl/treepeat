@@ -52,7 +52,7 @@ class PythonConfig(LanguageConfig):
             Rule(
                 name="Ignore docstrings",
                 languages=["python"],
-                query="(expression_statement (string))",
+                query="(expression_statement (string)) @doc",
                 action=RuleAction.REMOVE,
             ),
             Rule(
@@ -105,7 +105,7 @@ class PythonConfig(LanguageConfig):
                 languages=["python"],
                 query="(type) @type",
                 action=RuleAction.RENAME,
-                params={"type": "<T>"},
+                params={"token": "<T>"},
             ),
             Rule(
                 name="Anonymize collections",
