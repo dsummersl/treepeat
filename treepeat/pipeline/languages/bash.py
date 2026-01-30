@@ -47,14 +47,14 @@ class BashConfig(LanguageConfig):
                 name="Anonymize commands",
                 languages=["bash"],
                 query="[(command) (command_name)] @cmd",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<CMD>"},
             ),
             Rule(
                 name="Anonymize expressions",
                 languages=["bash"],
                 query="[(binary_expression) (unary_expression)] @exp",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<EXP>"},
             ),
         ]

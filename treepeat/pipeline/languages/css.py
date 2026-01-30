@@ -40,14 +40,14 @@ class CSSConfig(LanguageConfig):
                 name="Anonymize properties",
                 languages=["css"],
                 query="(property_name) @prop",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<PROP>"},
             ),
             Rule(
                 name="Anonymize features",
                 languages=["css"],
                 query="(feature_name) @feat",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<FEAT>"},
             ),
         ]

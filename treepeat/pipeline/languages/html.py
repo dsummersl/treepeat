@@ -33,14 +33,14 @@ class HTMLConfig(LanguageConfig):
                 name="Anonymize tags",
                 languages=["html"],
                 query="[(element) (tag_name)] @tag",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<TAG>"},
             ),
             Rule(
                 name="Anonymize attributes",
                 languages=["html"],
                 query="(attribute_name) @attr",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<ATTR>"},
             ),
         ]
@@ -48,11 +48,11 @@ class HTMLConfig(LanguageConfig):
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
         return [
             RegionExtractionRule(
-                query="(element (start_tag (tag_name) @tag_name) (#eq? @tag_name \"head\")) @region",
-                label="head"
+                query='(element (start_tag (tag_name) @tag_name) (#eq? @tag_name "head")) @region',
+                label="head",
             ),
             RegionExtractionRule(
-                query="(element (start_tag (tag_name) @tag_name) (#eq? @tag_name \"body\")) @region",
-                label="body"
+                query='(element (start_tag (tag_name) @tag_name) (#eq? @tag_name "body")) @region',
+                label="body",
             ),
         ]

@@ -37,7 +37,7 @@ class RuleEngine:
         """Build mapping of actions to handler functions."""
         return {
             RuleAction.REMOVE: self._handle_remove,
-            RuleAction.RENAME: self._handle_rename,
+            RuleAction.REPLACE_NODE_TYPE: self._handle_replace_node_type,
             RuleAction.REPLACE_VALUE: self._handle_replace_value,
             RuleAction.ANONYMIZE: self._handle_anonymize,
         }
@@ -132,7 +132,7 @@ class RuleEngine:
             f"Node type '{node_type}' matched remove rule for language '{language}'"
         )
 
-    def _handle_rename(
+    def _handle_replace_node_type(
         self,
         rule: Rule,
         node: Node,
@@ -141,7 +141,7 @@ class RuleEngine:
         name: Optional[str],
         value: Optional[str],
     ) -> tuple[Optional[str], Optional[str]]:
-        """Handle RENAME action - rename matched nodes."""
+        """Handle REPLACE_NODE_TYPE action - replaces the node type name."""
         return rule.params.get("token", "<NODE>"), value
 
     def _handle_replace_value(

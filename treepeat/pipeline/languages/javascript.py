@@ -60,14 +60,14 @@ class JavaScriptConfig(LanguageConfig):
                 name="Anonymize collections",
                 languages=["javascript"],
                 query="[(array) (object)] @coll",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<COLL>"},
             ),
             Rule(
                 name="Anonymize expressions",
                 languages=["javascript"],
                 query="[(binary_expression) (unary_expression) (update_expression) (assignment_expression) (ternary_expression)] @exp",
-                action=RuleAction.RENAME,
+                action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<EXP>"},
             ),
         ]
