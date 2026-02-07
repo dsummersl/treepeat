@@ -31,34 +31,39 @@ class PythonConfig(LanguageConfig):
             Rule(
                 name="Ignore TypeVar declarations",
                 languages=["python"],
-                query="""(expression_statement
-                    (assignment
-                        right: (call
-                            function: (attribute
+                query="""(assignment
+                    right: (call
+                        function: [
+                            (identifier) @func_name
+                            (attribute
                                 attribute: (identifier) @func_name
-                                (#match? @func_name "TypeVar")
                             )
-                        )
+                        ]
+                        (#match? @func_name "TypeVar")
                     )
                 ) @typevar""",
+                target="typevar",
                 action=RuleAction.REMOVE,
             ),
             Rule(
                 name="Ignore comments",
                 languages=["python"],
                 query="(comment) @comment",
+                target="comment",
                 action=RuleAction.REMOVE,
             ),
             Rule(
                 name="Ignore docstrings",
                 languages=["python"],
-                query="(expression_statement (string)) @doc",
+                query="[(module (string) @doc) (block (string) @doc)]",
+                target="doc",
                 action=RuleAction.REMOVE,
             ),
             Rule(
                 name="Anonymize function names",
                 languages=["python"],
                 query="(function_definition name: (identifier) @func)",
+                target="func",
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "FUNC"},
             ),
@@ -66,6 +71,7 @@ class PythonConfig(LanguageConfig):
                 name="Anonymize class names",
                 languages=["python"],
                 query="(class_definition name: (identifier) @class)",
+                target="class",
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "CLASS"},
             ),
@@ -77,12 +83,14 @@ class PythonConfig(LanguageConfig):
                 name="Ignore string content",
                 languages=["python"],
                 query="(string_content) @content",
+                target="content",
                 action=RuleAction.REMOVE,
             ),
             Rule(
                 name="Anonymize identifiers",
                 languages=["python"],
                 query="(identifier) @var",
+                target="var",
                 action=RuleAction.ANONYMIZE,
                 params={"prefix": "VAR"},
             ),
@@ -90,6 +98,7 @@ class PythonConfig(LanguageConfig):
                 name="Anonymize literals",
                 languages=["python"],
                 query="[(string) (integer) (float) (true) (false) (none)] @lit",
+                target="lit",
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),
@@ -97,6 +106,7 @@ class PythonConfig(LanguageConfig):
                 name="Anonymize operators",
                 languages=["python"],
                 query="[(binary_operator) (boolean_operator) (comparison_operator) (unary_operator)] @op",
+                target="op",
                 action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<OP>"},
             ),
@@ -104,6 +114,7 @@ class PythonConfig(LanguageConfig):
                 name="Anonymize types",
                 languages=["python"],
                 query="(type) @type",
+                target="type",
                 action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<T>"},
             ),
@@ -111,6 +122,7 @@ class PythonConfig(LanguageConfig):
                 name="Anonymize collections",
                 languages=["python"],
                 query="[(list) (dictionary) (tuple) (set)] @coll",
+                target="coll",
                 action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<COLL>"},
             ),

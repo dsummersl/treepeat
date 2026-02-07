@@ -1,6 +1,6 @@
 [project]
 name = "treepeat"
-version = "0.4.0"
+version = "0.4.1"
 description = "treepeat: a tool to find similarities in a codebase"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,7 +21,7 @@ dependencies = [
     "sarif-pydantic>=0.6.2",
     "tdqm>=0.0.1",
     "tree-sitter>=0.25.2",
-    "tree-sitter-language-pack==0.10.0",
+    "tree-sitter-language-pack==0.13.0",
 ]
 
 [project.scripts]
