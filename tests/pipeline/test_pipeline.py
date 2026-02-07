@@ -77,10 +77,10 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
     [
         ("none", css_fixtures, 1.0, 0, []),
         ("none", class_with_methods_file, 0.1, 1, []),
-        ("none", class_with_methods_file, 0.9, 3, []),
+        ("none", class_with_methods_file, 0.9, 2, []),
         ("default", class_with_methods_file, 0.1, 1, []),
         ("default", class_with_methods_file, 0.3, 2, []),
-        ("default", class_with_methods_file, 0.5, 2, [(classA_region, classB_region)]),
+        ("default", class_with_methods_file, 0.5, 3, [(classA_region, classB_region)]),
         (
             "none",
             python_fixtures,

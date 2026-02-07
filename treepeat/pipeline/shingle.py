@@ -6,7 +6,13 @@ from tree_sitter import Node
 
 from treepeat.models.ast import ParsedFile, ParseResult
 from treepeat.models.normalization import NodeRepresentation, SkipNode
-from treepeat.models.shingle import Shingle, ShingledRegion, ShingleResult, ShingleList, ShingledFile
+from treepeat.models.shingle import (
+    Shingle,
+    ShingledRegion,
+    ShingleResult,
+    ShingleList,
+    ShingledFile,
+)
 from treepeat.pipeline.region_extraction import ExtractedRegion
 from treepeat.pipeline.rules.engine import RuleEngine
 from treepeat.pipeline.rules.models import SkipNodeException
@@ -172,9 +178,7 @@ class ASTShingler:
                 start_line = last_node.start_point[0] + 1
                 end_line = last_node.end_point[0] + 1
 
-                shingle = Shingle(
-                    content=shingle_content, start_line=start_line, end_line=end_line
-                )
+                shingle = Shingle(content=shingle_content, start_line=start_line, end_line=end_line)
                 shingles.append(shingle)
 
             # Recursively traverse children
@@ -262,9 +266,7 @@ def shingle_regions(
 
     for extracted_region in extracted_regions:
         try:
-            shingled_region = _shingle_single_region(
-                extracted_region, path_to_source, shingler
-            )
+            shingled_region = _shingle_single_region(extracted_region, path_to_source, shingler)
             if shingled_region is not None:
                 shingled_regions.append(shingled_region)
             else:
@@ -280,6 +282,6 @@ def shingle_regions(
     logger.info(
         "Shingling complete: %d region(s) shingled, %d filtered",
         len(shingled_regions),
-        filtered_count
+        filtered_count,
     )
     return shingled_regions
