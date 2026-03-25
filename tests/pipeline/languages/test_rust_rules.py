@@ -1,6 +1,21 @@
 from treepeat.pipeline.languages.rust import RustConfig
 
 
+def test_macro_names_mode_separation(rule_tester):
+    config = RustConfig()
+    source = 'fn f() { println!("hello"); }'
+    # preserved in default mode
+    rule_tester._verify_with_rules(
+        config, config.get_default_rules(),
+        "Anonymize macro names", source, "println", None, "Default Rules"
+    )
+    # removed in loose mode
+    rule_tester._verify_with_rules(
+        config, config.get_loose_rules(),
+        "Anonymize macro names", source, None, "println", "Loose Rules"
+    )
+
+
 def test_rust_rules_detailed(rule_tester):
     config = RustConfig()
     rule_tester.verify_rules(
@@ -53,23 +68,6 @@ def test_rust_rules_detailed(rule_tester):
                 "source": "#![allow(dead_code)]\nfn f() {}",
                 "expected_symbol": None,
                 "unexpected_symbol": "inner_attribute_item",
-            },
-            {
-                # tree-sitter-rust represents 'a as a `lifetime` node (non-leaf) containing
-                # a `'` token and an `identifier` child. Removing the `lifetime` node drops
-                # the whole subtree, so we check for the node-type token "lifetime".
-                "rule_name": "Omit non-static lifetimes",
-                "source": "fn foo<'a>(x: &'a str) -> &'a str { x }",
-                "expected_symbol": None,
-                "unexpected_symbol": "lifetime",
-            },
-            {
-                # 'static must NOT be removed: it carries semantic content (permanent
-                # storage duration), so the `lifetime` node must remain in the shingles.
-                "rule_name": "Omit non-static lifetimes",
-                "source": 'fn foo() -> &\'static str { "hello" }',
-                "expected_symbol": "lifetime",
-                "unexpected_symbol": None,
             },
             {
                 "rule_name": "Ignore generic lifetimes",

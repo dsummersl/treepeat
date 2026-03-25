@@ -24,9 +24,12 @@ class RustConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
+                # Lifetimes are borrow-checker annotations, not logic — omit non-static ones
+                # so that copy-pasted functions with renamed lifetime parameters ('a → 'b) are
+                # still detected as duplicates. 'static is preserved because it carries semantic
+                # content (permanent storage duration), unlike named lifetimes.
                 name="Ignore generic lifetimes",
                 languages=["rust"],
-                # Matches any lifetime node that is NOT exactly 'static
                 query='((lifetime) @life (#not-eq? @life "\'static"))',
                 action=RuleAction.REMOVE,
             ),
@@ -48,31 +51,6 @@ class RustConfig(LanguageConfig):
                 name="Ignore attribute items",
                 languages=["rust"],
                 query="[(attribute_item) (inner_attribute_item)] @attr",
-                action=RuleAction.REMOVE,
-            ),
-            Rule(
-                # Removes the macro path before `!` for both simple (`println!`)
-                # and scoped (`log::info!`) forms, so calls differing only in
-                # macro name (e.g. log level) normalize identically. The `!`
-                # delimiter and token_tree arguments are preserved, so the
-                # presence and arity of the call still contributes to similarity.
-                # Note: tree-sitter-rust parses token_tree contents as structured
-                # nodes (string_literal, identifier, etc.), so the existing
-                # string-content and identifier rules already reach inside macro
-                # arguments.
-                name="Anonymize macro names",
-                languages=["rust"],
-                query="[(macro_invocation (identifier) @name) (macro_invocation (scoped_identifier) @name)]",
-                action=RuleAction.REMOVE,
-            ),
-            Rule(
-                # Lifetimes are borrow-checker annotations, not logic — omit non-static ones
-                # so that copy-pasted functions with renamed lifetime parameters ('a → 'b) are
-                # still detected as duplicates. 'static is preserved because it carries semantic
-                # content (permanent storage duration), unlike named lifetimes.
-                name="Omit non-static lifetimes",
-                languages=["rust"],
-                query="""((lifetime) @life (#not-eq? @life "'static"))""",
                 action=RuleAction.REMOVE,
             ),
             Rule(
@@ -104,6 +82,21 @@ class RustConfig(LanguageConfig):
 
     def get_loose_rules(self) -> list[Rule]:
         return [
+            Rule(
+                # Removes the macro path before `!` for both simple (`println!`)
+                # and scoped (`log::info!`) forms, so calls differing only in
+                # macro name (e.g. log level) normalize identically. The `!`
+                # delimiter and token_tree arguments are preserved, so the
+                # presence and arity of the call still contributes to similarity.
+                # Note: tree-sitter-rust parses token_tree contents as structured
+                # nodes (string_literal, identifier, etc.), so the existing
+                # string-content and identifier rules already reach inside macro
+                # arguments.
+                name="Anonymize macro names",
+                languages=["rust"],
+                query="[(macro_invocation (identifier) @name) (macro_invocation (scoped_identifier) @name)]",
+                action=RuleAction.REMOVE,
+            ),
             Rule(
                 name="Ignore string content",
                 languages=["rust"],
