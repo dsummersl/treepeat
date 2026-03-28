@@ -12,6 +12,7 @@ from .markdown import MarkdownConfig
 from .go import GoConfig
 from .java import JavaConfig
 from .kotlin import KotlinConfig
+from .rust import RustConfig
 
 # Registry mapping language names to their configurations
 LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
@@ -28,6 +29,7 @@ LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
     "go": GoConfig(),
     "java": JavaConfig(),
     "kotlin": KotlinConfig(),
+    "rust": RustConfig(),
 }
 
 LANGUAGE_EXTENSIONS: dict[SupportedLanguage, list[str]] = {
@@ -42,6 +44,7 @@ LANGUAGE_EXTENSIONS: dict[SupportedLanguage, list[str]] = {
     "go": [".go"],
     "java": [".java"],
     "kotlin": [".kt", ".kts"],
+    "rust": [".rs"],
 }
 
 __all__ = [
