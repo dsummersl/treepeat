@@ -1,6 +1,14 @@
 import logging
+import sys
 from fnmatch import fnmatch
 from pathlib import Path
+
+try:
+    from tqdm import tqdm as _tqdm
+    _HAS_TQDM = True
+except ImportError:  # pragma: no cover
+    _tqdm = None  # type: ignore[assignment]
+    _HAS_TQDM = False
 
 from tree_sitter_language_pack import get_parser, SupportedLanguage
 
@@ -281,9 +289,14 @@ def collect_source_files(target_path: Path) -> list[Path]:
     return []
 
 
-def parse_files(files: list[Path], result: ParseResult) -> None:
+def parse_files(files: list[Path], result: ParseResult, progress: bool = False) -> None:
     """Parse a list of files and update the result."""
-    for file_path in files:
+    iterable = (
+        _tqdm(files, desc="Parsing", unit="file", file=sys.stderr)
+        if progress and _HAS_TQDM
+        else files
+    )
+    for file_path in iterable:
         try:
             parsed = parse_file(file_path)
             result.parsed_files.append(parsed)
@@ -291,7 +304,7 @@ def parse_files(files: list[Path], result: ParseResult) -> None:
             logger.warning(f"Failed to parse {file_path}: {e}")
 
 
-def parse_path(target_path: Path) -> ParseResult:
+def parse_path(target_path: Path, progress: bool = False) -> ParseResult:
     """Parse a file or directory of source files."""
     logger.info(f"Starting parse of: {target_path}")
 
@@ -302,7 +315,7 @@ def parse_path(target_path: Path) -> ParseResult:
         logger.warning(f"Path does not exist or contains no source files: {target_path}")
         return result
 
-    parse_files(files, result)
+    parse_files(files, result, progress=progress)
 
     logger.info(f"Parse complete: {result.success_count} succeeded")
 

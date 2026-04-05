@@ -162,17 +162,19 @@ def _write_output(text: str, output_path: Path | None) -> None:
         print(text)
 
 
-def _run_pipeline_with_ui(path: Path, output_format: str) -> SimilarityResult:
+def _run_pipeline_with_ui(path: Path, output_format: str, progress: bool = False) -> SimilarityResult:
     """Run the pipeline with appropriate UI feedback based on output format."""
     if output_format.lower() != "console":
-        return run_pipeline(path)
+        return run_pipeline(path, progress=progress)
 
     from treepeat.config import get_settings
     settings = get_settings()
     console.print(f"\nRuleset: [cyan]{settings.rules.ruleset}[/cyan]")
     console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
+    if progress:
+        return run_pipeline(path, progress=True)
     with console.status("[bold green]Running pipeline..."):
-        return run_pipeline(path)
+        return run_pipeline(path, progress=False)
 
 
 def _group_signatures_by_file(
@@ -395,6 +397,15 @@ def _format_language_node_types(
     return f"{language}: {sorted_types}"
 
 
+_STAGE_LABELS: dict[str, tuple[str, str]] = {
+    "parse":   ("1/5 parse",   "files"),
+    "extract": ("2/5 extract", "regions"),
+    "shingle": ("3/5 shingle", "regions"),
+    "minhash": ("4/5 minhash", "sigs"),
+    "lsh":     ("5/5 lsh",     "groups"),
+}
+
+
 def _display_verbose_metrics(elapsed_time: float) -> None:
     """Display verbose metrics about the pipeline run."""
     metrics = get_verbose_metrics()
@@ -407,7 +418,26 @@ def _display_verbose_metrics(elapsed_time: float) -> None:
             line = _format_language_node_types(language, node_types, excluded)
             console.print(f"  {line}")
 
-    console.print(f"\nTotal time: [green]{elapsed_time:.2f}s[/green]\n")
+    if metrics.stage_timings:
+        table = Table(title="Stage timings", show_footer=True)
+        table.add_column("Stage", footer="total")
+        table.add_column("Items", justify="right", footer="")
+        table.add_column("Time (s)", justify="right", footer=f"[green]{elapsed_time:.2f}s[/green]")
+        table.add_column("%", justify="right", footer="")
+        for stage_key in ("parse", "extract", "shingle", "minhash", "lsh"):
+            if stage_key not in metrics.stage_timings:
+                continue
+            label, unit = _STAGE_LABELS[stage_key]
+            t = metrics.stage_timings[stage_key]
+            n = metrics.stage_counts.get(stage_key, 0)
+            pct = (t / elapsed_time * 100) if elapsed_time > 0 else 0.0
+            table.add_row(label, f"{n:,} {unit}", f"{t:.2f}s", f"{pct:.0f}%")
+        console.print()
+        console.print(table)
+    else:
+        console.print(f"\nTotal time: [green]{elapsed_time:.2f}s[/green]")
+
+    console.print()
 
 
 @click.command()
@@ -499,6 +529,13 @@ def _display_verbose_metrics(elapsed_time: float) -> None:
     default=False,
     help="Show verbose output including timing, ignored nodes, and used node types per language",
 )
+@click.option(
+    "--progress",
+    "-p",
+    is_flag=True,
+    default=False,
+    help="Show a progress bar while parsing files",
+)
 def detect(
     ctx: click.Context,
     path: Path,
@@ -512,6 +549,7 @@ def detect(
     fail: bool,
     ignore_node_types: str,
     verbose: bool,
+    progress: bool,
     add_regions: tuple[str, ...],
     exclude_regions: tuple[str, ...],
 ) -> None:
@@ -533,7 +571,7 @@ def detect(
     reset_verbose_metrics()
     start_time = time.time()
 
-    result = _run_pipeline_with_ui(path, output_format)
+    result = _run_pipeline_with_ui(path, output_format, progress=progress)
 
     elapsed_time = time.time() - start_time
 
