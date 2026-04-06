@@ -15,7 +15,7 @@ Current languages supported so far: bash, css, go, html, javascript, markdown, p
 ### Installation
 
 ```sh
-pip insteall treepeat
+pip install treepeat
 ```
 
 ### detect
