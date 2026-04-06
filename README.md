@@ -1,10 +1,10 @@
 # Overview
 
-`treepeat` is a tool that analyzes finds similarities in your codebase.
+`treepeat` is a tool that finds similarities in your codebase.
 
 - Find **duplicate** code blocks meaningful to the language (classes/functions), not just lines (`--ruleset none`)
 - Find **near-duplicates**, ignore whitespace, strings, high level AST nodes such as function and names (`--ruleset default`)
-- Find **structurally similar** code, ignoring anonymizing identifiers, constants, etc (`--ruleset loose`)
+- Find **structurally similar** code, anonymizing identifiers, constants, etc (`--ruleset loose`)
 
 Pull requests welcome: This is very much an proof of concept - I'm happy with it, but I haven't supported very many languages at present. PRs welcome!
 
