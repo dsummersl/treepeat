@@ -4,15 +4,18 @@ import logging
 import sys
 from pathlib import Path
 from typing import Hashable
+from typing import Any
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
 
 try:
-    from tqdm import tqdm as _tqdm
+    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
     _HAS_TQDM = True
 except ImportError:  # pragma: no cover
-    _tqdm = None  # type: ignore[assignment]
+    _loaded_tqdm = None
     _HAS_TQDM = False
+
+_tqdm: Any = _loaded_tqdm
 
 from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import (

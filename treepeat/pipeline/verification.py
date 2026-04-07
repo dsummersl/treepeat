@@ -1,16 +1,18 @@
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from treepeat.models.shingle import ShingledRegion
 
 try:
-    from tqdm import tqdm as _tqdm
+    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
     _HAS_TQDM = True
 except ImportError:  # pragma: no cover
-    _tqdm = None  # type: ignore[assignment]
+    _loaded_tqdm = None
     _HAS_TQDM = False
+
+_tqdm: Any = _loaded_tqdm
 
 if TYPE_CHECKING:
     from treepeat.models.similarity import Region, SimilarRegionGroup

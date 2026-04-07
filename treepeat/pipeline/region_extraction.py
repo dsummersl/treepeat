@@ -4,16 +4,19 @@ import logging
 import sys
 from collections import Counter
 from dataclasses import dataclass
+from typing import Any
 
 from pydantic import BaseModel, Field
 from tree_sitter import Node
 
 try:
-    from tqdm import tqdm as _tqdm
+    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
     _HAS_TQDM = True
 except ImportError:  # pragma: no cover
-    _tqdm = None  # type: ignore[assignment]
+    _loaded_tqdm = None
     _HAS_TQDM = False
+
+_tqdm: Any = _loaded_tqdm
 
 from treepeat.models.ast import ParsedFile
 from treepeat.models.similarity import Region

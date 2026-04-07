@@ -2,13 +2,16 @@ import logging
 import sys
 from fnmatch import fnmatch
 from pathlib import Path
+from typing import Any
 
 try:
-    from tqdm import tqdm as _tqdm
+    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
     _HAS_TQDM = True
 except ImportError:  # pragma: no cover
-    _tqdm = None  # type: ignore[assignment]
+    _loaded_tqdm = None
     _HAS_TQDM = False
+
+_tqdm: Any = _loaded_tqdm
 
 from tree_sitter_language_pack import get_parser, SupportedLanguage
 
