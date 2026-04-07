@@ -1,8 +1,16 @@
 import logging
+import sys
 from collections import deque
 from pathlib import Path
 
 from tree_sitter import Node
+
+try:
+    from tqdm import tqdm as _tqdm
+    _HAS_TQDM = True
+except ImportError:  # pragma: no cover
+    _tqdm = None  # type: ignore[assignment]
+    _HAS_TQDM = False
 
 from treepeat.models.ast import ParsedFile, ParseResult
 from treepeat.models.normalization import NodeRepresentation, SkipNode
@@ -251,6 +259,7 @@ def shingle_regions(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
     k: int = 3,
+    progress: bool = False,
 ) -> list[ShingledRegion]:
     logger.info(
         "Shingling %d region(s) across %d file(s) with k=%d",
@@ -263,8 +272,13 @@ def shingle_regions(
     shingler = ASTShingler(rule_engine=rule_engine, k=k)
     shingled_regions = []
     filtered_count = 0
+    iterable = (
+        _tqdm(extracted_regions, desc="Shingling", unit="region", file=sys.stderr)
+        if progress and _HAS_TQDM
+        else extracted_regions
+    )
 
-    for extracted_region in extracted_regions:
+    for extracted_region in iterable:
         try:
             shingled_region = _shingle_single_region(extracted_region, path_to_source, shingler)
             if shingled_region is not None:

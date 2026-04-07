@@ -1,10 +1,18 @@
 """LSH stage for finding similar region pairs."""
 
 import logging
+import sys
 from pathlib import Path
 from typing import Hashable
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
+
+try:
+    from tqdm import tqdm as _tqdm
+    _HAS_TQDM = True
+except ImportError:  # pragma: no cover
+    _tqdm = None  # type: ignore[assignment]
+    _HAS_TQDM = False
 
 from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import (
@@ -184,6 +192,7 @@ def _build_union_find_from_lsh(
     signatures: list[RegionSignature],
     lsh: MinHashLSH,
     similarity_percent: float,
+    progress: bool = False,
 ) -> tuple[UnionFind, dict[str, RegionSignature]]:
     """Build union-find structure from LSH queries."""
     uf = UnionFind()
@@ -193,7 +202,13 @@ def _build_union_find_from_lsh(
     # The actual verified similarity may be higher than the MinHash Jaccard similarity
     min_pair_similarity = 0.8 * similarity_percent
 
-    for sig in signatures:
+    iterable = (
+        _tqdm(signatures, desc="LSH", unit="signature", file=sys.stderr)
+        if progress and _HAS_TQDM
+        else signatures
+    )
+
+    for sig in iterable:
         # Use same key format as LSH index
         current_key = f"{sig.region.path}:{sig.region.region_name}:{sig.region.start_line}-{sig.region.end_line}"
         key_to_sig[current_key] = sig
@@ -270,10 +285,16 @@ def _collect_candidate_groups(
     signatures: list[RegionSignature],
     lsh: MinHashLSH,
     similarity_percent: float,
+    progress: bool = False,
 ) -> list[SimilarRegionGroup]:
     """Collect similar region groups from LSH queries."""
     # Build union-find structure
-    uf, key_to_sig = _build_union_find_from_lsh(signatures, lsh, similarity_percent)
+    uf, key_to_sig = _build_union_find_from_lsh(
+        signatures,
+        lsh,
+        similarity_percent,
+        progress=progress,
+    )
 
     # Extract groups from union-find
     groups_dict = uf.get_groups()
@@ -293,7 +314,7 @@ def _collect_candidate_groups(
 
 
 def find_similar_groups(
-    signatures: list[RegionSignature], similarity_percent: float
+    signatures: list[RegionSignature], similarity_percent: float, progress: bool = False
 ) -> list[SimilarRegionGroup]:
     """Find similar region groups using LSH."""
     if len(signatures) < 2:
@@ -307,7 +328,7 @@ def find_similar_groups(
     )
 
     lsh = _create_lsh_index(signatures, similarity_percent)
-    groups = _collect_candidate_groups(signatures, lsh, similarity_percent)
+    groups = _collect_candidate_groups(signatures, lsh, similarity_percent, progress=progress)
 
     groups.sort(key=lambda g: g.similarity, reverse=True)
     logger.info(
@@ -322,12 +343,17 @@ def _verify_and_filter_groups(
     candidate_groups: list[SimilarRegionGroup],
     shingled_regions: list[ShingledRegion],
     similarity_percent: float,
+    progress: bool = False,
 ) -> list[SimilarRegionGroup]:
     """Verify candidate groups and filter by minimum similarity similarity_percent."""
     from treepeat.pipeline.verification import verify_similar_groups
 
     logger.info("Verifying %d candidate group(s)", len(candidate_groups))
-    verified_groups = verify_similar_groups(candidate_groups, shingled_regions)
+    verified_groups = verify_similar_groups(
+        candidate_groups,
+        shingled_regions,
+        progress=progress,
+    )
 
     # Filter groups that fall below minimum similarity after verification
     similar_groups = [g for g in verified_groups if g.similarity >= similarity_percent]
@@ -398,6 +424,7 @@ def detect_similarity(
     similarity_percent: float,
     shingled_regions: list[ShingledRegion],
     min_lines: int = 5,
+    progress: bool = False,
 ) -> SimilarityResult:
     """Detect similar regions using LSH."""
     filtered_signatures, filtered_shingled = _filter_by_min_lines(
@@ -414,7 +441,11 @@ def detect_similarity(
     if not filtered_signatures:
         return SimilarityResult(signatures=[], similar_groups=[])
 
-    candidate_groups = find_similar_groups(filtered_signatures, similarity_percent)
+    candidate_groups = find_similar_groups(
+        filtered_signatures,
+        similarity_percent,
+        progress=progress,
+    )
 
     if not candidate_groups:
         return SimilarityResult(
@@ -423,7 +454,10 @@ def detect_similarity(
         )
 
     similar_groups = _verify_and_filter_groups(
-        candidate_groups, filtered_shingled, similarity_percent
+        candidate_groups,
+        filtered_shingled,
+        similarity_percent,
+        progress=progress,
     )
 
     return SimilarityResult(

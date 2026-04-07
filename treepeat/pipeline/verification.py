@@ -1,8 +1,16 @@
 import logging
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from treepeat.models.shingle import ShingledRegion
+
+try:
+    from tqdm import tqdm as _tqdm
+    _HAS_TQDM = True
+except ImportError:  # pragma: no cover
+    _tqdm = None  # type: ignore[assignment]
+    _HAS_TQDM = False
 
 if TYPE_CHECKING:
     from treepeat.models.similarity import Region, SimilarRegionGroup
@@ -181,6 +189,7 @@ def _verify_group_pairwise_similarity(
 def verify_similar_groups(
     groups: list["SimilarRegionGroup"],
     shingled_regions: list[ShingledRegion],
+    progress: bool = False,
 ) -> list["SimilarRegionGroup"]:
     """Verify candidate groups using order-sensitive similarity.
 
@@ -192,7 +201,13 @@ def verify_similar_groups(
     region_lookup = _build_region_lookup(shingled_regions)
     verified_groups = []
 
-    for group in groups:
+    iterable = (
+        _tqdm(groups, desc="Verifying", unit="group", file=sys.stderr)
+        if progress and _HAS_TQDM
+        else groups
+    )
+
+    for group in iterable:
         # Recalculate group similarity using order-sensitive verification
         verified_similarity = _verify_group_pairwise_similarity(
             group.regions, region_lookup

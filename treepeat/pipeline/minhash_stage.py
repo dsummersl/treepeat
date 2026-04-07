@@ -1,8 +1,16 @@
 """MinHash stage for similarity detection."""
 
 import logging
+import sys
 
 from datasketch import MinHash  # type: ignore[import-untyped]
+
+try:
+    from tqdm import tqdm as _tqdm
+    _HAS_TQDM = True
+except ImportError:  # pragma: no cover
+    _tqdm = None  # type: ignore[assignment]
+    _HAS_TQDM = False
 
 from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import RegionSignature
@@ -24,6 +32,7 @@ def create_minhash_signature(
 def compute_region_signatures(
     shingled_regions: list[ShingledRegion],
     num_perm: int = 128,
+    progress: bool = False,
 ) -> list[RegionSignature]:
     """Compute MinHash signatures for all shingled regions. """
     logger.info(
@@ -33,7 +42,13 @@ def compute_region_signatures(
     )
 
     signatures = []
-    for shingled_region in shingled_regions:
+    iterable = (
+        _tqdm(shingled_regions, desc="MinHash", unit="region", file=sys.stderr)
+        if progress and _HAS_TQDM
+        else shingled_regions
+    )
+
+    for shingled_region in iterable:
         try:
             # Get shingle contents as strings for MinHash
             shingle_contents = shingled_region.shingles.get_contents()

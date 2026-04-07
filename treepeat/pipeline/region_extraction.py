@@ -1,11 +1,19 @@
 """Extract regions (functions, classes, sections, etc) from parsed files."""
 
 import logging
+import sys
 from collections import Counter
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 from tree_sitter import Node
+
+try:
+    from tqdm import tqdm as _tqdm
+    _HAS_TQDM = True
+except ImportError:  # pragma: no cover
+    _tqdm = None  # type: ignore[assignment]
+    _HAS_TQDM = False
 
 from treepeat.models.ast import ParsedFile
 from treepeat.models.similarity import Region
@@ -225,6 +233,7 @@ def _log_region_type_statistics(regions: list[ExtractedRegion], method: str) -> 
 def extract_all_regions(
     parsed_files: list[ParsedFile],
     rule_engine: "RuleEngine",
+    progress: bool = False,
 ) -> list[ExtractedRegion]:
     """Extract regions from all parsed files using only explicit extraction rules.
     If no rules exist for a language, log warning and skip that file.
@@ -233,7 +242,13 @@ def extract_all_regions(
 
     all_regions: list[ExtractedRegion] = []
 
-    for parsed_file in parsed_files:
+    iterable = (
+        _tqdm(parsed_files, desc="Extracting", unit="file", file=sys.stderr)
+        if progress and _HAS_TQDM
+        else parsed_files
+    )
+
+    for parsed_file in iterable:
         try:
             # Get explicit regions from rules
             regions = extract_regions(parsed_file, rule_engine)

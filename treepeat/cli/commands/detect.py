@@ -534,7 +534,7 @@ def _display_verbose_metrics(elapsed_time: float) -> None:
     "-p",
     is_flag=True,
     default=False,
-    help="Show a progress bar while parsing files",
+    help="Show progress bars for long-running pipeline stages",
 )
 def detect(
     ctx: click.Context,

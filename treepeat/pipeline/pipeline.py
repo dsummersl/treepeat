@@ -41,11 +41,12 @@ def _run_parse_stage(target_path: Path, progress: bool = False) -> ParseResult:
 def _run_extract_stage(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
+    progress: bool = False,
 ) -> list[ExtractedRegion]:
     """Run region extraction stage."""
     logger.info("Stage 2/5: Extracting regions...")
     _t = time.monotonic()
-    extracted_regions = extract_all_regions(parsed_files, rule_engine)
+    extracted_regions = extract_all_regions(parsed_files, rule_engine, progress=progress)
     elapsed = time.monotonic() - _t
     record_stage_timing("extract", elapsed)
     record_stage_count("extract", len(extracted_regions))
@@ -106,6 +107,7 @@ def _run_shingle_stage(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
     settings: PipelineSettings,
+    progress: bool = False,
 ) -> list[ShingledRegion]:
     """Run shingling stage."""
     logger.info("Stage 3/5: Shingling regions (with rules)...")
@@ -115,6 +117,7 @@ def _run_shingle_stage(
         parsed_files,
         rule_engine=rule_engine,
         k=settings.shingle.k,
+        progress=progress,
     )
     elapsed = time.monotonic() - _t
     record_stage_timing("shingle", elapsed)
@@ -124,12 +127,16 @@ def _run_shingle_stage(
 
 
 def _run_minhash_stage(
-    shingled_regions: list[ShingledRegion], num_perm: int
+    shingled_regions: list[ShingledRegion], num_perm: int, progress: bool = False
 ) -> list[RegionSignature]:
     """Run MinHash signature computation stage."""
     logger.info("Stage 4/5: Computing MinHash signatures...")
     _t = time.monotonic()
-    signatures = compute_region_signatures(shingled_regions, num_perm=num_perm)
+    signatures = compute_region_signatures(
+        shingled_regions,
+        num_perm=num_perm,
+        progress=progress,
+    )
     elapsed = time.monotonic() - _t
     record_stage_timing("minhash", elapsed)
     record_stage_count("minhash", len(signatures))
@@ -142,6 +149,7 @@ def _run_lsh_stage(
     shingled_regions: list[ShingledRegion],
     threshold: float,
     min_lines: int,
+    progress: bool = False,
 ) -> SimilarityResult:
     """Run LSH similarity detection stage."""
     logger.info("Stage 5/5: Finding similar pairs...")
@@ -151,6 +159,7 @@ def _run_lsh_stage(
         similarity_percent=threshold,
         shingled_regions=shingled_regions,
         min_lines=min_lines,
+        progress=progress,
     )
     elapsed = time.monotonic() - _t
     record_stage_timing("lsh", elapsed)
@@ -194,12 +203,13 @@ def _run_region_matching(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
     settings: PipelineSettings,
+    progress: bool = False,
 ) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
     """Run region matching for functions and classes."""
     logger.info("===== REGION MATCHING =====")
 
     # Extract regions
-    extracted_regions = _run_extract_stage(parsed_files, rule_engine)
+    extracted_regions = _run_extract_stage(parsed_files, rule_engine, progress=progress)
 
     # If no regions, skip region matching entirely
     if not extracted_regions:
@@ -213,16 +223,27 @@ def _run_region_matching(
         return [], []
 
     # Shingle regions
-    region_shingled = _run_shingle_stage(extracted_regions, parsed_files, rule_engine, settings)
+    region_shingled = _run_shingle_stage(
+        extracted_regions,
+        parsed_files,
+        rule_engine,
+        settings,
+        progress=progress,
+    )
 
     # MinHash region
-    region_signatures = _run_minhash_stage(region_shingled, settings.minhash.num_perm)
+    region_signatures = _run_minhash_stage(
+        region_shingled,
+        settings.minhash.num_perm,
+        progress=progress,
+    )
 
     region_result = _run_lsh_stage(
         region_signatures,
         region_shingled,
         settings.lsh.similarity_percent,
         settings.lsh.min_lines,
+        progress=progress,
     )
 
     # Filter by min_lines
@@ -274,7 +295,7 @@ def run_pipeline(target_path: str | Path, progress: bool = False) -> SimilarityR
 
     # Run Region Matching
     similar_groups, signatures = _run_region_matching(
-        parse_result.parsed_files, rule_engine, settings
+        parse_result.parsed_files, rule_engine, settings, progress=progress
     )
 
     # Create final result
