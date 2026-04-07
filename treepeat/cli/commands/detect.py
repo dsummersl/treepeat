@@ -406,36 +406,58 @@ _STAGE_LABELS: dict[str, tuple[str, str]] = {
 }
 
 
+def _display_verbose_node_metrics() -> None:
+    metrics = get_verbose_metrics()
+    if not metrics.used_node_types_by_language:
+        return
+
+    console.print("\nNodes analyzed by region:")
+    for language in sorted(metrics.used_node_types_by_language.keys()):
+        node_types = metrics.used_node_types_by_language[language]
+        excluded = metrics.excluded_node_types_by_language.get(language, set())
+        line = _format_language_node_types(language, node_types, excluded)
+        console.print(f"  {line}")
+
+
+def _build_stage_timings_table(elapsed_time: float) -> Table:
+    metrics = get_verbose_metrics()
+    table = Table(title="Stage timings", show_footer=True)
+    table.add_column("Stage", footer="total")
+    table.add_column("Items", justify="right", footer="")
+    table.add_column("Time (s)", justify="right", footer=f"[green]{elapsed_time:.2f}s[/green]")
+    table.add_column("%", justify="right", footer="")
+
+    for stage_key in ("parse", "extract", "shingle", "minhash", "lsh"):
+        if stage_key not in metrics.stage_timings:
+            continue
+        label, unit = _STAGE_LABELS[stage_key]
+        stage_time = metrics.stage_timings[stage_key]
+        stage_count = metrics.stage_counts.get(stage_key, 0)
+        stage_percent = (stage_time / elapsed_time * 100) if elapsed_time > 0 else 0.0
+        table.add_row(
+            label,
+            f"{stage_count:,} {unit}",
+            f"{stage_time:.2f}s",
+            f"{stage_percent:.0f}%",
+        )
+
+    return table
+
+
+def _display_verbose_timing_metrics(elapsed_time: float) -> None:
+    metrics = get_verbose_metrics()
+    if not metrics.stage_timings:
+        console.print(f"\nTotal time: [green]{elapsed_time:.2f}s[/green]")
+        return
+
+    console.print()
+    console.print(_build_stage_timings_table(elapsed_time))
+
+
 def _display_verbose_metrics(elapsed_time: float) -> None:
     """Display verbose metrics about the pipeline run."""
-    metrics = get_verbose_metrics()
-
-    if metrics.used_node_types_by_language:
-        console.print("\nNodes analyzed by region:")
-        for language in sorted(metrics.used_node_types_by_language.keys()):
-            node_types = metrics.used_node_types_by_language[language]
-            excluded = metrics.excluded_node_types_by_language.get(language, set())
-            line = _format_language_node_types(language, node_types, excluded)
-            console.print(f"  {line}")
-
-    if metrics.stage_timings:
-        table = Table(title="Stage timings", show_footer=True)
-        table.add_column("Stage", footer="total")
-        table.add_column("Items", justify="right", footer="")
-        table.add_column("Time (s)", justify="right", footer=f"[green]{elapsed_time:.2f}s[/green]")
-        table.add_column("%", justify="right", footer="")
-        for stage_key in ("parse", "extract", "shingle", "minhash", "lsh"):
-            if stage_key not in metrics.stage_timings:
-                continue
-            label, unit = _STAGE_LABELS[stage_key]
-            t = metrics.stage_timings[stage_key]
-            n = metrics.stage_counts.get(stage_key, 0)
-            pct = (t / elapsed_time * 100) if elapsed_time > 0 else 0.0
-            table.add_row(label, f"{n:,} {unit}", f"{t:.2f}s", f"{pct:.0f}%")
-        console.print()
-        console.print(table)
-    else:
-        console.print(f"\nTotal time: [green]{elapsed_time:.2f}s[/green]")
+    _display_verbose_node_metrics()
+    _display_verbose_timing_metrics(elapsed_time)
 
     console.print()
 

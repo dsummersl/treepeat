@@ -4,6 +4,12 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
+from tree_sitter_language_pack import get_parser, SupportedLanguage
+
+from treepeat.config import get_settings
+from treepeat.models import ParsedFile, ParseResult
+from treepeat.pipeline.languages import LANGUAGE_EXTENSIONS
+
 try:
     from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
     _HAS_TQDM = True
@@ -12,12 +18,6 @@ except ImportError:  # pragma: no cover
     _HAS_TQDM = False
 
 _tqdm: Any = _loaded_tqdm
-
-from tree_sitter_language_pack import get_parser, SupportedLanguage
-
-from treepeat.config import get_settings
-from treepeat.models import ParsedFile, ParseResult
-from treepeat.pipeline.languages import LANGUAGE_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 

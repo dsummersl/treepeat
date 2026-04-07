@@ -6,6 +6,9 @@ from typing import Any
 
 from datasketch import MinHash  # type: ignore[import-untyped]
 
+from treepeat.models.shingle import ShingledRegion
+from treepeat.models.similarity import RegionSignature
+
 try:
     from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
     _HAS_TQDM = True
@@ -14,9 +17,6 @@ except ImportError:  # pragma: no cover
     _HAS_TQDM = False
 
 _tqdm: Any = _loaded_tqdm
-
-from treepeat.models.shingle import ShingledRegion
-from treepeat.models.similarity import RegionSignature
 
 logger = logging.getLogger(__name__)
 

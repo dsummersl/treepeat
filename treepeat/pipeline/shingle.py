@@ -6,15 +6,6 @@ from typing import Any
 
 from tree_sitter import Node
 
-try:
-    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
-    _HAS_TQDM = True
-except ImportError:  # pragma: no cover
-    _loaded_tqdm = None
-    _HAS_TQDM = False
-
-_tqdm: Any = _loaded_tqdm
-
 from treepeat.models.ast import ParsedFile, ParseResult
 from treepeat.models.normalization import NodeRepresentation, SkipNode
 from treepeat.models.shingle import (
@@ -27,6 +18,15 @@ from treepeat.models.shingle import (
 from treepeat.pipeline.region_extraction import ExtractedRegion
 from treepeat.pipeline.rules.engine import RuleEngine
 from treepeat.pipeline.rules.models import SkipNodeException
+
+try:
+    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
+    _HAS_TQDM = True
+except ImportError:  # pragma: no cover
+    _loaded_tqdm = None
+    _HAS_TQDM = False
+
+_tqdm: Any = _loaded_tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -257,6 +257,37 @@ def _shingle_single_region(
     return shingler.shingle_region(extracted_region, source)
 
 
+def _get_region_shingling_iterable(
+    extracted_regions: list[ExtractedRegion],
+    progress: bool,
+) -> list[ExtractedRegion] | Any:
+    if progress and _HAS_TQDM:
+        return _tqdm(extracted_regions, desc="Shingling", unit="region", file=sys.stderr)
+    return extracted_regions
+
+
+def _append_shingled_region(
+    extracted_region: ExtractedRegion,
+    path_to_source: dict[Path, bytes],
+    shingler: ASTShingler,
+    shingled_regions: list[ShingledRegion],
+) -> int:
+    shingled_region = _shingle_single_region(extracted_region, path_to_source, shingler)
+    if shingled_region is None:
+        return 1
+    shingled_regions.append(shingled_region)
+    return 0
+
+
+def _log_region_shingling_error(extracted_region: ExtractedRegion, error: Exception) -> None:
+    logger.error(
+        "Failed to shingle region %s in %s: %s",
+        extracted_region.region.region_name,
+        extracted_region.region.path,
+        error,
+    )
+
+
 def shingle_regions(
     extracted_regions: list[ExtractedRegion],
     parsed_files: list[ParsedFile],
@@ -273,28 +304,20 @@ def shingle_regions(
 
     path_to_source = {pf.path: pf.source for pf in parsed_files}
     shingler = ASTShingler(rule_engine=rule_engine, k=k)
-    shingled_regions = []
+    shingled_regions: list[ShingledRegion] = []
     filtered_count = 0
-    iterable = (
-        _tqdm(extracted_regions, desc="Shingling", unit="region", file=sys.stderr)
-        if progress and _HAS_TQDM
-        else extracted_regions
-    )
+    iterable = _get_region_shingling_iterable(extracted_regions, progress)
 
     for extracted_region in iterable:
         try:
-            shingled_region = _shingle_single_region(extracted_region, path_to_source, shingler)
-            if shingled_region is not None:
-                shingled_regions.append(shingled_region)
-            else:
-                filtered_count += 1
-        except Exception as e:
-            logger.error(
-                "Failed to shingle region %s in %s: %s",
-                extracted_region.region.region_name,
-                extracted_region.region.path,
-                e,
+            filtered_count += _append_shingled_region(
+                extracted_region,
+                path_to_source,
+                shingler,
+                shingled_regions,
             )
+        except Exception as e:
+            _log_region_shingling_error(extracted_region, e)
 
     logger.info(
         "Shingling complete: %d region(s) shingled, %d filtered",

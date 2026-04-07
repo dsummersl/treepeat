@@ -9,6 +9,12 @@ from typing import Any
 from pydantic import BaseModel, Field
 from tree_sitter import Node
 
+from treepeat.models.ast import ParsedFile
+from treepeat.models.similarity import Region
+
+from treepeat.pipeline.rules.engine import RuleEngine
+from treepeat.pipeline.verbose_metrics import record_used_node_type
+
 try:
     from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
     _HAS_TQDM = True
@@ -17,12 +23,6 @@ except ImportError:  # pragma: no cover
     _HAS_TQDM = False
 
 _tqdm: Any = _loaded_tqdm
-
-from treepeat.models.ast import ParsedFile
-from treepeat.models.similarity import Region
-
-from treepeat.pipeline.rules.engine import RuleEngine
-from treepeat.pipeline.verbose_metrics import record_used_node_type
 
 logger = logging.getLogger(__name__)
 

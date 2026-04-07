@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, Any
 
 from treepeat.models.shingle import ShingledRegion
 
+if TYPE_CHECKING:
+    from treepeat.models.similarity import Region, SimilarRegionGroup
+
 try:
     from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
     _HAS_TQDM = True
@@ -13,9 +16,6 @@ except ImportError:  # pragma: no cover
     _HAS_TQDM = False
 
 _tqdm: Any = _loaded_tqdm
-
-if TYPE_CHECKING:
-    from treepeat.models.similarity import Region, SimilarRegionGroup
 
 
 logger = logging.getLogger(__name__)
