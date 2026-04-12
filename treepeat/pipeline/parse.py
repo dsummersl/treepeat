@@ -2,22 +2,13 @@ import logging
 import sys
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any
 
+from tqdm import tqdm  # type: ignore[import-untyped]
 from tree_sitter_language_pack import get_parser, SupportedLanguage
 
 from treepeat.config import get_settings
 from treepeat.models import ParsedFile, ParseResult
 from treepeat.pipeline.languages import LANGUAGE_EXTENSIONS
-
-try:
-    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
-    _HAS_TQDM = True
-except ImportError:  # pragma: no cover
-    _loaded_tqdm = None
-    _HAS_TQDM = False
-
-_tqdm: Any = _loaded_tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -295,8 +286,8 @@ def collect_source_files(target_path: Path) -> list[Path]:
 def parse_files(files: list[Path], result: ParseResult, progress: bool = False) -> None:
     """Parse a list of files and update the result."""
     iterable = (
-        _tqdm(files, desc="Parsing", unit="file", file=sys.stderr)
-        if progress and _HAS_TQDM
+        tqdm(files, desc="Parsing", unit="file", file=sys.stderr)
+        if progress
         else files
     )
     for file_path in iterable:

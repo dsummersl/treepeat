@@ -4,9 +4,9 @@ import logging
 import sys
 from pathlib import Path
 from typing import Hashable
-from typing import Any
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
+from tqdm import tqdm  # type: ignore[import-untyped]
 
 from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import (
@@ -15,15 +15,6 @@ from treepeat.models.similarity import (
     SimilarRegionGroup,
     SimilarityResult,
 )
-
-try:
-    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
-    _HAS_TQDM = True
-except ImportError:  # pragma: no cover
-    _loaded_tqdm = None
-    _HAS_TQDM = False
-
-_tqdm: Any = _loaded_tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +197,8 @@ def _build_union_find_from_lsh(
     min_pair_similarity = 0.8 * similarity_percent
 
     iterable = (
-        _tqdm(signatures, desc="LSH", unit="signature", file=sys.stderr)
-        if progress and _HAS_TQDM
+        tqdm(signatures, desc="LSH", unit="signature", file=sys.stderr)
+        if progress
         else signatures
     )
 

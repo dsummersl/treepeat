@@ -4,9 +4,9 @@ import logging
 import sys
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any
 
 from pydantic import BaseModel, Field
+from tqdm import tqdm  # type: ignore[import-untyped]
 from tree_sitter import Node
 
 from treepeat.models.ast import ParsedFile
@@ -14,15 +14,6 @@ from treepeat.models.similarity import Region
 
 from treepeat.pipeline.rules.engine import RuleEngine
 from treepeat.pipeline.verbose_metrics import record_used_node_type
-
-try:
-    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
-    _HAS_TQDM = True
-except ImportError:  # pragma: no cover
-    _loaded_tqdm = None
-    _HAS_TQDM = False
-
-_tqdm: Any = _loaded_tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -246,8 +237,8 @@ def extract_all_regions(
     all_regions: list[ExtractedRegion] = []
 
     iterable = (
-        _tqdm(parsed_files, desc="Extracting", unit="file", file=sys.stderr)
-        if progress and _HAS_TQDM
+        tqdm(parsed_files, desc="Extracting", unit="file", file=sys.stderr)
+        if progress
         else parsed_files
     )
 

@@ -1,22 +1,13 @@
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
+from tqdm import tqdm  # type: ignore[import-untyped]
 from treepeat.models.shingle import ShingledRegion
 
 if TYPE_CHECKING:
     from treepeat.models.similarity import Region, SimilarRegionGroup
-
-try:
-    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
-    _HAS_TQDM = True
-except ImportError:  # pragma: no cover
-    _loaded_tqdm = None
-    _HAS_TQDM = False
-
-_tqdm: Any = _loaded_tqdm
-
 
 logger = logging.getLogger(__name__)
 
@@ -204,8 +195,8 @@ def verify_similar_groups(
     verified_groups = []
 
     iterable = (
-        _tqdm(groups, desc="Verifying", unit="group", file=sys.stderr)
-        if progress and _HAS_TQDM
+        tqdm(groups, desc="Verifying", unit="group", file=sys.stderr)
+        if progress
         else groups
     )
 

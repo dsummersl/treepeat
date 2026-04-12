@@ -2,8 +2,9 @@ import logging
 import sys
 from collections import deque
 from pathlib import Path
-from typing import Any
+from typing import Iterable, cast
 
+from tqdm import tqdm  # type: ignore[import-untyped]
 from tree_sitter import Node
 
 from treepeat.models.ast import ParsedFile, ParseResult
@@ -18,15 +19,6 @@ from treepeat.models.shingle import (
 from treepeat.pipeline.region_extraction import ExtractedRegion
 from treepeat.pipeline.rules.engine import RuleEngine
 from treepeat.pipeline.rules.models import SkipNodeException
-
-try:
-    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
-    _HAS_TQDM = True
-except ImportError:  # pragma: no cover
-    _loaded_tqdm = None
-    _HAS_TQDM = False
-
-_tqdm: Any = _loaded_tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -260,9 +252,12 @@ def _shingle_single_region(
 def _get_region_shingling_iterable(
     extracted_regions: list[ExtractedRegion],
     progress: bool,
-) -> list[ExtractedRegion] | Any:
-    if progress and _HAS_TQDM:
-        return _tqdm(extracted_regions, desc="Shingling", unit="region", file=sys.stderr)
+) -> Iterable[ExtractedRegion]:
+    if progress:
+        return cast(
+            Iterable[ExtractedRegion],
+            tqdm(extracted_regions, desc="Shingling", unit="region", file=sys.stderr),
+        )
     return extracted_regions
 
 

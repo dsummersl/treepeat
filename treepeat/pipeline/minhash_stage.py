@@ -2,21 +2,12 @@
 
 import logging
 import sys
-from typing import Any
 
 from datasketch import MinHash  # type: ignore[import-untyped]
+from tqdm import tqdm  # type: ignore[import-untyped]
 
 from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import RegionSignature
-
-try:
-    from tqdm import tqdm as _loaded_tqdm  # type: ignore[import-untyped]
-    _HAS_TQDM = True
-except ImportError:  # pragma: no cover
-    _loaded_tqdm = None
-    _HAS_TQDM = False
-
-_tqdm: Any = _loaded_tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +37,8 @@ def compute_region_signatures(
 
     signatures = []
     iterable = (
-        _tqdm(shingled_regions, desc="MinHash", unit="region", file=sys.stderr)
-        if progress and _HAS_TQDM
+        tqdm(shingled_regions, desc="MinHash", unit="region", file=sys.stderr)
+        if progress
         else shingled_regions
     )
 
