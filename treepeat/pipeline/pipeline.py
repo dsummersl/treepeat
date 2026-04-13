@@ -1,4 +1,5 @@
 import logging
+import time
 from pathlib import Path
 
 from treepeat.config import PipelineSettings, get_settings
@@ -20,29 +21,39 @@ from treepeat.pipeline.region_extraction import (
 from treepeat.pipeline.rules.engine import RuleEngine
 from treepeat.pipeline.rules_factory import build_rule_engine
 from treepeat.pipeline.shingle import shingle_regions
+from treepeat.pipeline.verbose_metrics import record_stage_count, record_stage_timing
 
 logger = logging.getLogger(__name__)
 
 
-def _run_parse_stage(target_path: Path) -> ParseResult:
+def _run_parse_stage(target_path: Path, progress: bool = False) -> ParseResult:
     """Run parsing stage."""
     logger.info("Stage 1/5: Parsing...")
-    parse_result = parse_path(target_path)
-    logger.info(
-        "Parse complete: %d succeeded",
-        parse_result.success_count,
-    )
+    _t = time.monotonic()
+    parse_result = parse_path(target_path, progress=progress)
+    elapsed = time.monotonic() - _t
+    record_stage_timing("parse", elapsed)
+    record_stage_count("parse", parse_result.success_count)
+    logger.info("Parse complete: %d succeeded (%.1fs)", parse_result.success_count, elapsed)
     return parse_result
 
 
 def _run_extract_stage(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
+    progress: bool = False,
 ) -> list[ExtractedRegion]:
     """Run region extraction stage."""
     logger.info("Stage 2/5: Extracting regions...")
-    extracted_regions = extract_all_regions(parsed_files, rule_engine)
-    logger.info("Extracted %d region(s) from %d file(s)", len(extracted_regions), len(parsed_files))
+    _t = time.monotonic()
+    extracted_regions = extract_all_regions(parsed_files, rule_engine, progress=progress)
+    elapsed = time.monotonic() - _t
+    record_stage_timing("extract", elapsed)
+    record_stage_count("extract", len(extracted_regions))
+    logger.info(
+        "Extracted %d region(s) from %d file(s) (%.1fs)",
+        len(extracted_regions), len(parsed_files), elapsed,
+    )
     return extracted_regions
 
 
@@ -96,26 +107,40 @@ def _run_shingle_stage(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
     settings: PipelineSettings,
+    progress: bool = False,
 ) -> list[ShingledRegion]:
     """Run shingling stage."""
     logger.info("Stage 3/5: Shingling regions (with rules)...")
+    _t = time.monotonic()
     shingled_regions = shingle_regions(
         extracted_regions,
         parsed_files,
         rule_engine=rule_engine,
         k=settings.shingle.k,
+        progress=progress,
     )
-    logger.info("Shingling complete: %d region(s) shingled", len(shingled_regions))
+    elapsed = time.monotonic() - _t
+    record_stage_timing("shingle", elapsed)
+    record_stage_count("shingle", len(shingled_regions))
+    logger.info("Shingling complete: %d region(s) shingled (%.1fs)", len(shingled_regions), elapsed)
     return shingled_regions
 
 
 def _run_minhash_stage(
-    shingled_regions: list[ShingledRegion], num_perm: int
+    shingled_regions: list[ShingledRegion], num_perm: int, progress: bool = False
 ) -> list[RegionSignature]:
     """Run MinHash signature computation stage."""
     logger.info("Stage 4/5: Computing MinHash signatures...")
-    signatures = compute_region_signatures(shingled_regions, num_perm=num_perm)
-    logger.info("Created %d signature(s)", len(signatures))
+    _t = time.monotonic()
+    signatures = compute_region_signatures(
+        shingled_regions,
+        num_perm=num_perm,
+        progress=progress,
+    )
+    elapsed = time.monotonic() - _t
+    record_stage_timing("minhash", elapsed)
+    record_stage_count("minhash", len(signatures))
+    logger.info("Created %d signature(s) (%.1fs)", len(signatures), elapsed)
     return signatures
 
 
@@ -124,19 +149,26 @@ def _run_lsh_stage(
     shingled_regions: list[ShingledRegion],
     threshold: float,
     min_lines: int,
+    progress: bool = False,
 ) -> SimilarityResult:
     """Run LSH similarity detection stage."""
     logger.info("Stage 5/5: Finding similar pairs...")
+    _t = time.monotonic()
     similarity_result = detect_similarity(
         signatures,
         similarity_percent=threshold,
         shingled_regions=shingled_regions,
         min_lines=min_lines,
+        progress=progress,
     )
+    elapsed = time.monotonic() - _t
+    record_stage_timing("lsh", elapsed)
+    record_stage_count("lsh", len(similarity_result.similar_groups))
     logger.info(
-        "Similarity detection complete: found %d similar group(s) (%d self-similar)",
+        "Similarity detection complete: found %d similar group(s) (%d self-similar) (%.1fs)",
         len(similarity_result.similar_groups),
         similarity_result.self_similarity_count,
+        elapsed,
     )
     return similarity_result
 
@@ -171,12 +203,13 @@ def _run_region_matching(
     parsed_files: list[ParsedFile],
     rule_engine: RuleEngine,
     settings: PipelineSettings,
+    progress: bool = False,
 ) -> tuple[list[SimilarRegionGroup], list[RegionSignature]]:
     """Run region matching for functions and classes."""
     logger.info("===== REGION MATCHING =====")
 
     # Extract regions
-    extracted_regions = _run_extract_stage(parsed_files, rule_engine)
+    extracted_regions = _run_extract_stage(parsed_files, rule_engine, progress=progress)
 
     # If no regions, skip region matching entirely
     if not extracted_regions:
@@ -190,16 +223,27 @@ def _run_region_matching(
         return [], []
 
     # Shingle regions
-    region_shingled = _run_shingle_stage(extracted_regions, parsed_files, rule_engine, settings)
+    region_shingled = _run_shingle_stage(
+        extracted_regions,
+        parsed_files,
+        rule_engine,
+        settings,
+        progress=progress,
+    )
 
     # MinHash region
-    region_signatures = _run_minhash_stage(region_shingled, settings.minhash.num_perm)
+    region_signatures = _run_minhash_stage(
+        region_shingled,
+        settings.minhash.num_perm,
+        progress=progress,
+    )
 
     region_result = _run_lsh_stage(
         region_signatures,
         region_shingled,
         settings.lsh.similarity_percent,
         settings.lsh.min_lines,
+        progress=progress,
     )
 
     # Filter by min_lines
@@ -233,7 +277,7 @@ def _run_region_matching(
     return region_filtered_groups, region_signatures
 
 
-def run_pipeline(target_path: str | Path) -> SimilarityResult:
+def run_pipeline(target_path: str | Path, progress: bool = False) -> SimilarityResult:
     """Run the similarity detection pipeline on a target path."""
     settings = get_settings()
     logger.info("Starting pipeline for: %s (min_lines=%d)", target_path, settings.lsh.min_lines)
@@ -244,14 +288,14 @@ def run_pipeline(target_path: str | Path) -> SimilarityResult:
     rule_engine = build_rule_engine(settings)
 
     # Stage 1: Parse
-    parse_result = _run_parse_stage(target_path)
+    parse_result = _run_parse_stage(target_path, progress=progress)
     if parse_result.success_count == 0:
         logger.warning("No files successfully parsed, returning empty result")
         return SimilarityResult()
 
     # Run Region Matching
     similar_groups, signatures = _run_region_matching(
-        parse_result.parsed_files, rule_engine, settings
+        parse_result.parsed_files, rule_engine, settings, progress=progress
     )
 
     # Create final result

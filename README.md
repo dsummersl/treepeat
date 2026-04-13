@@ -28,6 +28,8 @@ Key flags:
 - `--min-lines`: Minimum number of lines for a match (default: 5)
 - `--diff`: Show side-by-side comparisons of similar blocks
 - `--format`: Output format - `console` (default) or `sarif` for CI integration
+- `--verbose`: Show additional run metrics, including per-stage timing when available
+- `--progress`: Show progress bars for long-running pipeline stages
 
 ```bash
 # Find exact duplicates
@@ -39,9 +41,14 @@ treepeat detect --similarity 80 /path/to/codebase
 # Show diffs between similar blocks and use loose ruleset
 treepeat --ruleset loose detect --diff --min-lines 10 /path/to/codebase
 
+# Show parse progress and verbose stage timing
+treepeat detect --progress --verbose /path/to/codebase
+
 # Output results in SARIF format for CI tools
 treepeat detect --format sarif -o results.sarif /path/to/codebase
 ```
+
+`--progress` is intended primarily as interactive CLI feedback. The current implementation writes tqdm progress bars to `stderr`, leaving normal command output on `stdout` or `--output`.
 
 ### Other sub commands
 
