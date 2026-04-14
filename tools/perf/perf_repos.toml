@@ -1,0 +1,80 @@
+# perf_repos.toml — repos for treepeat performance characterization
+#
+# Run:
+#   python tools/perf/harness.py --dry-run         # file census only
+#   python tools/perf/harness.py --clone           # clone + run all
+#   python tools/perf/harness.py --repo requests   # single repo
+#
+# Fields per [[repos]] entry:
+#   name       (required) — short identifier, used as clone dirname
+#   url        (optional) — git URL; required when using --clone
+#   ref        (optional) — branch, tag, or commit to check out
+#   path       (optional) — local path override (skips clone_base)
+#   clone_to   (optional) — per-repo clone path override
+#   languages  (optional) — informational, e.g. ["python"]
+#   ignore_dirs (optional) — directory names to exclude from census and treepeat scan
+#   extra_args (optional) — extra flags passed directly to `treepeat detect`
+#   enabled    (optional, default true) — set false to skip without removing
+#   notes      (optional) — free-form description
+
+[defaults]
+# Base directory where repos are cloned (one subdir per repo name).
+# Override per-repo with clone_to, or globally via --output-dir.
+clone_base = "~/.config/treepeat-dev"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Small / baseline
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[repos]]
+name      = "requests"
+url       = "https://github.com/psf/requests"
+ref       = "v2.33.1"
+languages = ["python"]
+enabled   = true
+notes     = "~40 source files at this tag. Clean, widely-used HTTP library — good low-noise baseline."
+
+[[repos]]
+name      = "flask"
+url       = "https://github.com/pallets/flask"
+ref       = "3.1.3"
+languages = ["python"]
+enabled   = true
+notes     = "~80 source files at this tag. Micro-framework; minimal structure, good small-Python data point."
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Medium
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[repos]]
+name      = "redux-toolkit"
+url       = "https://github.com/reduxjs/redux-toolkit"
+ref       = "v2.9.2"
+languages = ["typescript"]
+enabled   = true
+notes     = "~650 source files at this tag. Clean TS monorepo; good mid-size TypeScript data point."
+
+[[repos]]
+name        = "nestjs"
+url         = "https://github.com/nestjs/nest"
+ref         = "v9.4.3"
+languages   = ["typescript"]
+ignore_dirs = ["node_modules"]
+enabled   = true
+notes     = "~1600 source files at this tag. Enterprise Node.js framework; DI + decorators."
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Large / stress tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[repos]]
+name        = "django"
+url         = "https://github.com/django/django"
+ref         = "4.2"
+languages   = ["python"]
+ignore_dirs = ["docs"]
+enabled   = true
+notes     = "~2800 source files at this tag. Large Python framework; docs/ excluded (non-source)."

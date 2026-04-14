@@ -10,3 +10,6 @@ __pycache__/
 .pytest_cache/
 .aider*
 sample-data/
+
+# Performance harness output
+tools/perf/output/
