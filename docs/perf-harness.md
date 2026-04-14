@@ -26,7 +26,7 @@ Output lands in `tools/perf/output/` (gitignored):
 
 | File | Contents |
 |------|----------|
-| `run_<ts>.log` | Full stdout+stderr for each repo, plus a tab-separated summary |
+| `run_<ts>.log` | Full stdout+stderr for each repo |
 | `run_<ts>.csv` | One row per repo — import into a spreadsheet for curve fitting |
 | `run_<ts>.json` | Structured results, machine-readable, includes RSS time series |
 
@@ -87,9 +87,9 @@ without removing it.
 
 ## What is measured
 
-**File census** : source file count and total line
-count, excluding standard skip dirs (`node_modules`, `__pycache__`, `build`,
-etc.) and any dirs listed in `extra_args --ignore-dirs`.
+**File census**: source file count and total line count, excluding standard
+skip dirs (`node_modules`, `__pycache__`, `build`, etc.) and any dirs listed
+in `ignore_dirs`.
 
 **Timing**: wall-clock elapsed time for the full treepeat invocation.
 

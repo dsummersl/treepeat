@@ -19,7 +19,7 @@
 
 [defaults]
 # Base directory where repos are cloned (one subdir per repo name).
-# Override per-repo with clone_to, or globally via --output-dir.
+# Override per-repo with clone_to or path; use --output-dir only for result files.
 clone_base = "~/.config/treepeat-dev"
 
 

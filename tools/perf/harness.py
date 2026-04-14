@@ -28,14 +28,14 @@ Config file format (TOML):
     notes      = "Small, clean baseline"
 
     [[repos]]
-    name       = "django"
-    url        = "https://github.com/django/django"
-    ref        = "4.2"
-    languages  = ["python"]
-    extra_args = ["--ignore-dirs", "docs"]
+    name        = "django"
+    url         = "https://github.com/django/django"
+    ref         = "4.2"
+    languages   = ["python"]
+    ignore_dirs = ["docs"]
 
 Output (tools/perf/output/ under the treepeat repo root, or --output-dir):
-    run_<ts>.log    captured stdout+stderr for each repo, tab-separated summary
+    run_<ts>.log    captured stdout+stderr for each repo
     run_<ts>.csv    one row per repo — import into a spreadsheet for curve fitting
     run_<ts>.json   structured results (full, machine-readable)
 
@@ -183,8 +183,8 @@ class PerfResult:
     sarif_clones:      int   = 0
 
     # RSS time series: list of [elapsed_s, rss_mb] snapshots from background poller.
-    # Populated for all runs (completed and timed-out). Each entry is a 2-element list
-    # so it round-trips cleanly through JSON.
+    # Sampled every 15 s; runs shorter than the interval will have an empty list.
+    # Each entry is a 2-element list so it round-trips cleanly through JSON.
     rss_samples:       list  = field(default_factory=list)
 
 
@@ -279,19 +279,36 @@ def clone_repo(repo: RepoConfig, root: Path) -> bool:
     root.parent.mkdir(parents=True, exist_ok=True)
     _emit(f"   cloning {repo.url} → {root}")
 
+    # Decide clone strategy: --branch works for tags and branch names but not
+    # bare commit SHAs.  Detect a SHA (40 hex chars) and fall back to a full
+    # clone + checkout so arbitrary commits work.
+    ref = repo.ref
+    is_sha = ref is not None and len(ref) >= 7 and all(c in "0123456789abcdefABCDEF" for c in ref)
+
     try:
-        subprocess.run(
-            ["git", "clone", "--depth", "1",
-             *(["--branch", repo.ref] if repo.ref else []),
-             repo.url, str(root)],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            timeout=CLONE_TIMEOUT_S,
-        )
+        if is_sha:
+            # Full clone (no --depth) then checkout the commit
+            subprocess.run(
+                ["git", "clone", repo.url, str(root)],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                timeout=CLONE_TIMEOUT_S,
+            )
+            subprocess.run(
+                ["git", "-C", str(root), "checkout", ref],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                timeout=60,
+            )
+        else:
+            subprocess.run(
+                ["git", "clone", "--depth", "1",
+                 *(["--branch", ref] if ref else []),
+                 repo.url, str(root)],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                timeout=CLONE_TIMEOUT_S,
+            )
         return True
     except subprocess.TimeoutExpired:
-        _emit(f"   git clone timed out after {CLONE_TIMEOUT_S}s — partial clone left at {root}")
+        _emit(f"   git clone timed out after {CLONE_TIMEOUT_S}s — cleaning up {root}")
         shutil.rmtree(root, ignore_errors=True)
         return False
     except subprocess.CalledProcessError as exc:
@@ -472,15 +489,8 @@ def _poll_rss(
     """
     target_pid: int | None = None
 
-    while not stop.wait(interval_s):
-        if target_pid is None:
-            if use_wrapper:
-                target_pid = _find_treepeat_child_pid(wrapper_pid)
-            else:
-                target_pid = wrapper_pid
-
-        pid = target_pid if target_pid is not None else wrapper_pid
-
+    def _sample(pid: int) -> bool:
+        """Sample RSS for pid; return False if the process has exited."""
         try:
             rss_out = subprocess.check_output(
                 ["ps", "-p", str(pid), "-o", "rss="],
@@ -491,7 +501,30 @@ def _poll_rss(
                 rss_mb = int(rss_kb) / 1024
                 elapsed = time.monotonic() - t0
                 samples.append([elapsed, rss_mb])
+            return True
         except Exception:
+            return False
+
+    # Take an immediate sample so short runs (< interval_s) still get data.
+    # Give the process a moment to start before the first read.
+    stop.wait(1.0)
+    if not stop.is_set():
+        pid0 = (
+            _find_treepeat_child_pid(wrapper_pid) if use_wrapper else wrapper_pid
+        ) or wrapper_pid
+        _sample(pid0)
+        target_pid = pid0 if pid0 != wrapper_pid else None
+
+    while not stop.wait(interval_s):
+        if target_pid is None:
+            if use_wrapper:
+                target_pid = _find_treepeat_child_pid(wrapper_pid)
+            else:
+                target_pid = wrapper_pid
+
+        pid = target_pid if target_pid is not None else wrapper_pid
+
+        if not _sample(pid):
             break
 
 
@@ -816,7 +849,7 @@ def main() -> None:
         elif result.error:
             _emit(f"   ✗ error: {result.error}  ({result.elapsed_s:.1f}s)")
         elif result.timed_out:
-            rss_note = (f"  rss_peak={result.peak_rss_mb:.0f}MiB"
+            rss_note = (f"  rss_peak={result.peak_polled_rss_mb:.0f}MiB"
                         f" ({len(result.rss_samples)} samples)"
                         if result.rss_samples else "")
             _emit(f"   ✗ TIMEOUT after {result.elapsed_s:.0f}s{rss_note}")
