@@ -1,0 +1,27 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+
+function buildPageTitle(title: string): string {
+  const prefix = 'Site';
+  return `${prefix} - ${title}`;
+}
+
+function truncateDescription(description: string): string {
+  const maxLen = 160;
+  return description.length > maxLen ? description.slice(0, maxLen) : description;
+}
+---
+
+<Layout title={buildPageTitle(title)}>
+  <main>
+    <h1>{title}</h1>
+    <p>{truncateDescription(description)}</p>
+  </main>
+</Layout>

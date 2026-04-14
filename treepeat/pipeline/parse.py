@@ -30,6 +30,70 @@ def read_source_file(file_path: Path) -> bytes:
         raise ValueError(f"Failed to read file {file_path}: {e}") from e
 
 
+_FRONTMATTER_DELIMITER = b"---"
+
+
+def extract_astro_frontmatter(source: bytes) -> bytes | None:
+    """Extract the TypeScript/JavaScript frontmatter from an Astro source file.
+
+    Astro components may contain a frontmatter block delimited by ``---`` on the
+    first line and a matching closing ``---``.  The content between the delimiters
+    is TypeScript (or JavaScript) code.
+
+    The returned bytes are padded with a leading newline so that all line numbers
+    in the returned source map directly to the same line numbers in the original
+    Astro file.  This preserves accurate region locations (``start_line`` /
+    ``end_line``) reported in similarity results.
+
+    Returns ``None`` when the file has no valid frontmatter block (e.g.
+    template-only components).
+    """
+    lines = source.splitlines(keepends=True)
+
+    # Frontmatter must begin on the very first line with exactly "---"
+    if not lines or lines[0].rstrip(b"\r\n") != _FRONTMATTER_DELIMITER:
+        return None
+
+    # Locate the closing delimiter
+    close_idx: int | None = None
+    for i, line in enumerate(lines[1:], 1):
+        if line.rstrip(b"\r\n") == _FRONTMATTER_DELIMITER:
+            close_idx = i
+            break
+
+    if close_idx is None:
+        return None
+
+    frontmatter_lines = lines[1:close_idx]
+    if not frontmatter_lines:
+        return None
+
+    # Prepend a blank line so that the frontmatter code occupies the same line
+    # numbers as in the original file (original line 1 was the opening ---).
+    return b"\n" + b"".join(frontmatter_lines)
+
+
+def _parse_astro_file(file_path: Path, source: bytes) -> ParsedFile:
+    """Parse an Astro file by extracting its TypeScript frontmatter.
+
+    The frontmatter is re-parsed as TypeScript so that all existing TypeScript
+    region-extraction rules (functions, classes, interfaces, …) apply without
+    any special-casing in the rest of the pipeline.
+
+    Falls back to parsing the full file as HTML for template-only components
+    that have no frontmatter.
+    """
+    frontmatter_source = extract_astro_frontmatter(source)
+
+    if frontmatter_source is not None:
+        logger.debug("Parsing Astro frontmatter as TypeScript: %s", file_path)
+        return parse_source_code(frontmatter_source, "typescript", file_path)
+
+    # Template-only component (no frontmatter) — analyse HTML structure
+    logger.debug("Astro file has no frontmatter, parsing as HTML: %s", file_path)
+    return parse_source_code(source, "html", file_path)
+
+
 def parse_source_code(
     source: bytes, language_name: SupportedLanguage, file_path: Path
 ) -> ParsedFile:
@@ -61,7 +125,12 @@ def parse_file(file_path: Path) -> ParsedFile:
     logger.debug(f"Detected language: {language_name}")
 
     source = read_source_file(file_path)
-    parsed = parse_source_code(source, language_name, file_path)
+
+    # Template languages need special pre-processing before tree-sitter parsing
+    if language_name == "astro":
+        parsed = _parse_astro_file(file_path, source)
+    else:
+        parsed = parse_source_code(source, language_name, file_path)
 
     logger.debug(f"Successfully parsed {file_path}")
     return parsed

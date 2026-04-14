@@ -45,6 +45,7 @@ LANGUAGE_EXTENSIONS: dict[SupportedLanguage, list[str]] = {
     "java": [".java"],
     "kotlin": [".kt", ".kts"],
     "rust": [".rs"],
+    "astro": [".astro"],
 }
 
 __all__ = [
