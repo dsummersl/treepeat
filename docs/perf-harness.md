@@ -101,7 +101,10 @@ in `ignore_dirs`.
 
 **Per-stage counts** (parsed from INFO log output):
 `parse_succeeded`, `regions_extracted`, `regions_to_shingle`,
-`regions_shingled`, `signatures`, `groups_found`.
+`regions_shingled`, `signatures`, `groups_found`, `candidate_pairs`.
+`candidate_pairs` is the total number of region pairs entering LCS verification
+(sum of C(|group|, 2) over all candidate groups); it distinguishes
+false-candidate-explosion (large value relative to N) from raw-scale slowness.
 
 **Per-stage elapsed times** (when treepeat emits inline `(Xs)` suffixes):
 `t_parse_s`, `t_extract_s`, `t_shingle_s`, `t_minhash_s`, `t_lsh_s`.

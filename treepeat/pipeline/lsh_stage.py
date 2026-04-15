@@ -441,6 +441,11 @@ def detect_similarity(
         progress=progress,
     )
 
+    total_pairs = sum(
+        len(g.regions) * (len(g.regions) - 1) // 2 for g in candidate_groups
+    )
+    logger.info("Total candidate pairs entering verification: %d", total_pairs)
+
     if not candidate_groups:
         return SimilarityResult(
             signatures=filtered_signatures,

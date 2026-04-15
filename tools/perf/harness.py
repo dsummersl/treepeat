@@ -171,6 +171,7 @@ class PerfResult:
     regions_shingled:  int   = 0    # "Shingling complete: N region(s)"
     signatures:        int   = 0    # "Created N signature(s)"
     groups_found:      int   = 0    # "found N similar group(s)"
+    candidate_pairs:   int   = 0    # "Total candidate pairs entering verification: N"
 
     # Per-stage elapsed times (seconds) parsed from inline "(Xs)" suffixes
     t_parse_s:         float = 0.0  # parse stage
@@ -445,6 +446,10 @@ def _parse_stage_counts(text: str) -> dict:
         if m:
             counts["groups_found"] = int(m.group(1))
 
+    m = re.search(r"Total candidate pairs entering verification:\s*(\d+)", clean)
+    if m:
+        counts["candidate_pairs"] = int(m.group(1))
+
     return counts
 
 
@@ -665,7 +670,7 @@ _CSV_FIELDS = [
     "name", "languages",
     "src_files", "src_lines",
     "parse_succeeded", "regions_extracted", "regions_to_shingle", "regions_shingled",
-    "signatures", "groups_found", "sarif_clones",
+    "signatures", "groups_found", "candidate_pairs", "sarif_clones",
     "t_parse_s", "t_extract_s", "t_shingle_s", "t_minhash_s", "t_lsh_s",
     "elapsed_s", "peak_rss_mb", "peak_polled_rss_mb", "rss_sample_count", "page_faults", "swaps",
     "timed_out", "error",
