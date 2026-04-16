@@ -9,17 +9,20 @@ acute around 2,000–3,000 source files on a 32 GB machine.
 ## Quick start
 
 ```bash
-# 1. Clone repos (first time only)
-python tools/perf/harness.py --clone
+# 1. Set up the project environment
+make setup
 
-# 2. Run
-python tools/perf/harness.py
+# 2. Clone repos and run (first time only)
+uv run python tools/perf/harness.py --clone
 
-# 3. Single repo
-python tools/perf/harness.py --repo requests
+# 3. Run again without cloning
+uv run python tools/perf/harness.py
 
-# 4. File census only — no treepeat invocation
-python tools/perf/harness.py --dry-run
+# 4. Single repo
+uv run python tools/perf/harness.py --repo requests
+
+# 5. File census only — no treepeat invocation
+uv run python tools/perf/harness.py --dry-run
 ```
 
 Output lands in `tools/perf/output/` (gitignored):
@@ -85,6 +88,16 @@ without removing it.
 --output-dir DIR   Output directory (default: tools/perf/output/)
 ```
 
+## Console summary
+
+The live per-repo summary is intentionally compact.
+
+- `Shngs` = `regions_shingled`
+- `Shng` = `t_shingle_s`
+- `Mem` = `max(peak_rss_mb, peak_polled_rss_mb)`
+
+For full per-stage timings and raw metrics, use the CSV/JSON outputs.
+
 ## What is measured
 
 **File census**: source file count and total line count, excluding standard
@@ -96,7 +109,7 @@ in `ignore_dirs`.
 **Memory** (two independent sources):
 - `/usr/bin/time -l` (macOS) / `-v` (Linux): authoritative peak RSS on clean
   exit, plus hard page faults and swap counts — the key swapping indicators.
-- Background RSS poller: samples the treepeat process via `ps` every 15 s.
+- Background RSS poller: samples the treepeat process via `psutil` every 15 s.
   This is the only memory source when treepeat times out.
 
 **Per-stage counts** (parsed from INFO log output):
@@ -130,7 +143,8 @@ unaffected.
 The harness is a standalone script, not a pytest suite. Invoke it directly:
 
 ```bash
-python tools/perf/harness.py --clone
+make setup
+uv run python tools/perf/harness.py --clone
 ```
 
 ## Wishlist

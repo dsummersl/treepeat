@@ -1,9 +1,10 @@
 # perf_repos.toml — repos for treepeat performance characterization
 #
 # Run:
-#   python tools/perf/harness.py --dry-run         # file census only
-#   python tools/perf/harness.py --clone           # clone + run all
-#   python tools/perf/harness.py --repo requests   # single repo
+#   make setup
+#   uv run python tools/perf/harness.py --dry-run         # file census only
+#   uv run python tools/perf/harness.py --clone           # clone + run all
+#   uv run python tools/perf/harness.py --repo requests   # single repo
 #
 # Fields per [[repos]] entry:
 #   name       (required) — short identifier, used as clone dirname

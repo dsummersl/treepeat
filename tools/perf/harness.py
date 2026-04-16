@@ -1,59 +1,3 @@
-"""tools/perf/harness.py — Treepeat performance characterization harness.
-
-Runs treepeat on repos defined in a TOML config file (default: perf_repos.toml
-in this directory).  Captures wall-clock time, peak RSS (/usr/bin/time -l),
-per-stage counts from INFO logs, and clone count from SARIF output.
-
-Goal: establish the file-count / SLOC / clone-density vs. time+memory curve
-to guide treepeat's optimization roadmap and validate the swapping hypothesis
-(suspected around 2000–3000 source files on a 32GB MacBook).
-
-Usage:
-    python tools/perf/harness.py
-    python tools/perf/harness.py --repo requests
-    python tools/perf/harness.py --timeout 600
-    python tools/perf/harness.py --dry-run
-    python tools/perf/harness.py --clone           # auto-clone missing repos
-    python tools/perf/harness.py --config my_repos.toml
-
-Config file format (TOML):
-    [defaults]
-    clone_base = "~/.config/treepeat-dev"   # where to clone repos
-
-    [[repos]]
-    name       = "requests"
-    url        = "https://github.com/psf/requests"
-    ref        = "v2.33.1"
-    languages  = ["python"]
-    notes      = "Small, clean baseline"
-
-    [[repos]]
-    name        = "django"
-    url         = "https://github.com/django/django"
-    ref         = "4.2"
-    languages   = ["python"]
-    ignore_dirs = ["docs"]
-
-Output (tools/perf/output/ under the treepeat repo root, or --output-dir):
-    run_<ts>.log    captured stdout+stderr for each repo
-    run_<ts>.csv    one row per repo — import into a spreadsheet for curve fitting
-    run_<ts>.json   structured results (full, machine-readable)
-
-Wishlist for future treepeat improvements that would enhance perf instrumentation:
-  1. Per-stage elapsed time: emit "Stage N/5: <name> [elapsed Xs]" to stderr so
-     per-stage wall time is available independent of output format.
-  2. --verbose with -f sarif: currently verbose metrics go to stdout only in
-     console mode; should also work in sarif mode (output to stderr).
-  3. Peak RSS self-reporting: emit resource.getrusage(RUSAGE_SELF).ru_maxrss
-     to stderr at pipeline end — avoids /usr/bin/time wrapper requirement.
-  4. Region count per stage to stderr: parse_succeeded, regions_extracted,
-     shingled, signatures already logged at INFO; consider a structured
-     "PERF" log line at WARNING level so it's always visible.
-  5. --min-regions: option to skip repos with < N extracted regions to allow
-     quick early-exit on effectively-empty scans.
-"""
-
-import argparse
 import csv
 import functools
 import json
@@ -70,6 +14,12 @@ import tomllib
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
+
+import click
+import psutil
+from rich import box
+from rich.console import Console
+from rich.table import Table
 
 
 # ---------------------------------------------------------------------------
@@ -468,13 +418,10 @@ def _count_sarif_clones(sarif_path: Path) -> int:
 def _find_treepeat_child_pid(wrapper_pid: int) -> int | None:
     """Return the PID of the treepeat child spawned by /usr/bin/time."""
     try:
-        out = subprocess.check_output(
-            ["pgrep", "-P", str(wrapper_pid)],
-            stderr=subprocess.DEVNULL,
-        )
-        pids = out.decode().split()
-        return int(pids[0]) if pids else None
-    except Exception:
+        parent = psutil.Process(wrapper_pid)
+        children = parent.children()
+        return children[0].pid if children else None
+    except (psutil.Error, ProcessLookupError):
         return None
 
 
@@ -497,17 +444,12 @@ def _poll_rss(
     def _sample(pid: int) -> bool:
         """Sample RSS for pid; return False if the process has exited."""
         try:
-            rss_out = subprocess.check_output(
-                ["ps", "-p", str(pid), "-o", "rss="],
-                stderr=subprocess.DEVNULL,
-            )
-            rss_kb = rss_out.strip()
-            if rss_kb:
-                rss_mb = int(rss_kb) / 1024
-                elapsed = time.monotonic() - t0
-                samples.append([elapsed, rss_mb])
+            rss_bytes = psutil.Process(pid).memory_info().rss
+            rss_mb = rss_bytes / (1024 * 1024)
+            elapsed = time.monotonic() - t0
+            samples.append([elapsed, rss_mb])
             return True
-        except Exception:
+        except (psutil.Error, ProcessLookupError):
             return False
 
     # Take an immediate sample so short runs (< interval_s) still get data.
@@ -693,52 +635,75 @@ def write_json(results: list[PerfResult], json_path: Path) -> None:
     json_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def print_summary(results: list[PerfResult]) -> None:
-    """Print a human-readable results table to stdout."""
-    cols = [
-        ("Repo",       "name",               18),
-        ("Lang",       "languages",           8),
-        ("SrcFiles",   "src_files",           9),
-        ("Shingled",   "regions_to_shingle",  8),
-        ("Clones",     "sarif_clones",        6),
-        ("tParse",     "t_parse_s",           7),
-        ("tExtract",   "t_extract_s",         8),
-        ("tShingle",   "t_shingle_s",         8),
-        ("tMinHash",   "t_minhash_s",         8),
-        ("tLSH",       "t_lsh_s",             8),
-        ("Total",      "elapsed_s",           8),
-        ("RSS(time)",  "peak_rss_mb",          9),
-        ("RSS(poll)",  "peak_polled_rss_mb",   9),
-        ("Faults",     "page_faults",         8),
-        ("OK?",        None,                   5),
-    ]
+def _status_symbol(result: PerfResult) -> str:
+    if result.timed_out:
+        return "⏱"
+    if result.error:
+        return "✗"
+    return "✓"
 
-    sep = "  ".join("─" * w for _, _, w in cols)
-    header = "  ".join(f"{label:<{w}}" for label, _, w in cols)
+
+def _mem_mb(result: PerfResult) -> float:
+    return max(result.peak_rss_mb, result.peak_polled_rss_mb)
+
+
+def _format_mem(result: PerfResult) -> str:
+    mem_mb = _mem_mb(result)
+    return f"{mem_mb:.0f}M" if mem_mb else "0M"
+
+
+def _build_result_table(include_repo: bool) -> Table:
+    console = Console()
+    table = Table(box=box.SIMPLE_HEAVY, expand=False)
+    table.add_column("", justify="center", width=1, no_wrap=True)
+    if include_repo:
+        table.add_column("Repo", no_wrap=True)
+    table.add_column("File", justify="right", no_wrap=True)
+    table.add_column("Shngs", justify="right", no_wrap=True)
+    table.add_column("Pair", justify="right", no_wrap=True)
+    table.add_column("Clon", justify="right", no_wrap=True)
+    table.add_column("Shng", justify="right", no_wrap=True)
+    table.add_column("Hash", justify="right", no_wrap=True)
+    table.add_column("LSH", justify="right", no_wrap=True)
+    table.add_column("Mem", justify="right", no_wrap=True)
+    return table, console
+
+
+def _add_result_row(table: Table, result: PerfResult, include_repo: bool) -> None:
+    row = [_status_symbol(result)]
+    if include_repo:
+        row.append(result.name)
+    row.extend([
+        str(result.src_files),
+        str(result.regions_shingled),
+        str(result.candidate_pairs),
+        str(result.sarif_clones),
+        f"{result.t_shingle_s:.1f}",
+        f"{result.t_minhash_s:.1f}",
+        f"{result.t_lsh_s:.1f}",
+        _format_mem(result),
+    ])
+    table.add_row(*row)
+
+
+def print_repo_summary(result: PerfResult) -> None:
+    """Print a compact per-repo summary table."""
+    table, console = _build_result_table(include_repo=False)
+    _add_result_row(table, result, include_repo=False)
     print()
-    print(header)
-    print(sep)
+    console.print(table)
+    print()
+
+
+def print_summary(results: list[PerfResult]) -> None:
+    """Print a human-readable end-of-run summary table."""
+    table, console = _build_result_table(include_repo=True)
 
     for r in results:
-        def _fmt(attr, w):
-            if attr is None:
-                if r.timed_out:
-                    v = "TOUT"
-                elif r.error:
-                    v = "ERR"
-                else:
-                    v = "✓"
-                return f"{v:<{w}}"
-            val = getattr(r, attr)
-            if attr == "languages":
-                val = "+".join(val)
-            if isinstance(val, float):
-                val = f"{val:.1f}"
-            return f"{str(val):<{w}}"
+        _add_result_row(table, r, include_repo=True)
 
-        row = "  ".join(_fmt(attr, w) for _, attr, w in cols)
-        print(row)
-
+    print()
+    console.print(table)
     print()
 
 
@@ -755,56 +720,74 @@ def _default_config_path() -> Path:
     return Path(__file__).with_name("perf_repos.toml")
 
 
-def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="Treepeat performance characterization harness",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__,
-    )
-    p.add_argument("--config", metavar="PATH", type=Path,
-                   default=_default_config_path(),
-                   help=f"TOML config file (default: {_default_config_path().name} next to this script)")
-    p.add_argument("--repo", metavar="NAME",
-                   help="Run only this repo (by name)")
-    p.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S, metavar="S",
-                   help=f"Per-repo timeout in seconds (default: {DEFAULT_TIMEOUT_S})")
-    p.add_argument("--dry-run", action="store_true",
-                   help="Count files only, do not run treepeat")
-    p.add_argument("--clone", action="store_true",
-                   help="Clone missing repos before running (requires url in config)")
-    p.add_argument("--output-dir", metavar="DIR", type=Path,
-                   default=REPO_ROOT / "tools" / "perf" / "output",
-                   help="Directory for output files (default: <repo_root>/tools/perf/output)")
-    return p.parse_args()
+@click.command()
+@click.option(
+    "--config",
+    type=click.Path(path_type=Path),
+    default=_default_config_path,
+    show_default=True,
+    help="TOML config file.",
+)
+@click.option(
+    "--repo",
+    help="Run only this repo (by name).",
+)
+@click.option(
+    "--timeout",
+    type=click.IntRange(1),
+    default=DEFAULT_TIMEOUT_S,
+    show_default=True,
+    help="Per-repo timeout in seconds.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Count files only, do not run treepeat.",
+)
+@click.option(
+    "--clone",
+    "clone_missing",
+    is_flag=True,
+    help="Clone missing repos before running (requires url in config).",
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(path_type=Path),
+    default=REPO_ROOT / "tools" / "perf" / "output",
+    show_default=True,
+    help="Directory for output files.",
+)
+def main(
+    config: Path,
+    repo: str | None,
+    timeout: int,
+    dry_run: bool,
+    clone_missing: bool,
+    output_dir: Path,
+) -> None:
+    """Treepeat performance characterization harness."""
+    if not config.exists():
+        raise click.ClickException(
+            f"Config not found: {config}\nCreate a perf_repos.toml in tools/perf/ or pass --config."
+        )
 
-
-def main() -> None:
-    args = _parse_args()
-
-    if not args.config.exists():
-        print(f"Config not found: {args.config}", file=sys.stderr)
-        print("Create a perf_repos.toml — see the module docstring for format.", file=sys.stderr)
-        sys.exit(1)
-
-    defaults, all_repos = load_config(args.config)
+    defaults, all_repos = load_config(config)
     repos = [r for r in all_repos if r.enabled]
 
-    if args.repo:
-        repos = [r for r in repos if r.name == args.repo]
+    if repo:
+        repos = [r for r in repos if r.name == repo]
         if not repos:
-            print(f"No enabled repo named '{args.repo}' in {args.config}", file=sys.stderr)
-            sys.exit(1)
+            raise click.ClickException(f"No enabled repo named '{repo}' in {config}")
 
     if not repos:
-        print("No enabled repos in config.", file=sys.stderr)
-        sys.exit(1)
+        raise click.ClickException("No enabled repos in config.")
 
     # Verify roots exist; optionally clone missing ones
     ready = []
     for r in repos:
         root = resolve_root(r, defaults)
         if not root.exists():
-            if args.clone:
+            if clone_missing:
                 ok = clone_repo(r, root)
                 if not ok:
                     _emit(f"SKIP {r.name}: clone failed")
@@ -816,10 +799,8 @@ def main() -> None:
         ready.append((r, root))
 
     if not ready:
-        print("No repo roots found. Use --clone to clone missing repos.", file=sys.stderr)
-        sys.exit(1)
+        raise click.ClickException("No repo roots found. Use --clone to clone missing repos.")
 
-    output_dir: Path = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path  = output_dir / f"run_{ts}.log"
@@ -827,9 +808,9 @@ def main() -> None:
     json_path = output_dir / f"run_{ts}.json"
 
     binary = _find_treepeat_binary()
-    mode = "(dry-run)" if args.dry_run else f"timeout={args.timeout}s ruleset={DEFAULT_RULESET}"
+    mode = "(dry-run)" if dry_run else f"timeout={timeout}s ruleset={DEFAULT_RULESET}"
     _emit(f"treepeat_perf  {ts}  {len(ready)} repo(s)  {mode}")
-    if binary and not args.dry_run:
+    if binary and not dry_run:
         _emit(f"treepeat: {binary}")
     _emit(f"log: {log_path}")
     print()
@@ -843,21 +824,24 @@ def main() -> None:
         result = run_treepeat(
             repo=repo,
             root=root,
-            timeout_s=args.timeout,
-            dry_run=args.dry_run,
+            timeout_s=timeout,
+            dry_run=dry_run,
             log_path=log_path,
         )
         results.append(result)
 
-        if args.dry_run:
+        if dry_run:
             _emit(f"   {result.src_files} src files  {result.src_lines:,} lines")
+            print_repo_summary(result)
         elif result.error:
             _emit(f"   ✗ error: {result.error}  ({result.elapsed_s:.1f}s)")
+            print_repo_summary(result)
         elif result.timed_out:
             rss_note = (f"  rss_peak={result.peak_polled_rss_mb:.0f}MiB"
                         f" ({len(result.rss_samples)} samples)"
                         if result.rss_samples else "")
             _emit(f"   ✗ TIMEOUT after {result.elapsed_s:.0f}s{rss_note}")
+            print_repo_summary(result)
         else:
             rss    = (f"  rss={result.peak_rss_mb:.0f}MiB(time)/{result.peak_polled_rss_mb:.0f}MiB(poll)"
                       if result.peak_rss_mb or result.peak_polled_rss_mb else "")
@@ -869,12 +853,15 @@ def main() -> None:
                 f"  parsed={result.parse_succeeded}"
                 f"  regions={result.regions_extracted}"
                 f"  shingled={result.regions_shingled}"
+                f"  pairs={result.candidate_pairs}"
                 f"  clones={result.sarif_clones}"
             )
+            print_repo_summary(result)
 
-    print_summary(results)
+    if len(results) > 1:
+        print_summary(results)
 
-    if not args.dry_run:
+    if not dry_run:
         write_csv(results, csv_path)
         write_json(results, json_path)
         _emit(f"CSV:  {csv_path}")
