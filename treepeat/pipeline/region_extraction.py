@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 from tree_sitter import Node, Tree
+from tree_sitter_language_pack import get_parser
 
 from treepeat.models.ast import ParsedFile
 from treepeat.models.similarity import Region
@@ -101,7 +102,7 @@ def _do_language_injection(
     rule: Rule,
     parsed_file: ParsedFile,
     rule_engine: RuleEngine,
-) -> "ExtractedRegion | None":
+) -> ExtractedRegion | None:
     """Re-parse matched-node content as the rule's target language.
 
     When a ``RegionExtractionRule`` carries a ``target_language``, the raw
@@ -119,7 +120,6 @@ def _do_language_injection(
     leading newline (e.g. Markdown ``code_fence_content``) the bytes are padded
     with ``content_node.start_point[0]`` blank lines so the same formula holds.
     """
-    from tree_sitter_language_pack import get_parser
 
     target_lang = rule.resolve_injection_language(node, parsed_file.source)
     if not target_lang:
