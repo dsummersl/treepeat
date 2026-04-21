@@ -60,22 +60,6 @@ def _read_source_lines(file_path: Path, start_line: int, end_line: int) -> list[
         return []
 
 
-def _compute_source_similarity(
-    file_path1: Path, start_line1: int, end_line1: int,
-    file_path2: Path, start_line2: int, end_line2: int
-) -> float:
-    """Compute similarity between two regions based on their actual source text."""
-    lines1 = _read_source_lines(file_path1, start_line1, end_line1)
-    lines2 = _read_source_lines(file_path2, start_line2, end_line2)
-
-    if not lines1 or not lines2:
-        return 0.0
-
-    # Use LCS on actual source lines
-    lcs_length = _compute_lcs_length(lines1, lines2)
-    return _normalize_similarity(lcs_length, len(lines1), len(lines2))
-
-
 def _check_signature_match(
     file_path1: Path, start_line1: int,
     file_path2: Path, start_line2: int

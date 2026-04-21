@@ -6,9 +6,6 @@ from .base import LanguageConfig, RegionExtractionRule
 class KotlinConfig(LanguageConfig):
     """Configuration for Kotlin language."""
 
-    def get_language_name(self) -> str:
-        return "kotlin"
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

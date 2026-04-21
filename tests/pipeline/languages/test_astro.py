@@ -20,10 +20,6 @@ fixture_template_only = FIXTURE_DIR / "template_only.astro"
 # ---------------------------------------------------------------------------
 
 
-def test_language_name():
-    assert AstroConfig().get_language_name() == "astro"
-
-
 def test_region_extraction_rules_exist():
     rules = AstroConfig().get_region_extraction_rules()
     assert len(rules) >= 1

@@ -28,9 +28,6 @@ def _resolve_code_block_language(node: Node, source: bytes) -> str:
 class MarkdownConfig(LanguageConfig):
     """Configuration for Markdown language."""
 
-    def get_language_name(self) -> str:
-        return "markdown"
-
     def get_default_rules(self) -> list[Rule]:
         return []
 

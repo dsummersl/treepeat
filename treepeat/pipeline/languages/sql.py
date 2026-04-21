@@ -6,9 +6,6 @@ from .base import LanguageConfig, RegionExtractionRule
 class SQLConfig(LanguageConfig):
     """Configuration for SQL language."""
 
-    def get_language_name(self) -> str:
-        return "sql"
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

@@ -32,11 +32,6 @@ class LanguageConfig(ABC):
     """Base class for language-specific configuration."""
 
     @abstractmethod
-    def get_language_name(self) -> str:
-        """Return the primary language name."""
-        pass
-
-    @abstractmethod
     def get_default_rules(self) -> list[Rule]:
         """Return list of Rule objects for default normalization mode."""
         pass

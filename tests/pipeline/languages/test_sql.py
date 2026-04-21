@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import parse_fixture
-from treepeat.pipeline.languages.sql import SQLConfig
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
@@ -26,8 +25,3 @@ def test_sql_rules_extract(rules):
 
     # SQL doesn't define region extraction rules, so we may get 0 regions
     assert len(regions) >= 0
-
-
-def test_language_name():
-    """Test that SQL config returns correct language name."""
-    assert SQLConfig().get_language_name() == "sql"

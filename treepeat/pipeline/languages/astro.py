@@ -15,9 +15,6 @@ class AstroConfig(LanguageConfig):
     ``.ts`` file, enabling cross-file similarity detection.
     """
 
-    def get_language_name(self) -> str:
-        return "astro"
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

@@ -1,5 +1,3 @@
-"""Verbose metrics collection for pipeline runs."""
-
 from dataclasses import dataclass, field
 
 
@@ -26,13 +24,6 @@ def reset_verbose_metrics() -> None:
     """Reset all verbose metrics."""
     global _metrics
     _metrics = VerboseMetrics()
-
-
-def record_excluded_node_type(language: str, node_type: str) -> None:
-    """Record that a node type was excluded via --ignore-node-types for a language."""
-    if language not in _metrics.excluded_node_types_by_language:
-        _metrics.excluded_node_types_by_language[language] = set()
-    _metrics.excluded_node_types_by_language[language].add(node_type)
 
 
 def record_used_node_type(language: str, node_type: str) -> None:

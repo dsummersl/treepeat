@@ -6,9 +6,6 @@ from .base import LanguageConfig, RegionExtractionRule
 class JavaScriptConfig(LanguageConfig):
     """Configuration for JavaScript language."""
 
-    def get_language_name(self) -> str:
-        return "javascript"
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

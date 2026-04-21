@@ -1,6 +1,5 @@
 """Models for shingling stage."""
 
-from pathlib import Path
 from typing import Sequence
 
 from pydantic import BaseModel, Field
@@ -46,32 +45,8 @@ class ShingleList(BaseModel):
         """Get shingle contents as strings (for backward compatibility)."""
         return [s.content if isinstance(s, Shingle) else s for s in self.shingles]
 
-    def _get_shingle_objects(self) -> list[Shingle]:
-        """Extract Shingle objects from mixed list."""
-        return [s for s in self.shingles if isinstance(s, Shingle)]
-
-    def get_line_range(self) -> tuple[int, int] | None:
-        """Get the min/max line range covered by these shingles."""
-        shingle_objects = self._get_shingle_objects()
-        if not shingle_objects:
-            return None
-        return (min(s.start_line for s in shingle_objects), max(s.end_line for s in shingle_objects))
-
     def __repr__(self) -> str:
         return f"ShingleList(size={self.size})"
-
-
-class ShingledFile(BaseModel):
-    """A file with its extracted shingles."""
-
-    path: Path = Field(description="Path to the source file")
-    language: str = Field(description="Programming language of the file")
-    shingles: ShingleList = Field(description="Set of shingles extracted from the AST")
-
-    @property
-    def shingle_count(self) -> int:
-        """Return the number of unique shingles in this file."""
-        return self.shingles.size
 
 
 class ShingledRegion(BaseModel):
@@ -86,19 +61,4 @@ class ShingledRegion(BaseModel):
         return self.shingles.size
 
 
-class ShingleResult(BaseModel):
-    """Result of shingling multiple files."""
 
-    shingled_files: list[ShingledFile] = Field(
-        default_factory=list, description="Successfully shingled files"
-    )
-
-    @property
-    def total_files(self) -> int:
-        """Total number of files processed."""
-        return len(self.shingled_files)
-
-    @property
-    def success_count(self) -> int:
-        """Number of successfully shingled files."""
-        return len(self.shingled_files)

@@ -1,9 +1,4 @@
-"""Parser for YAML-based tree-sitter query rules."""
-
-from pathlib import Path
 from typing import Any
-
-import yaml  # type: ignore[import-untyped]
 
 from .models import Rule, RuleAction
 
@@ -92,46 +87,3 @@ def _resolve_extends(
     own_rules = _parse_ruleset_rules(ruleset, ruleset_name)
 
     return extended_rules + own_rules
-
-
-def _load_yaml_file(file_path: str) -> Any:
-    """Load and validate YAML file."""
-    path = Path(file_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Rules file not found: {file_path}")
-
-    with open(path, "r") as f:
-        try:
-            return yaml.safe_load(f)
-        except yaml.YAMLError as e:
-            raise RuleParseError(f"Invalid YAML: {e}") from e
-
-
-def _validate_rulesets_structure(data: Any, ruleset_name: str) -> dict[str, Any]:
-    """Validate and extract rulesets from YAML data."""
-    if not isinstance(data, dict):
-        raise RuleParseError("YAML file must contain a dictionary")
-
-    if "rulesets" not in data:
-        raise RuleParseError("YAML file missing 'rulesets' key")
-
-    rulesets = data["rulesets"]
-    if not isinstance(rulesets, dict):
-        raise RuleParseError("'rulesets' must be a dictionary")
-
-    if ruleset_name not in rulesets:
-        available = ", ".join(rulesets.keys())
-        raise RuleParseError(
-            f"Ruleset '{ruleset_name}' not found. Available rulesets: {available}"
-        )
-
-    return rulesets
-
-
-def parse_yaml_rules_file(file_path: str, ruleset_name: str = "default") -> list[Rule]:
-    """ Parse rules from a YAML file with ruleset support. """
-    data = _load_yaml_file(file_path)
-    rulesets = _validate_rulesets_structure(data, ruleset_name)
-
-    resolved: set[str] = set()
-    return _resolve_extends(rulesets, ruleset_name, resolved)

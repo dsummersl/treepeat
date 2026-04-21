@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import parse_fixture
-from treepeat.pipeline.languages.go import GoConfig
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
@@ -22,7 +21,3 @@ def test_go_rules_extract(rules, expected_min_regions):
     regions = extract_all_regions([parsed], engine)
 
     assert len(regions) >= expected_min_regions
-
-
-def test_language_name():
-    assert GoConfig().get_language_name() == "go"

@@ -28,10 +28,6 @@ fixture_bash_req = FIXTURE_DIR / "bash" / "requirements.sh"
 # ---------------------------------------------------------------------------
 
 
-def test_language_name():
-    assert MarkdownConfig().get_language_name() == "markdown"
-
-
 def test_region_extraction_rules_exist():
     rules = MarkdownConfig().get_region_extraction_rules()
     labels = [r.label for r in rules]

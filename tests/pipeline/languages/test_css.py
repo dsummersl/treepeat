@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import parse_fixture
-from treepeat.pipeline.languages.css import CSSConfig
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
@@ -27,8 +26,3 @@ def test_css_rules_extract(rules, expected_min_regions):
     # CSS region extraction rules were removed - entire file is treated as one region
     # Line matching with sliding windows will be used to find similar sections
     assert len(regions) >= expected_min_regions
-
-
-def test_language_name():
-    """Test that CSS config returns correct language name."""
-    assert CSSConfig().get_language_name() == "css"

@@ -21,16 +21,6 @@ class NodeRepresentation(BaseModel):
         return self.name
 
 
-class NormalizationResult(BaseModel):
-    """Result of applying a normalizer to a node.
-
-    Either field can be None to indicate no change should be made.
-    """
-
-    name: str | None = Field(default=None, description="New node name, or None to keep original")
-    value: str | None = Field(default=None, description="New node value, or None to keep original")
-
-
 class SkipNode(Exception):
     """Exception raised by normalizers to indicate a node should be skipped.
 

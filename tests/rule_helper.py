@@ -11,11 +11,17 @@ from treepeat.pipeline.shingle import ASTShingler
 class RuleTester:
     """Helper for testing language rules."""
 
+    def _get_language_name(self, config) -> str:
+        """Infer language name from config class name (e.g., PythonConfig -> python)."""
+        class_name = config.__class__.__name__
+        # Remove "Config" suffix and convert to lowercase
+        return class_name.replace("Config", "").lower()
+
     def verify_rule(self, config, rule_name, source, expected_symbol, unexpected_symbol=None):
         """Verify a single rule's effect on source code."""
         # 1. Find the rule
         loose_rules = config.get_loose_rules()
-        lang_name = config.get_language_name()
+        lang_name = self._get_language_name(config)
 
         # Try to find rule matching both name AND language
         rule = next(
@@ -46,7 +52,7 @@ class RuleTester:
         """Helper to run verification with a specific set of rules."""
         engine = RuleEngine(rules)
 
-        lang_name = config.get_language_name()
+        lang_name = self._get_language_name(config)
         source_bytes = source.encode("utf-8")
         parsed = parse_source_code(source_bytes, lang_name, Path("test_file"))
 

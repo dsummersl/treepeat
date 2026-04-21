@@ -6,9 +6,6 @@ from .base import LanguageConfig, RegionExtractionRule
 class RustConfig(LanguageConfig):
     """Configuration for Rust language."""
 
-    def get_language_name(self) -> str:
-        return "rust"
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

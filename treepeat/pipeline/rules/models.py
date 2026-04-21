@@ -50,11 +50,5 @@ class Rule:
         return self.injection_language
 
 
-@dataclass
-class RuleResult:
-    name: str | None = None
-    value: str | None = None
-
-
 class SkipNodeException(Exception):
     pass
