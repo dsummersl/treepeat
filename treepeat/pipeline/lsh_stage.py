@@ -164,8 +164,8 @@ def _append_pairwise_similar(
     pairwise_similar_keys = [
         sk
         for sk in similar_keys
-        if _is_pairwise_similar(sk, sig, key_to_sig, similarity_percent)
         if sk != current_key
+        if _is_pairwise_similar(sk, sig, key_to_sig, similarity_percent)
     ]
     for similar_key in pairwise_similar_keys:
         uf.union(current_key, str(similar_key))
