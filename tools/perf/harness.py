@@ -245,7 +245,7 @@ def clone_repo(repo: RepoConfig, root: Path) -> bool:
                 timeout=CLONE_TIMEOUT_S,
             )
             subprocess.run(
-                ["git", "-C", str(root), "checkout", ref],
+                ["git", "-C", str(root), "checkout", str(ref)],
                 check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                 timeout=60,
             )
@@ -652,7 +652,7 @@ def _format_mem(result: PerfResult) -> str:
     return f"{mem_mb:.0f}M" if mem_mb else "0M"
 
 
-def _build_result_table(include_repo: bool) -> Table:
+def _build_result_table(include_repo: bool) -> tuple[Table, Console]:
     console = Console()
     table = Table(box=box.SIMPLE_HEAVY, expand=False)
     table.add_column("", justify="center", width=1, no_wrap=True)
