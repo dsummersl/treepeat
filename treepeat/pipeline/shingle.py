@@ -58,11 +58,19 @@ class ASTShingler:
         )
 
     def _shingle_injected_region(self, extracted_region: ExtractedRegion) -> list[Shingle]:
-        # injected_language and injected_source are always set when injected_tree is set
+        injected_tree = extracted_region.injected_tree
+        injected_language = extracted_region.injected_language
+        injected_source = extracted_region.injected_source
+
+        assert injected_tree is not None, "injected_tree must be set for injected regions"
+        assert (
+            injected_language is not None and injected_source is not None
+        ), "injected_language and injected_source must be set when injected_tree is set"
+
         return self._extract_shingles(
-            extracted_region.injected_tree.root_node,  # type: ignore[union-attr]
-            extracted_region.injected_language,  # type: ignore[arg-type]
-            extracted_region.injected_source,  # type: ignore[arg-type]
+            injected_tree.root_node,
+            injected_language,
+            injected_source,
         )
 
     def _shingle_section_region(
