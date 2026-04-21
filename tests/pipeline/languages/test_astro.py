@@ -197,3 +197,53 @@ def test_injected_shingles_match_standalone_typescript():
     assert astro_shingle_set, "No shingles produced from injected frontmatter"
     # At least some shingles must overlap — the same TypeScript k-grams appear in both
     assert astro_shingle_set & ts_all_shingles, "No common shingles between Astro frontmatter and standalone TypeScript"
+
+
+# ---------------------------------------------------------------------------
+# Template-only Astro files (no frontmatter)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_template_only_language():
+    """Template-only Astro files are still parsed with the astro grammar."""
+    parsed = parse_file(fixture_template_only)
+    assert parsed.language == "astro"
+    assert parsed.path == fixture_template_only
+
+
+def test_parse_template_only_no_parse_errors():
+    parsed = parse_file(fixture_template_only)
+    assert not parsed.root_node.has_error
+
+
+def test_parse_template_only_source_has_no_frontmatter_delimiters():
+    """Confirm the fixture contains no --- markers."""
+    parsed = parse_file(fixture_template_only)
+    assert b"---" not in parsed.source
+
+
+def test_template_only_no_frontmatter_region_extracted():
+    """No frontmatter region is extracted when there is no --- block."""
+    parsed = parse_file(fixture_template_only)
+    engine = RuleEngine([r for r, _ in build_default_rules()])
+    regions = extract_all_regions([parsed], engine)
+
+    frontmatter_regions = [r for r in regions if r.region.region_type == "frontmatter"]
+    assert not frontmatter_regions
+
+
+def test_template_only_yields_no_regions():
+    """A template-only Astro file produces no extracted regions at all."""
+    parsed = parse_file(fixture_template_only)
+    engine = RuleEngine([r for r, _ in build_default_rules()])
+    regions = extract_all_regions([parsed], engine)
+    assert regions == []
+
+
+def test_template_only_extract_all_regions_does_not_raise():
+    """extract_all_regions must complete without exceptions on a template-only file."""
+    parsed = parse_file(fixture_template_only)
+    engine = RuleEngine([r for r, _ in build_loose_rules()])
+    regions = extract_all_regions([parsed], engine)  # must not raise
+    assert isinstance(regions, list)
+
