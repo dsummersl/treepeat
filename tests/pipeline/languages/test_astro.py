@@ -85,7 +85,7 @@ def test_frontmatter_region_extracted(rules_factory):
     assert "frontmatter" in region_types
 
 
-def test_injected_tree_is_typescript(rules_factory=None):
+def test_injected_tree_is_typescript():
     """The frontmatter region carries an injected TypeScript tree."""
     parsed = parse_file(fixture_one)
     engine = RuleEngine([r for r, _ in build_default_rules()])
