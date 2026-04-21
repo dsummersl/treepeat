@@ -33,10 +33,10 @@ class LanguageConfig(ABC):
 
     @abstractmethod
     def get_loose_rules(self) -> list[Rule]:
-        """Return list of Rule objects for loose normalization mode (includes default rules)."""
+        """Return list of Rule objects for loose normalization mode (including default rules)."""
         pass
 
     @abstractmethod
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
-        """Return list of region extraction rules for this language."""
+        """Return list of regions to perform similarity comparisons for this language."""
         pass

@@ -1,6 +1,7 @@
 from tree_sitter_language_pack import SupportedLanguage
 
 from .base import LanguageConfig
+from .astro import AstroConfig
 from .python import PythonConfig
 from .javascript import JavaScriptConfig
 from .typescript import TypeScriptConfig
@@ -15,37 +16,36 @@ from .kotlin import KotlinConfig
 from .rust import RustConfig
 
 # Registry mapping language names to their configurations
-LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
-    "python": PythonConfig(),
-    "javascript": JavaScriptConfig(),
-    "typescript": TypeScriptConfig(),
-    "tsx": TypeScriptConfig(),
-    "jsx": JavaScriptConfig(),
-    "html": HTMLConfig(),
-    "css": CSSConfig(),
-    "sql": SQLConfig(),
+LANGUAGE_CONFIGS: dict[SupportedLanguage, LanguageConfig] = {
+    "astro": AstroConfig(),
     "bash": BashConfig(),
-    "markdown": MarkdownConfig(),
+    "css": CSSConfig(),
     "go": GoConfig(),
+    "html": HTMLConfig(),
     "java": JavaConfig(),
+    "javascript": JavaScriptConfig(),
     "kotlin": KotlinConfig(),
+    "markdown": MarkdownConfig(),
+    "python": PythonConfig(),
     "rust": RustConfig(),
+    "sql": SQLConfig(),
+    "typescript": TypeScriptConfig(),
 }
 
 LANGUAGE_EXTENSIONS: dict[SupportedLanguage, list[str]] = {
-    "python": [".py"],
-    "javascript": [".js", ".jsx"],
-    "typescript": [".ts", ".tsx"],
-    "html": [".html", ".htm"],
-    "css": [".css"],
-    "sql": [".sql"],
-    "bash": [".sh", ".bash"],
-    "markdown": [".md", ".markdown"],
-    "go": [".go"],
-    "java": [".java"],
-    "kotlin": [".kt", ".kts"],
-    "rust": [".rs"],
     "astro": [".astro"],
+    "bash": [".sh", ".bash"],
+    "css": [".css"],
+    "go": [".go"],
+    "html": [".html", ".htm"],
+    "java": [".java"],
+    "javascript": [".js", ".jsx"],
+    "kotlin": [".kt", ".kts"],
+    "markdown": [".md", ".markdown"],
+    "python": [".py"],
+    "rust": [".rs"],
+    "sql": [".sql"],
+    "typescript": [".ts", ".tsx"],
 }
 
 __all__ = [
@@ -61,8 +61,6 @@ __all__ = [
     "SQLConfig",
     "BashConfig",
     "RustConfig",
-    "RubyConfig",
     "GoConfig",
-    "CSharpConfig",
     "MarkdownConfig",
 ]
