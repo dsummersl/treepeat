@@ -1,12 +1,10 @@
-"""Extract regions (functions, classes, sections, etc) from parsed files."""
-
 import logging
 import sys
 from collections import Counter
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
-from tqdm import tqdm  # type: ignore[import-untyped]
+from tqdm import tqdm
 from tree_sitter import Node, Tree
 
 from treepeat.models.ast import ParsedFile
@@ -16,20 +14,6 @@ from treepeat.pipeline.rules.models import Rule
 from treepeat.pipeline.verbose_metrics import record_used_node_type
 
 logger = logging.getLogger(__name__)
-
-
-def _extract_node_types_from_query(query: str) -> set[str]:
-    """Extract tree-sitter node type names from a query string.
-
-    Parses queries like "(function_definition) @region" to extract "function_definition".
-    Also handles alternatives like "[(func_a) (func_b)] @region".
-    """
-    import re
-    # Match node types in parentheses: (node_type) or (node_type ...)
-    # This handles both simple matches and matches with predicates/children
-    pattern = r'\((\w+)(?:\s|[)\]])'
-    matches = re.findall(pattern, query)
-    return set(matches)
 
 
 class ExtractedRegion(BaseModel):
@@ -104,9 +88,7 @@ def _extract_injection_bytes(
 ) -> tuple[bytes, int] | None:
     """Return (content_bytes, line_offset) for injection, or None if unavailable."""
     if rule.injection_content_query:
-        content_nodes = rule_engine.get_nodes_matching_query(
-            node, rule.injection_content_query, parsed_file.language
-        )
+        content_nodes = rule_engine.get_nodes_matching_query(node, rule.injection_content_query, parsed_file.language)
         if not content_nodes:
             return None
         content_node = content_nodes[0]
@@ -271,9 +253,7 @@ def _is_explicit_type(region_type: str) -> bool:
 
 def _should_replace_region(new: ExtractedRegion, existing: ExtractedRegion) -> bool:
     """Determine if new region should replace existing one (prefer explicit types)."""
-    return _is_explicit_type(new.region.region_type) and not _is_explicit_type(
-        existing.region.region_type
-    )
+    return _is_explicit_type(new.region.region_type) and not _is_explicit_type(existing.region.region_type)
 
 
 def _make_region_key(region: ExtractedRegion) -> tuple[str, int, int]:
@@ -336,8 +316,6 @@ def _log_region_type_statistics(regions: list[ExtractedRegion], method: str) -> 
         logger.info("  ... and %d more type(s)", len(type_counts) - 10)
 
 
-
-
 def extract_all_regions(
     parsed_files: list[ParsedFile],
     rule_engine: "RuleEngine",
@@ -350,11 +328,7 @@ def extract_all_regions(
 
     all_regions: list[ExtractedRegion] = []
 
-    iterable = (
-        tqdm(parsed_files, desc="Extracting", unit="file", file=sys.stderr)
-        if progress
-        else parsed_files
-    )
+    iterable = tqdm(parsed_files, desc="Extracting", unit="file", file=sys.stderr) if progress else parsed_files
 
     for parsed_file in iterable:
         try:

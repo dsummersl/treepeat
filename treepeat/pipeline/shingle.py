@@ -4,7 +4,7 @@ from collections import deque
 from pathlib import Path
 from typing import Iterable, cast
 
-from tqdm import tqdm  # type: ignore[import-untyped]
+from tqdm import tqdm
 from tree_sitter import Node
 
 from treepeat.models.ast import ParsedFile, ParseResult

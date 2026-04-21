@@ -33,6 +33,7 @@ dev = [
   "psutil>=7.0.0",
   "pre-commit>=3.7",
   "radon>=6.0.1",
+  "types-tqdm>=4.67.3.20260408",
 ]
 
 [tool.uv]
