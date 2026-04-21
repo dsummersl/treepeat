@@ -1,7 +1,7 @@
 from tree_sitter_language_pack import SupportedLanguage
 
-from .base import LanguageConfig
 from .astro import AstroConfig
+from .base import LanguageConfig
 from .bash import BashConfig
 from .css import CSSConfig
 from .go import GoConfig

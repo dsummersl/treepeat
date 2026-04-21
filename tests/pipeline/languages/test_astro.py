@@ -1,19 +1,3 @@
-"""Tests for Astro (.astro) file support via language injection.
-
-Astro components consist of an optional TypeScript/JavaScript frontmatter block
-delimited by ``---`` markers, followed by an HTML-like template.
-
-treepeat parses the full Astro file with the ``astro`` tree-sitter grammar and
-uses *language injection* to re-parse the ``frontmatter_js_block`` content as
-TypeScript.  This means:
-
-* The ``ParsedFile.language`` is ``"astro"``
-* The extracted *frontmatter* region carries an injected TypeScript tree
-* The shingler traverses the TypeScript tree using TypeScript normalization rules
-* Identical TypeScript code produces the same shingle hashes whether it lives
-  inside an ``.astro`` file or a standalone ``.ts`` file
-"""
-
 from pathlib import Path
 
 import pytest
@@ -84,10 +68,13 @@ def test_parse_file_astro_source_contains_frontmatter_and_template():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("rules_factory", [
-    lambda: [r for r, _ in build_default_rules()],
-    lambda: [r for r, _ in build_loose_rules()],
-])
+@pytest.mark.parametrize(
+    "rules_factory",
+    [
+        lambda: [r for r, _ in build_default_rules()],
+        lambda: [r for r, _ in build_loose_rules()],
+    ],
+)
 def test_frontmatter_region_extracted(rules_factory):
     """A single 'frontmatter' region is extracted from an Astro file."""
     parsed = parse_file(fixture_one)
@@ -167,8 +154,8 @@ def test_injected_shingles_match_standalone_typescript():
 
     This is the key correctness property of the injection architecture.
     """
-    from treepeat.pipeline.shingle import ASTShingler
     from treepeat.pipeline.region_extraction import extract_all_regions
+    from treepeat.pipeline.shingle import ASTShingler
 
     rules = [r for r, _ in build_loose_rules()]
     engine = RuleEngine(rules)
@@ -209,6 +196,4 @@ def test_injected_shingles_match_standalone_typescript():
     astro_shingle_set = {s.content for s in astro_shingled.shingles.shingles}
     assert astro_shingle_set, "No shingles produced from injected frontmatter"
     # At least some shingles must overlap — the same TypeScript k-grams appear in both
-    assert astro_shingle_set & ts_all_shingles, (
-        "No common shingles between Astro frontmatter and standalone TypeScript"
-    )
+    assert astro_shingle_set & ts_all_shingles, "No common shingles between Astro frontmatter and standalone TypeScript"
