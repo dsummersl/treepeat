@@ -53,5 +53,8 @@ class MarkdownConfig(LanguageConfig):
                 target_language=_resolve_code_block_language,
                 content_query="(code_fence_content) @content",
             ),
-            RegionExtractionRule.from_node_type("indented_code_block"),
+            RegionExtractionRule(
+                query="(indented_code_block) @region",
+                label="code_block",
+            ),
         ]
