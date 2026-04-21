@@ -1,9 +1,3 @@
-"""SARIF (Static Analysis Results Interchange Format) formatter for whorl.
-
-SARIF is a standard format for static analysis tool output.
-Specification: https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html
-"""
-
 from sarif_pydantic import (  # type: ignore[import-untyped]
     ArtifactLocation,
     Level,
@@ -19,11 +13,11 @@ from sarif_pydantic import (  # type: ignore[import-untyped]
     ToolDriver,
 )
 
-from treepeat.models.similarity import SimilarRegionGroup, SimilarityResult
+from treepeat.models.similarity import SimilarityResult, SimilarRegionGroup
 
 
 def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:
-    """Format similarity detection results as SARIF JSON. """
+    """Format similarity detection results as SARIF JSON."""
     sarif_log = _create_sarif_log(result)
 
     indent = 2 if pretty else None
@@ -62,10 +56,18 @@ def _create_tool() -> Tool:
                     name="SimilarCode",
                     shortDescription=Message(text="Structurally similar code detected"),
                     fullDescription=Message(
-                        text="This rule identifies code blocks that are structurally similar based on Abstract Syntax Tree (AST) analysis using MinHash and Locality-Sensitive Hashing (LSH). Similar code may indicate opportunities for refactoring or potential code duplication issues."
+                        text=(
+                            "This rule identifies code blocks that are structurally similar based on "
+                            "Abstract Syntax Tree (AST) analysis using MinHash and Locality-Sensitive "
+                            "Hashing (LSH). Similar code may indicate opportunities for refactoring or "
+                            "potential code duplication issues."
+                        )
                     ),
                     help=Message(
-                        text="Consider refactoring similar code blocks into shared functions or modules to improve maintainability and reduce duplication."
+                        text=(
+                            "Consider refactoring similar code blocks into shared "
+                            "functions or modules to improve maintainability and reduce duplication."
+                        )
                     ),
                     defaultConfiguration={"level": "warning"},
                     properties={
@@ -79,7 +81,7 @@ def _create_tool() -> Tool:
 
 
 def _create_result_from_group(group: SimilarRegionGroup) -> Result:
-    """Create a SARIF result from a similarity group. """
+    """Create a SARIF result from a similarity group."""
     similarity_percent = group.similarity * 100
     level = _get_level(group.similarity)
 
@@ -88,9 +90,8 @@ def _create_result_from_group(group: SimilarRegionGroup) -> Result:
         f"{region.path}:{region.start_line}-{region.end_line} ({region.end_line - region.start_line + 1} lines)"
         for region in group.regions
     ]
-    message_text = (
-        f"Code similarity detected ({similarity_percent:.1f}% similar, {group.size} regions). "
-        + ". ".join(region_descriptions)
+    message_text = f"Code similarity detected ({similarity_percent:.1f}% similar, {group.size} regions). " + ". ".join(
+        region_descriptions
     )
 
     # Use first region as primary location

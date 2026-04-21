@@ -1,11 +1,11 @@
 """CLI interface for treepeat."""
 
 import logging
+from importlib.metadata import PackageNotFoundError, version
 
 import click
 from rich.console import Console
 from rich.logging import RichHandler
-from importlib.metadata import version, PackageNotFoundError
 
 from treepeat.cli.commands import detect, list_ruleset, treesitter
 

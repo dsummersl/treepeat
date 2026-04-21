@@ -9,7 +9,6 @@ from treepeat.pipeline.languages.python import PythonConfig
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-
 # Fixture path
 fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "python" / "class_with_methods.py"
 
@@ -34,10 +33,10 @@ def test_language_name():
 
 def test_import_removal_rules():
     """Test that all import types (including future imports) are removed."""
-    from treepeat.pipeline.parse import parse_source_code
-    from treepeat.pipeline.shingle import ASTShingler
-    from treepeat.pipeline.region_extraction import ExtractedRegion
     from treepeat.models.similarity import Region
+    from treepeat.pipeline.parse import parse_source_code
+    from treepeat.pipeline.region_extraction import ExtractedRegion
+    from treepeat.pipeline.shingle import ASTShingler
 
     # Code with future imports, regular imports, and from imports
     source = b"""from __future__ import annotations
@@ -83,10 +82,10 @@ def foo():
 
 def test_type_checking_block_removal():
     """Test that TYPE_CHECKING blocks are removed."""
-    from treepeat.pipeline.parse import parse_source_code
-    from treepeat.pipeline.shingle import ASTShingler
-    from treepeat.pipeline.region_extraction import ExtractedRegion
     from treepeat.models.similarity import Region
+    from treepeat.pipeline.parse import parse_source_code
+    from treepeat.pipeline.region_extraction import ExtractedRegion
+    from treepeat.pipeline.shingle import ASTShingler
 
     # Code with TYPE_CHECKING block
     source = b"""import typing as t
@@ -128,10 +127,10 @@ def foo():
 
 def test_typevar_removal():
     """Test that TypeVar declarations are removed."""
-    from treepeat.pipeline.parse import parse_source_code
-    from treepeat.pipeline.shingle import ASTShingler
-    from treepeat.pipeline.region_extraction import ExtractedRegion
     from treepeat.models.similarity import Region
+    from treepeat.pipeline.parse import parse_source_code
+    from treepeat.pipeline.region_extraction import ExtractedRegion
+    from treepeat.pipeline.shingle import ASTShingler
 
     # Code with TypeVar declarations
     source = b"""import typing as t

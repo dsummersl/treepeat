@@ -11,7 +11,7 @@ import tempfile
 import threading
 import time
 import tomllib
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -20,7 +20,6 @@ import psutil
 from rich import box
 from rich.console import Console
 from rich.table import Table
-
 
 # ---------------------------------------------------------------------------
 # Paths

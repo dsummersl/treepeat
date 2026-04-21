@@ -4,7 +4,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from tqdm import tqdm  # type: ignore[import-untyped]
-from tree_sitter_language_pack import get_parser, SupportedLanguage
+from tree_sitter_language_pack import SupportedLanguage, get_parser
 
 from treepeat.config import get_settings
 from treepeat.models import ParsedFile, ParseResult
@@ -191,7 +191,7 @@ def _check_patterns_in_directory(file_path: Path, directory: Path, patterns: lis
 
 def _should_stop_traversal(current: Path, target: Path) -> bool:
     """Check if we should stop traversing up the directory tree."""
-    return current == target or current.parent == current
+    return current in (target, current.parent)
 
 
 def _get_parent_directories(file_path: Path, target_path: Path) -> list[Path]:
@@ -258,7 +258,7 @@ def _collect_directory_files(
     ignore_files_map = find_ignore_files(target_path, ignore_file_patterns)
 
     files: list[Path] = []
-    for lang, exts in LANGUAGE_EXTENSIONS.items():
+    for _lang, exts in LANGUAGE_EXTENSIONS.items():
         for ext in exts:
             for file in target_path.rglob(f"*{ext}"):
                 if not should_ignore_file(file, target_path, ignore_patterns, ignore_files_map):

@@ -1,10 +1,11 @@
 import re
 from pathlib import Path
-from treepeat.pipeline.rules.engine import RuleEngine
-from treepeat.pipeline.parse import parse_source_code
-from treepeat.pipeline.shingle import ASTShingler
-from treepeat.pipeline.region_extraction import ExtractedRegion
+
 from treepeat.models.similarity import Region
+from treepeat.pipeline.parse import parse_source_code
+from treepeat.pipeline.region_extraction import ExtractedRegion
+from treepeat.pipeline.rules.engine import RuleEngine
+from treepeat.pipeline.shingle import ASTShingler
 
 
 class RuleTester:
@@ -76,11 +77,13 @@ class RuleTester:
 
             if should_exist and not match:
                 raise AssertionError(
-                    f"[{context}] Expected symbol '{symbol}' not found in tokens for rule '{rule_name}'.\nTokens: {tokens}"
+                    f"[{context}] Expected symbol '{symbol}' not found in tokens for rule "
+                    f"'{rule_name}'.\nTokens: {tokens}"
                 )
             if not should_exist and match:
                 raise AssertionError(
-                    f"[{context}] Unexpected symbol '{symbol}' found in tokens for rule '{rule_name}'.\nTokens: {tokens}"
+                    f"[{context}] Unexpected symbol '{symbol}' found in tokens for rule "
+                    f"'{rule_name}'.\nTokens: {tokens}"
                 )
 
         check_symbol(expected_symbol, token_str, True)

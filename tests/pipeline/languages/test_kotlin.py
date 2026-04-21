@@ -9,7 +9,6 @@ from treepeat.pipeline.languages.kotlin import KotlinConfig
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-
 # Fixture path
 fixture_comprehensive = (
     Path(__file__).parent.parent.parent / "fixtures" / "kotlin" / "comprehensive.kt"
@@ -37,10 +36,10 @@ def test_language_name():
 
 def test_kotlin_specific_rules():
     """Test that Kotlin specific rules (imports, comments) work."""
-    from treepeat.pipeline.parse import parse_source_code
-    from treepeat.pipeline.shingle import ASTShingler
-    from treepeat.pipeline.region_extraction import ExtractedRegion
     from treepeat.models.similarity import Region
+    from treepeat.pipeline.parse import parse_source_code
+    from treepeat.pipeline.region_extraction import ExtractedRegion
+    from treepeat.pipeline.shingle import ASTShingler
 
     source = b"""
     package com.example

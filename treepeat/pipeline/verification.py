@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from tqdm import tqdm  # type: ignore[import-untyped]
+
 from treepeat.models.shingle import ShingledRegion
 
 if TYPE_CHECKING:

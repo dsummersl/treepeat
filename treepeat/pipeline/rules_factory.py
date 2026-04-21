@@ -1,9 +1,13 @@
 import logging
 
 from treepeat.config import PipelineSettings
-from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules
+from treepeat.pipeline.rules.engine import (
+    RuleEngine,
+    build_default_rules,
+    build_loose_rules,
+    build_region_extraction_rules,
+)
 from treepeat.pipeline.rules.models import Rule, RuleAction
-from treepeat.pipeline.rules.engine import build_loose_rules, build_region_extraction_rules
 
 logger = logging.getLogger(__name__)
 

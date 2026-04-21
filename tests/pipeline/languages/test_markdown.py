@@ -9,7 +9,6 @@ from treepeat.pipeline.languages.markdown import MarkdownConfig
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-
 # Fixture path
 fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "markdown" / "one.md"
 

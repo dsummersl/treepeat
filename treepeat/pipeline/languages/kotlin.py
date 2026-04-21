@@ -1,4 +1,5 @@
 from treepeat.pipeline.rules.models import Rule, RuleAction
+
 from .base import LanguageConfig, RegionExtractionRule
 
 
@@ -50,7 +51,10 @@ class KotlinConfig(LanguageConfig):
             Rule(
                 name="Anonymize literals",
                 languages=["kotlin"],
-                query="[(string_literal) (string_content) (integer_literal) (real_literal) (boolean_literal) (null_literal)] @lit",
+                query=(
+                    "[(string_literal) (string_content) (integer_literal) "
+                    "(real_literal) (boolean_literal) (null_literal)] @lit"
+                ),
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),

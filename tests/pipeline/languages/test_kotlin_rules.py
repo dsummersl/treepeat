@@ -61,12 +61,13 @@ def test_kotlin_rules_detailed(rule_tester):
 def test_kotlin_rules_conflict():
     config = KotlinConfig()
     # Test that function name is FUNC even when Anonymize identifiers is present
-    from treepeat.pipeline.rules.engine import RuleEngine
-    from treepeat.pipeline.parse import parse_source_code
-    from treepeat.pipeline.shingle import ASTShingler
-    from treepeat.pipeline.region_extraction import ExtractedRegion
-    from treepeat.models.similarity import Region
     from pathlib import Path
+
+    from treepeat.models.similarity import Region
+    from treepeat.pipeline.parse import parse_source_code
+    from treepeat.pipeline.region_extraction import ExtractedRegion
+    from treepeat.pipeline.rules.engine import RuleEngine
+    from treepeat.pipeline.shingle import ASTShingler
 
     rules = config.get_loose_rules()
     engine = RuleEngine(rules)
@@ -97,12 +98,13 @@ def test_kotlin_rules_conflict():
 
 def test_kotlin_class_rules_conflict():
     config = KotlinConfig()
-    from treepeat.pipeline.rules.engine import RuleEngine
-    from treepeat.pipeline.parse import parse_source_code
-    from treepeat.pipeline.shingle import ASTShingler
-    from treepeat.pipeline.region_extraction import ExtractedRegion
-    from treepeat.models.similarity import Region
     from pathlib import Path
+
+    from treepeat.models.similarity import Region
+    from treepeat.pipeline.parse import parse_source_code
+    from treepeat.pipeline.region_extraction import ExtractedRegion
+    from treepeat.pipeline.rules.engine import RuleEngine
+    from treepeat.pipeline.shingle import ASTShingler
 
     rules = config.get_loose_rules()
     engine = RuleEngine(rules)

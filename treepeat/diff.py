@@ -1,5 +1,3 @@
-"""Side-by-side diff display functionality."""
-
 import difflib
 from collections.abc import Sequence
 
@@ -39,8 +37,8 @@ def _prepare_diff_lines(region1: Region, region2: Region) -> tuple[list[str], li
         return None
 
     # Strip newlines from lines
-    lines1 = [line.rstrip('\n\r') for line in lines1]
-    lines2 = [line.rstrip('\n\r') for line in lines2]
+    lines1 = [line.rstrip("\n\r") for line in lines1]
+    lines2 = [line.rstrip("\n\r") for line in lines2]
 
     return (lines1, lines2)
 
@@ -49,12 +47,14 @@ def _regions_are_identical(opcodes: Sequence[tuple[str, int, int, int, int]]) ->
     """Check if opcodes indicate identical regions."""
     if len(opcodes) != 1:
         return False
-    return opcodes[0][0] == 'equal'
+    return opcodes[0][0] == "equal"
 
 
-def _print_equal_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int) -> None:
+def _print_equal_lines(
+    lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int
+) -> None:
     """Print equal (matching) lines side-by-side."""
-    for i, j in zip(range(i1, i2), range(j1, j2)):
+    for i, j in zip(range(i1, i2), range(j1, j2), strict=False):
         left = _truncate_line(lines1[i], col_width)
         right = _truncate_line(lines2[j], col_width)
         console.print(f"{left:<{col_width}}│{right:<{col_width}}")
@@ -65,15 +65,17 @@ def _apply_char_style(text: str, style: str) -> str:
     return f"[{style}]{text}[/{style}]"
 
 
-def _process_diff_opcode(tag: str, left_part: str, right_part: str, bright_left: str, bright_right: str) -> tuple[str, str]:
+def _process_diff_opcode(
+    tag: str, left_part: str, right_part: str, bright_left: str, bright_right: str
+) -> tuple[str, str]:
     """Process a single diff opcode and return styled parts."""
-    if tag == 'equal':
+    if tag == "equal":
         return left_part, right_part
-    if tag == 'replace':
+    if tag == "replace":
         return _apply_char_style(left_part, bright_left), _apply_char_style(right_part, bright_right)
-    if tag == 'delete':
+    if tag == "delete":
         return _apply_char_style(left_part, bright_left), ""
-    if tag == 'insert':
+    if tag == "insert":
         return "", _apply_char_style(right_part, bright_right)
     return "", ""
 
@@ -96,18 +98,20 @@ def _highlight_char_diff(text1: str, text2: str, col_width: int) -> tuple[str, s
         if right_styled:
             result_right.append(right_styled)
 
-    left_text = ''.join(result_left)
-    right_text = ''.join(result_right)
+    left_text = "".join(result_left)
+    right_text = "".join(result_right)
     left_padding = col_width - len(text1)
     right_padding = col_width - len(text2)
 
     return (
         f"[{_colors.left_bg}]{left_text}{' ' * left_padding}[/{_colors.left_bg}]",
-        f"[{_colors.right_bg}]{right_text}{' ' * right_padding}[/{_colors.right_bg}]"
+        f"[{_colors.right_bg}]{right_text}{' ' * right_padding}[/{_colors.right_bg}]",
     )
 
 
-def _print_replaced_lines(lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int) -> None:
+def _print_replaced_lines(
+    lines1: list[str], lines2: list[str], i1: int, i2: int, j1: int, j2: int, col_width: int
+) -> None:
     """Print replaced (changed) lines side-by-side with character-level diff highlighting."""
     max_len = max(i2 - i1, j2 - j1)
     for idx in range(max_len):
@@ -171,10 +175,10 @@ def _process_diff_opcodes(
 ) -> None:
     """Process diff opcodes and display changes."""
     handlers = {
-        'equal': lambda i1, i2, j1, j2: _print_equal_lines(lines1, lines2, i1, i2, j1, j2, col_width),
-        'replace': lambda i1, i2, j1, j2: _print_replaced_lines(lines1, lines2, i1, i2, j1, j2, col_width),
-        'delete': lambda i1, i2, j1, j2: _print_deleted_lines(lines1, i1, i2, col_width),
-        'insert': lambda i1, i2, j1, j2: _print_inserted_lines(lines2, j1, j2, col_width),
+        "equal": lambda i1, i2, j1, j2: _print_equal_lines(lines1, lines2, i1, i2, j1, j2, col_width),
+        "replace": lambda i1, i2, j1, j2: _print_replaced_lines(lines1, lines2, i1, i2, j1, j2, col_width),
+        "delete": lambda i1, i2, j1, j2: _print_deleted_lines(lines1, i1, i2, col_width),
+        "insert": lambda i1, i2, j1, j2: _print_inserted_lines(lines2, j1, j2, col_width),
     }
 
     for tag, i1, i2, j1, j2 in opcodes:
