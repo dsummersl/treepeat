@@ -18,7 +18,11 @@ class Region(BaseModel):
 
     def __repr__(self) -> str:
         """Format as human-readable string."""
-        return f"Region({self.region_name} ({self.region_type}) at {str(self.path)[-10:]}:{self.start_line}-{self.end_line})"
+        path_str = str(self.path)[-10:]
+        return (
+            f"Region({self.region_name} ({self.region_type}) at "
+            f"{path_str}:{self.start_line}-{self.end_line})"
+        )
 
 
 class RegionSignature(BaseModel):

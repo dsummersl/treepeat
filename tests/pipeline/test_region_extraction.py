@@ -1,12 +1,13 @@
+from treepeat.pipeline.region_extraction import extract_all_regions
+
 from ..conftest import (
-    parsed_fixture,
+    default_rule_engine,
+    fixture_class_methods,
+    fixture_nested,
     fixture_path1,
     fixture_path2,
-    fixture_nested,
-    fixture_class_methods,
-    default_rule_engine,
+    parsed_fixture,
 )
-from treepeat.pipeline.region_extraction import extract_all_regions
 
 
 def test_extract_regions_dataclass1():

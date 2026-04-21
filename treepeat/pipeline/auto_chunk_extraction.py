@@ -1,4 +1,5 @@
 import logging
+
 from tree_sitter import Node
 
 from treepeat.models.ast import ParsedFile

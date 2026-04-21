@@ -18,11 +18,11 @@ def _parse_action(action_str: str) -> RuleAction:
     """Parse action string into RuleAction enum."""
     try:
         return RuleAction(action_str)
-    except ValueError:
+    except ValueError as ve:
         valid_actions = [action.value for action in RuleAction]
         raise RuleParseError(
             f"Invalid action '{action_str}'. Valid actions: {', '.join(valid_actions)}"
-        )
+        ) from ve
 
 
 def _validate_yaml_rule_fields(rule_dict: dict[str, Any]) -> None:
@@ -104,7 +104,7 @@ def _load_yaml_file(file_path: str) -> Any:
         try:
             return yaml.safe_load(f)
         except yaml.YAMLError as e:
-            raise RuleParseError(f"Invalid YAML: {e}")
+            raise RuleParseError(f"Invalid YAML: {e}") from e
 
 
 def _validate_rulesets_structure(data: Any, ruleset_name: str) -> dict[str, Any]:

@@ -14,8 +14,8 @@ from treepeat.config import (
     PipelineSettings,
     RulesSettings,
     ShingleSettings,
-    set_settings,
     get_settings,
+    set_settings,
 )
 from treepeat.formatters.sarif import format_as_sarif
 from treepeat.models.similarity import Region, RegionSignature, SimilarityResult, SimilarRegionGroup
@@ -493,7 +493,10 @@ def _display_verbose_metrics(elapsed_time: float) -> None:
     "add_regions",
     multiple=True,
     default=(),
-    help="Add region extraction rules as '<language>:node1,node2,...' (e.g., 'python:function_definition,class_definition')",
+    help=(
+        "Add region extraction rules as '<language>:node1,node2,...' "
+        "(e.g., 'python:function_definition,class_definition')"
+    ),
 )
 @click.option(
     "--exclude-regions",
@@ -501,7 +504,10 @@ def _display_verbose_metrics(elapsed_time: float) -> None:
     "exclude_regions",
     multiple=True,
     default=(),
-    help="Exclude region extraction rules by label as '<language>:label1,label2,...' (e.g., 'python:function_definition,class_definition')",
+    help=(
+        "Exclude region extraction rules by label as '<language>:label1,label2,...' "
+        "(e.g., 'python:function_definition,class_definition')"
+    ),
 )
 @click.option(
     "--output",

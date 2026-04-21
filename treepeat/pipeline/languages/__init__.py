@@ -1,18 +1,18 @@
 from tree_sitter_language_pack import SupportedLanguage
 
 from .base import LanguageConfig
-from .python import PythonConfig
-from .javascript import JavaScriptConfig
-from .typescript import TypeScriptConfig
-from .html import HTMLConfig
-from .css import CSSConfig
-from .sql import SQLConfig
 from .bash import BashConfig
-from .markdown import MarkdownConfig
+from .css import CSSConfig
 from .go import GoConfig
+from .html import HTMLConfig
 from .java import JavaConfig
+from .javascript import JavaScriptConfig
 from .kotlin import KotlinConfig
+from .markdown import MarkdownConfig
+from .python import PythonConfig
 from .rust import RustConfig
+from .sql import SQLConfig
+from .typescript import TypeScriptConfig
 
 # Registry mapping language names to their configurations
 LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {

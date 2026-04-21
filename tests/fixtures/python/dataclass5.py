@@ -1,7 +1,6 @@
 """Configuration for normalizers using pydantic-settings."""
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 
 class NormalizerSettings(BaseSettings):

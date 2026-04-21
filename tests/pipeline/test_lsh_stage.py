@@ -1,10 +1,10 @@
-from ..conftest import parsed_fixture, fixture_path1, fixture_path2, default_rule_engine
-
 from treepeat.pipeline.lsh_stage import detect_similarity
 from treepeat.pipeline.minhash_stage import compute_region_signatures
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine
 from treepeat.pipeline.shingle import shingle_regions
+
+from ..conftest import default_rule_engine, fixture_path1, fixture_path2, parsed_fixture
 
 
 def test_detect_similarity_1():
