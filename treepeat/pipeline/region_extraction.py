@@ -11,7 +11,6 @@ from tree_sitter import Node, Tree
 
 from treepeat.models.ast import ParsedFile
 from treepeat.models.similarity import Region
-
 from treepeat.pipeline.rules.engine import RuleEngine
 from treepeat.pipeline.rules.models import Rule
 from treepeat.pipeline.verbose_metrics import record_used_node_type

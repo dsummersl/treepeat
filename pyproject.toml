@@ -6,22 +6,19 @@ readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Dane Summers", email = "dsummersl@gmail.com" }]
 license = "Apache-2.0"
-classifiers = [
-"Programming Language :: Python :: 3",
-"Typing :: Typed",
-]
+classifiers = ["Programming Language :: Python :: 3", "Typing :: Typed"]
 dependencies = [
-    "click>=8.3.0",
-    "datasketch>=1.6.5",
-    "pipdeptree>=2.30.0",
-    "pydantic>=2.12.3",
-    "pydantic-settings>=2.0.0",
-    "python-magic>=0.4.27",
-    "rich>=14.2.0",
-    "sarif-pydantic>=0.6.2",
-    "tqdm>=4.0",
-    "tree-sitter>=0.25.2",
-    "tree-sitter-language-pack==0.13.0",
+  "click>=8.3.0",
+  "datasketch>=1.6.5",
+  "pipdeptree>=2.30.0",
+  "pydantic>=2.12.3",
+  "pydantic-settings>=2.0.0",
+  "python-magic>=0.4.27",
+  "rich>=14.2.0",
+  "sarif-pydantic>=0.6.2",
+  "tqdm>=4.0",
+  "tree-sitter>=0.25.2",
+  "tree-sitter-language-pack==0.13.0",
 ]
 
 [project.scripts]
@@ -29,20 +26,44 @@ treepeat = "treepeat.cli:main"
 
 [dependency-groups]
 dev = [
-    "pytest>=8",
-    "pytest-cov>=6",
-    "ruff>=0.5",
-    "mypy>=1.10",
-    "pre-commit>=3.7",
-    "radon>=6.0.1",
+  "pytest>=8",
+  "pytest-cov>=6",
+  "ruff>=0.5",
+  "mypy>=1.10",
+  "psutil>=7.0.0",
+  "pre-commit>=3.7",
+  "radon>=6.0.1",
 ]
 
 [tool.uv]
 package = true
 
 [tool.ruff]
-line-length = 100
-exclude = [".venv", ".git", "build", "dist", "tests/fixtures"]
+line-length = 120
+exclude = [".venv", ".git", "build", "dist"]
+lint.select = [
+  "E",   # pycodestyle
+  "F",   # Pyflakes
+  "I",   # isort (automatically sorts and moves imports to top)
+  "B",   # flake8-bugbear (find likely bugs and design problems in your program)
+  "PLR", # Pylint Refactor (specifically catches misplaced imports)
+  "PLC", # Pylint Convention (specifically catches imports not at the top of the file)
+  "TID", # Tidy imports
+]
+
+[tool.ruff.lint.per-file-ignores]
+# "**/tests/*" = ["PLR2004"] # Allow magic numbers in tests
+# Fixture files are sample code snippets with intentional issues for testing - ignore all rules
+"tests/fixtures/**/*" = ["ALL"]
+# TODO: Refactor tools/perf/harness.py to address complexity issues
+"tools/perf/harness.py" = ["PLR0912", "PLR0915", "PLR1704"]
+# TODO Disabled globally, but should eventually be re-enabled:
+"**/*" = [
+  "PLR2004",
+  "PLC0415",
+  "TID252",
+  "PLR0913",
+]
 
 [tool.mypy]
 python_version = "3.11"

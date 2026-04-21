@@ -1,11 +1,8 @@
 """Factory for building normalizers based on settings."""
 
 import logging
-from typing import Callable
 
 from treepeat.config import PipelineSettings
-from treepeat.pipeline.normalizers import Normalizer
-from treepeat.pipeline.normalizers.python import PythonImportNormalizer
 
 logger = logging.getLogger(__name__)
 

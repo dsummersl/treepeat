@@ -9,7 +9,6 @@ from treepeat.pipeline.languages.rust import RustConfig
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-
 # Fixture path
 fixture_comprehensive = (
     Path(__file__).parent.parent.parent / "fixtures" / "rust" / "comprehensive.rs"
@@ -45,10 +44,10 @@ def test_lifetime_names_do_not_affect_similarity():
     'a and 'b are α-equivalent-ish; renaming them should not affect duplicate detection.
     'static is intentionally excluded from this rule and is verified in test_rust_rules.py.
     """
-    from treepeat.pipeline.parse import parse_source_code
-    from treepeat.pipeline.shingle import ASTShingler
-    from treepeat.pipeline.region_extraction import ExtractedRegion
     from treepeat.models.similarity import Region
+    from treepeat.pipeline.parse import parse_source_code
+    from treepeat.pipeline.region_extraction import ExtractedRegion
+    from treepeat.pipeline.shingle import ASTShingler
 
     def shingle_source(source: str) -> list[str]:
         source_bytes = source.encode("utf-8")
@@ -77,10 +76,10 @@ def test_lifetime_names_do_not_affect_similarity():
 
 def test_rust_specific_rules():
     """Test that Rust-specific default rules (use, comments, attributes) work."""
-    from treepeat.pipeline.parse import parse_source_code
-    from treepeat.pipeline.shingle import ASTShingler
-    from treepeat.pipeline.region_extraction import ExtractedRegion
     from treepeat.models.similarity import Region
+    from treepeat.pipeline.parse import parse_source_code
+    from treepeat.pipeline.region_extraction import ExtractedRegion
+    from treepeat.pipeline.shingle import ASTShingler
 
     source = b"""
 #![allow(dead_code)]

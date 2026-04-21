@@ -12,8 +12,8 @@ from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import (
     Region,
     RegionSignature,
-    SimilarRegionGroup,
     SimilarityResult,
+    SimilarRegionGroup,
 )
 
 logger = logging.getLogger(__name__)
@@ -294,7 +294,7 @@ def _collect_candidate_groups(
     groups_dict = uf.get_groups()
     groups: list[SimilarRegionGroup] = []
 
-    for root, member_keys in groups_dict.items():
+    for _root, member_keys in groups_dict.items():
         # Skip single-region "groups"
         if len(member_keys) < 2:
             continue
@@ -440,6 +440,11 @@ def detect_similarity(
         similarity_percent,
         progress=progress,
     )
+
+    total_pairs = sum(
+        len(g.regions) * (len(g.regions) - 1) // 2 for g in candidate_groups
+    )
+    logger.info("Total candidate pairs entering verification: %d", total_pairs)
 
     if not candidate_groups:
         return SimilarityResult(

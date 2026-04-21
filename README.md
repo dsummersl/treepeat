@@ -67,6 +67,8 @@ make setup
 make test
 ```
 
+Performance harness for benchmarking real repositories: `tools/perf/harness.py` ([docs](docs/perf-harness.md)).
+
 ## ADRs
 
 Architecture Decision Records live in docs/adr.

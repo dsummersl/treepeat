@@ -3,7 +3,6 @@
 import tempfile
 from pathlib import Path
 
-
 from treepeat.config import PipelineSettings, set_settings
 from treepeat.pipeline.parse import (
     collect_source_files,

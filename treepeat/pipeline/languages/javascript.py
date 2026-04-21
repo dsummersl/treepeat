@@ -78,7 +78,10 @@ class JavaScriptConfig(LanguageConfig):
             Rule(
                 name="Anonymize expressions",
                 languages=["javascript", "typescript"],
-                query="[(binary_expression) (unary_expression) (update_expression) (assignment_expression) (ternary_expression)] @exp",
+                query=(
+                    "[(binary_expression) (unary_expression) (update_expression) "
+                    "(assignment_expression) (ternary_expression)] @exp"
+                ),
                 target="exp",
                 action=RuleAction.REPLACE_NODE_TYPE,
                 params={"token": "<EXP>"},

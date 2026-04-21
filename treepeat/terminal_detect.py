@@ -1,8 +1,8 @@
 """Terminal background color detection utilities."""
 
 import os
-import sys
 import select
+import sys
 import termios
 import tty
 from enum import Enum

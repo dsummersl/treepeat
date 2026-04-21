@@ -7,7 +7,14 @@ from typing import Any
 import click
 from rich.console import Console
 
-from treepeat.config import LSHSettings, MinHashSettings, PipelineSettings, RulesSettings, ShingleSettings, set_settings
+from treepeat.config import (
+    LSHSettings,
+    MinHashSettings,
+    PipelineSettings,
+    RulesSettings,
+    ShingleSettings,
+    set_settings,
+)
 
 console = Console()
 
@@ -295,8 +302,8 @@ def treesitter(
     """
     from treepeat.config import get_settings
     from treepeat.pipeline.parse import parse_file
-    from treepeat.pipeline.shingle import ASTShingler
     from treepeat.pipeline.rules_factory import build_rule_engine
+    from treepeat.pipeline.shingle import ASTShingler
 
     ruleset = ctx.obj["ruleset"]
     _configure_settings(ruleset, 1.0, 5, "", "**/.*ignore")

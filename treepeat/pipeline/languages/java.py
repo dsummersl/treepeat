@@ -1,4 +1,5 @@
 from treepeat.pipeline.rules.models import Rule, RuleAction
+
 from .base import LanguageConfig, RegionExtractionRule
 
 
@@ -51,7 +52,10 @@ class JavaConfig(LanguageConfig):
             Rule(
                 name="Anonymize literals",
                 languages=["java"],
-                query="[(string_literal) (decimal_integer_literal) (decimal_floating_point_literal) (null_literal)] @lit",
+                query=(
+                    "[(string_literal) (decimal_integer_literal) "
+                    "(decimal_floating_point_literal) (null_literal)] @lit"
+                ),
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),

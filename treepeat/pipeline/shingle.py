@@ -11,10 +11,10 @@ from treepeat.models.ast import ParsedFile, ParseResult
 from treepeat.models.normalization import NodeRepresentation, SkipNode
 from treepeat.models.shingle import (
     Shingle,
-    ShingledRegion,
-    ShingleResult,
-    ShingleList,
     ShingledFile,
+    ShingledRegion,
+    ShingleList,
+    ShingleResult,
 )
 from treepeat.pipeline.region_extraction import ExtractedRegion
 from treepeat.pipeline.rules.engine import RuleEngine
@@ -146,9 +146,9 @@ class ASTShingler:
         value = self._extract_node_value(node, source)
         try:
             name, value = self._apply_rules(node, name, value, language, source, root)
-        except SkipNodeException:
+        except SkipNodeException as sne:
             # Convert to SkipNode for compatibility with existing code
-            raise SkipNode(f"Node type '{name}' skipped by rule")
+            raise SkipNode(f"Node type '{name}' skipped by rule") from sne
         return NodeRepresentation(name=name, value=value)
 
     def _extract_shingles(

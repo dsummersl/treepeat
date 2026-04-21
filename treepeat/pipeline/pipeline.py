@@ -7,9 +7,9 @@ from treepeat.models.ast import ParsedFile, ParseResult
 from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import (
     RegionSignature,
+    SimilarityResult,
     SimilarRegionGroup,
     SimilarRegionPair,
-    SimilarityResult,
 )
 from treepeat.pipeline.lsh_stage import detect_similarity
 from treepeat.pipeline.minhash_stage import compute_region_signatures

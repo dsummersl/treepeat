@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from treepeat.models.similarity import Region
-from ..conftest import parsed_fixture, assert_regions_in_same_group
 import pytest
 
 from treepeat.config import (
@@ -12,13 +10,14 @@ from treepeat.config import (
     ShingleSettings,
     set_settings,
 )
+from treepeat.models.similarity import Region
 from treepeat.pipeline.lsh_stage import detect_similarity
 from treepeat.pipeline.minhash_stage import compute_region_signatures
 from treepeat.pipeline.pipeline import run_pipeline
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.shingle import shingle_regions
-from ..conftest import default_rule_engine
 
+from ..conftest import assert_regions_in_same_group, default_rule_engine, parsed_fixture
 
 fixture_class_with_methods = (
     Path(__file__).parent.parent / "fixtures" / "python" / "class_with_methods.py"
@@ -253,4 +252,5 @@ def test_match_counts(ruleset, path, similarity_threshold, similar_groups, expec
 
     assert len(result.similar_groups) == similar_groups
     for region1, region2 in expected_regions:
-        assert_regions_in_same_group(result, region1, region2).similarity > similarity_threshold
+        group = assert_regions_in_same_group(result, region1, region2)
+        assert group.similarity > similarity_threshold

@@ -1,13 +1,11 @@
-from typing import Any, Callable, Optional
-
 from collections import defaultdict
-from typing import DefaultDict, Iterable
+from typing import Any, Callable, DefaultDict, Iterable, Optional
 
 from tree_sitter import Node, Query, QueryCursor
 from tree_sitter_language_pack import get_language
 
-from .models import Rule, RuleAction, SkipNodeException
 from ..languages import LANGUAGE_CONFIGS
+from .models import Rule, RuleAction, SkipNodeException
 
 
 def _extract_node_text(node: Node, source: bytes) -> str:
@@ -322,9 +320,9 @@ class RuleEngine:
         cursor = QueryCursor(query)
         matching_nodes = []
 
-        for match_id, captures_dict in cursor.matches(root_node):
+        for _match_id, captures_dict in cursor.matches(root_node):
             # Collect all captured nodes from this match
-            for capture_name, nodes in captures_dict.items():
+            for _capture_name, nodes in captures_dict.items():
                 matching_nodes.extend(nodes)
 
         return matching_nodes
@@ -353,7 +351,7 @@ def build_default_rules() -> list[tuple[Rule, str]]:
     rules = []
     rules.extend(build_region_extraction_rules())
 
-    for lang_name, lang_config in LANGUAGE_CONFIGS.items():
+    for _lang_name, lang_config in LANGUAGE_CONFIGS.items():
         for rule in lang_config.get_default_rules():
             rules.append((rule, rule.name))
 
@@ -365,7 +363,7 @@ def build_loose_rules() -> list[tuple[Rule, str]]:
     rules = []
     rules.extend(build_region_extraction_rules())
 
-    for lang_name, lang_config in LANGUAGE_CONFIGS.items():
+    for _lang_name, lang_config in LANGUAGE_CONFIGS.items():
         # Respect the order defined in the config (loose rules include default)
         for rule in lang_config.get_loose_rules():
             rules.append((rule, rule.name))
