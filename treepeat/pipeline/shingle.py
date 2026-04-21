@@ -57,32 +57,33 @@ class ASTShingler:
             shingles=ShingleList(shingles=shingles),
         )
 
+    def _shingle_injected_region(self, extracted_region: ExtractedRegion) -> list[Shingle]:
+        # injected_language and injected_source are always set when injected_tree is set
+        return self._extract_shingles(
+            extracted_region.injected_tree.root_node,  # type: ignore[union-attr]
+            extracted_region.injected_language,  # type: ignore[arg-type]
+            extracted_region.injected_source,  # type: ignore[arg-type]
+        )
+
+    def _shingle_section_region(
+        self, nodes: list[Node], language: str, source: bytes
+    ) -> list[Shingle]:
+        all_shingles: list[Shingle] = []
+        for node in nodes:
+            all_shingles.extend(self._extract_shingles(node, language, source))
+        return all_shingles
+
     def shingle_region(self, extracted_region: ExtractedRegion, source: bytes) -> ShingledRegion:
         region = extracted_region.region
 
         if extracted_region.injected_tree is not None:
-            # Language-injected region: shingle the re-parsed sub-tree using
-            # the target language's normalization rules.  This produces the same
-            # shingle hashes as identical code in a standalone source file.
-            assert extracted_region.injected_language is not None
-            assert extracted_region.injected_source is not None
-            shingles = self._extract_shingles(
-                extracted_region.injected_tree.root_node,
-                extracted_region.injected_language,
-                extracted_region.injected_source,
-            )
+            shingles = self._shingle_injected_region(extracted_region)
         elif extracted_region.nodes is not None:
-            # Multiple nodes (section regions)
-            all_shingles: list[Shingle] = []
-            for node in extracted_region.nodes:
-                node_shingles = self._extract_shingles(node, region.language, source)
-                all_shingles.extend(node_shingles)
-            shingles = all_shingles
+            shingles = self._shingle_section_region(extracted_region.nodes, region.language, source)
         else:
-            # Single node region (target regions like functions/classes or line-based regions)
-            # For line-based regions, we need to filter nodes by line range
-            start_line = region.start_line if region.region_type == "lines" else None
-            end_line = region.end_line if region.region_type == "lines" else None
+            start_line, end_line = (
+                (region.start_line, region.end_line) if region.region_type == "lines" else (None, None)
+            )
             shingles = self._extract_shingles(
                 extracted_region.node,
                 region.language,
@@ -239,6 +240,7 @@ def _shingle_single_region(
     shingler: ASTShingler,
 ) -> ShingledRegion | None:
     # Injected regions carry their own source bytes; other regions look up by path.
+    source: bytes | None
     if extracted_region.injected_source is not None:
         source = extracted_region.injected_source
     else:

@@ -97,6 +97,24 @@ def _collect_all_matching_nodes(
     return matching_nodes
 
 
+def _extract_injection_bytes(
+    node: Node,
+    rule: Rule,
+    parsed_file: ParsedFile,
+    rule_engine: RuleEngine,
+) -> tuple[bytes, int] | None:
+    """Return (content_bytes, line_offset) for injection, or None if unavailable."""
+    if rule.injection_content_query:
+        content_nodes = rule_engine.get_nodes_matching_query(
+            node, rule.injection_content_query, parsed_file.language
+        )
+        if not content_nodes:
+            return None
+        content_node = content_nodes[0]
+        return parsed_file.source[content_node.start_byte : content_node.end_byte], content_node.start_point[0]
+    return parsed_file.source[node.start_byte : node.end_byte], node.start_point[0]
+
+
 def _do_language_injection(
     node: Node,
     rule: Rule,
@@ -122,35 +140,21 @@ def _do_language_injection(
     """
     from tree_sitter_language_pack import get_parser
 
-    # Resolve the injection language (static string or dynamic callable)
     target_lang = rule.resolve_injection_language(node, parsed_file.source)
     if not target_lang:
         return None
 
-    # Extract the content bytes to inject
-    if rule.injection_content_query:
-        content_nodes = rule_engine.get_nodes_matching_query(
-            node, rule.injection_content_query, parsed_file.language
-        )
-        if not content_nodes:
-            return None
-        content_node = content_nodes[0]
-        content_bytes = parsed_file.source[content_node.start_byte : content_node.end_byte]
-        line_offset = content_node.start_point[0]
-    else:
-        content_bytes = parsed_file.source[node.start_byte : node.end_byte]
-        line_offset = node.start_point[0]
+    result = _extract_injection_bytes(node, rule, parsed_file, rule_engine)
+    if result is None:
+        return None
+    content_bytes, line_offset = result
 
     if not content_bytes.strip():
         return None
 
     # Pad with blank lines so injected row R maps to original line R + 1.
-    # Nodes whose text already starts with a newline (e.g. Astro's
-    # frontmatter_js_block) get zero padding (line_offset == 0) and remain
-    # naturally aligned.
     padded = b"\n" * line_offset + content_bytes
 
-    # Re-parse as the target language
     try:
         parser = get_parser(target_lang)  # type: ignore[arg-type]
         injected_tree = parser.parse(padded)
@@ -207,6 +211,19 @@ def _create_target_region(
     return ExtractedRegion(region=region, node=node)
 
 
+def _create_region_for_node(
+    node: Node,
+    region_type: str,
+    rule: Rule | None,
+    parsed_file: ParsedFile,
+    rule_engine: "RuleEngine",
+) -> ExtractedRegion | None:
+    """Return an ExtractedRegion for a matched node, using injection when applicable."""
+    if rule is not None and rule.injection_language is not None:
+        return _do_language_injection(node, rule, parsed_file, rule_engine)
+    return _create_target_region(node, region_type, parsed_file)
+
+
 def extract_regions(
     parsed_file: ParsedFile,
     rule_engine: "RuleEngine",
@@ -217,11 +234,9 @@ def extract_regions(
     """
     logger.debug("Extracting explicit regions from %s (%s)", parsed_file.path, parsed_file.language)
 
-    # Get region mappings from the rule engine
     mappings = _get_region_mappings_from_engine(rule_engine, parsed_file.language)
 
     if not mappings:
-        # No explicit rules for this language - log warning and skip file
         logger.warning(
             "No region extraction rules for language %s. Skipping file %s.",
             parsed_file.language,
@@ -229,20 +244,15 @@ def extract_regions(
         )
         return []
 
-    # Recursive extraction: find ALL matching nodes (methods, nested functions, etc.)
     matching_nodes_list = _collect_all_matching_nodes(
         parsed_file.root_node, mappings, parsed_file.language, rule_engine
     )
     regions = []
     for node, region_type, rule in matching_nodes_list:
-        if rule is not None and rule.injection_language is not None:
-            injected = _do_language_injection(node, rule, parsed_file, rule_engine)
-            if injected is not None:
-                regions.append(injected)
-                continue
-        regions.append(_create_target_region(node, region_type, parsed_file))
+        region = _create_region_for_node(node, region_type, rule, parsed_file, rule_engine)
+        if region is not None:
+            regions.append(region)
 
-    # Record used node types for verbose output
     for region in regions:
         record_used_node_type(parsed_file.language, region.region.region_type)
 
