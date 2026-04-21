@@ -60,4 +60,13 @@ class AstroConfig(LanguageConfig):
                 target_language="typescript",
                 content_query="(frontmatter_js_block) @content",
             ),
+            # Each top-level element in the document is the HTML template
+            # (or the entire file content for template-only components).
+            # Shingled with the Astro grammar so that Astro normalisation rules
+            # (comment removal, tag/attr anonymisation) apply, enabling
+            # structural similarity detection across Astro templates.
+            RegionExtractionRule(
+                query="(document (element) @region)",
+                label="template",
+            ),
         ]

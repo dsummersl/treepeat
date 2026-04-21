@@ -232,12 +232,15 @@ def test_template_only_no_frontmatter_region_extracted():
     assert not frontmatter_regions
 
 
-def test_template_only_yields_no_regions():
-    """A template-only Astro file produces no extracted regions at all."""
+def test_template_only_yields_template_region_not_frontmatter():
+    """A template-only Astro file produces a template region but no frontmatter region."""
     parsed = parse_file(fixture_template_only)
     engine = RuleEngine([r for r, _ in build_default_rules()])
     regions = extract_all_regions([parsed], engine)
-    assert regions == []
+
+    region_types = {r.region.region_type for r in regions}
+    assert "template" in region_types
+    assert "frontmatter" not in region_types
 
 
 def test_template_only_extract_all_regions_does_not_raise():
@@ -246,4 +249,100 @@ def test_template_only_extract_all_regions_does_not_raise():
     engine = RuleEngine([r for r, _ in build_loose_rules()])
     regions = extract_all_regions([parsed], engine)  # must not raise
     assert isinstance(regions, list)
+
+
+# ---------------------------------------------------------------------------
+# Template region extraction
+# ---------------------------------------------------------------------------
+
+
+def test_template_rule_registered():
+    """AstroConfig declares a 'template' region extraction rule."""
+    labels = [r.label for r in AstroConfig().get_region_extraction_rules()]
+    assert "template" in labels
+
+
+@pytest.mark.parametrize("fixture", [fixture_one, fixture_two, fixture_template_only])
+def test_template_region_extracted(fixture):
+    """Every Astro file (with or without frontmatter) yields at least one template region."""
+    parsed = parse_file(fixture)
+    engine = RuleEngine([r for r, _ in build_default_rules()])
+    regions = extract_all_regions([parsed], engine)
+
+    template_regions = [r for r in regions if r.region.region_type == "template"]
+    assert template_regions, f"No template region extracted from {fixture.name}"
+
+
+@pytest.mark.parametrize("fixture", [fixture_one, fixture_two, fixture_template_only])
+def test_template_region_not_injected(fixture):
+    """Template regions use the Astro grammar directly (no language injection)."""
+    parsed = parse_file(fixture)
+    engine = RuleEngine([r for r, _ in build_default_rules()])
+    regions = extract_all_regions([parsed], engine)
+
+    for r in regions:
+        if r.region.region_type == "template":
+            assert r.injected_tree is None
+            assert r.injected_language is None
+
+
+def test_template_region_line_numbers_component():
+    """Template region in one.astro spans the <Layout> element (after the frontmatter)."""
+    parsed = parse_file(fixture_one)
+    engine = RuleEngine([r for r, _ in build_default_rules()])
+    regions = extract_all_regions([parsed], engine)
+
+    tmpl = next(r for r in regions if r.region.region_type == "template")
+    assert tmpl.region.start_line == 22
+    assert tmpl.region.end_line == 27
+
+
+def test_template_region_line_numbers_template_only():
+    """Template region in template_only.astro starts at line 1."""
+    parsed = parse_file(fixture_template_only)
+    engine = RuleEngine([r for r, _ in build_default_rules()])
+    regions = extract_all_regions([parsed], engine)
+
+    tmpl = next(r for r in regions if r.region.region_type == "template")
+    assert tmpl.region.start_line == 1
+
+
+def test_template_region_language_is_astro():
+    """Template region metadata records the file language as 'astro'."""
+    parsed = parse_file(fixture_one)
+    engine = RuleEngine([r for r, _ in build_default_rules()])
+    regions = extract_all_regions([parsed], engine)
+
+    tmpl = next(r for r in regions if r.region.region_type == "template")
+    assert tmpl.region.language == "astro"
+
+
+def test_template_shingles_overlap_between_similar_components():
+    """one.astro and two.astro have structurally identical templates; their
+    shingles must overlap so treepeat flags them as similar.
+    """
+    from treepeat.pipeline.shingle import ASTShingler
+
+    rules = [r for r, _ in build_loose_rules()]
+
+    def template_shingle_set(fixture: Path) -> set[str]:
+        engine = RuleEngine(rules)
+        shingler = ASTShingler(rule_engine=engine, k=3)
+        parsed = parse_file(fixture)
+        regions = extract_all_regions([parsed], engine)
+        tmpl = next(r for r in regions if r.region.region_type == "template")
+        engine.reset_identifiers()
+        engine.precompute_queries(tmpl.node, "astro", parsed.source)
+        shingled = shingler.shingle_region(tmpl, parsed.source)
+        return {s.content for s in shingled.shingles.shingles}
+
+    shingles_one = template_shingle_set(fixture_one)
+    shingles_two = template_shingle_set(fixture_two)
+
+    assert shingles_one, "No shingles from one.astro template"
+    assert shingles_two, "No shingles from two.astro template"
+    assert shingles_one & shingles_two, (
+        "one.astro and two.astro have identical template structures "
+        "but share no common shingles"
+    )
 
