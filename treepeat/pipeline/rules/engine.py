@@ -302,6 +302,18 @@ class RuleEngine:
                     region_rules.append((rule.query, region_type))
         return region_rules
 
+    def get_region_extraction_rule_objects(self, language: str) -> list[Rule]:
+        """Get the full Rule objects for all EXTRACT_REGION rules of a language.
+
+        Used by the region extractor to access injection metadata
+        (injection_language, injection_content_query).
+        """
+        return [
+            rule
+            for rule in self.rules
+            if rule.action == RuleAction.EXTRACT_REGION and rule.matches_language(language)
+        ]
+
     def get_nodes_matching_query(
         self, root_node: Node, query_str: str, language: str
     ) -> list[Node]:
@@ -323,16 +335,14 @@ def build_region_extraction_rules() -> list[tuple[Rule, str]]:
     rules = []
     for lang_name, lang_config in LANGUAGE_CONFIGS.items():
         for region_rule in lang_config.get_region_extraction_rules():
-            # Create a query-based Rule from RegionExtractionRule
-            # Use the query directly from the region rule
             rule = Rule(
                 name=f"Extract {region_rule.label} regions for {lang_name}",
                 languages=[lang_name],
                 query=region_rule.query,
                 action=RuleAction.EXTRACT_REGION,
-                params={
-                    "region_type": region_rule.label,
-                },
+                params={"region_type": region_rule.label},
+                injection_language=region_rule.target_language,
+                injection_content_query=region_rule.content_query,
             )
             rules.append((rule, rule.name))
     return rules

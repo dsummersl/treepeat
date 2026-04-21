@@ -60,8 +60,19 @@ class ASTShingler:
     def shingle_region(self, extracted_region: ExtractedRegion, source: bytes) -> ShingledRegion:
         region = extracted_region.region
 
-        # If region has multiple nodes (section regions), extract shingles from all
-        if extracted_region.nodes is not None:
+        if extracted_region.injected_tree is not None:
+            # Language-injected region: shingle the re-parsed sub-tree using
+            # the target language's normalization rules.  This produces the same
+            # shingle hashes as identical code in a standalone source file.
+            assert extracted_region.injected_language is not None
+            assert extracted_region.injected_source is not None
+            shingles = self._extract_shingles(
+                extracted_region.injected_tree.root_node,
+                extracted_region.injected_language,
+                extracted_region.injected_source,
+            )
+        elif extracted_region.nodes is not None:
+            # Multiple nodes (section regions)
             all_shingles: list[Shingle] = []
             for node in extracted_region.nodes:
                 node_shingles = self._extract_shingles(node, region.language, source)
@@ -227,7 +238,12 @@ def _shingle_single_region(
     path_to_source: dict[Path, bytes],
     shingler: ASTShingler,
 ) -> ShingledRegion | None:
-    source = path_to_source.get(extracted_region.region.path)
+    # Injected regions carry their own source bytes; other regions look up by path.
+    if extracted_region.injected_source is not None:
+        source = extracted_region.injected_source
+    else:
+        source = path_to_source.get(extracted_region.region.path)
+
     if source is None:
         logger.error(
             "Source not found for region %s in %s",
@@ -237,14 +253,22 @@ def _shingle_single_region(
         return None
 
     # Reset identifier counter for each region to ensure consistent anonymization
-    # This allows identical functions to get the same anonymized variable names
     shingler.rule_engine.reset_identifiers()
 
-    # Pre-execute all queries for this region to populate the cache upfront
-    # This is a performance optimization to avoid lazy query execution during traversal
-    shingler.rule_engine.precompute_queries(
-        extracted_region.node, extracted_region.region.language, source
-    )
+    # Pre-execute all queries upfront to populate the cache.
+    # For injected regions use the injected tree + language so that the target
+    # language's normalization rules are applied during traversal.
+    if extracted_region.injected_tree is not None:
+        assert extracted_region.injected_language is not None
+        shingler.rule_engine.precompute_queries(
+            extracted_region.injected_tree.root_node,
+            extracted_region.injected_language,
+            source,
+        )
+    else:
+        shingler.rule_engine.precompute_queries(
+            extracted_region.node, extracted_region.region.language, source
+        )
 
     return shingler.shingle_region(extracted_region, source)
 

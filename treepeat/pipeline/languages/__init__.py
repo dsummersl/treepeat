@@ -63,4 +63,5 @@ __all__ = [
     "RustConfig",
     "GoConfig",
     "MarkdownConfig",
+    "AstroConfig",
 ]
