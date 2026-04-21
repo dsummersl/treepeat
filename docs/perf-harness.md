@@ -115,7 +115,7 @@ in `ignore_dirs`.
 **Per-stage counts** (parsed from INFO log output):
 `parse_succeeded`, `regions_extracted`, `regions_to_shingle`,
 `regions_shingled`, `signatures`, `groups_found`, `candidate_pairs`.
-`candidate_pairs` is the total number of region pairs entering LCS verification
+`candidate_pairs` is the total number of region pairs entering ordered-similarity verification
 (sum of C(|group|, 2) over all candidate groups); it distinguishes
 false-candidate-explosion (large value relative to N) from raw-scale slowness.
 

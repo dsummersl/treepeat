@@ -1,5 +1,6 @@
 import logging
 import sys
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -18,34 +19,16 @@ logger = logging.getLogger(__name__)
 SOURCE_VERIFICATION_THRESHOLD = 0.98
 
 
-def _compute_lcs_length(shingles1: list[str], shingles2: list[str]) -> int:
-    """Compute longest common subsequence length using dynamic programming."""
-    m, n = len(shingles1), len(shingles2)
-    dp = [[0] * (n + 1) for _ in range(m + 1)]
-
-    for i in range(1, m + 1):
-        for j in range(1, n + 1):
-            if shingles1[i - 1] == shingles2[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1] + 1
-            else:
-                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-
-    return dp[m][n]
-
-
-def _normalize_similarity(lcs_length: int, len1: int, len2: int) -> float:
-    """Normalize LCS length to similarity score."""
-    avg_length = (len1 + len2) / 2
-    return lcs_length / avg_length if avg_length > 0 else 0.0
-
-
 def _compute_ordered_similarity(shingles1: list[str], shingles2: list[str]) -> float:
-    """Compute order-sensitive similarity between two shingle lists using LCS."""
+    """Compute order-sensitive similarity between two shingle lists.
+
+    Uses Ratcliff/Obershelp (contiguous matching blocks) via SequenceMatcher,
+    which is C-implemented and far faster than a pure-Python LCS DP table.
+    autojunk=False ensures common shingles are never silently skipped.
+    """
     if not shingles1 or not shingles2:
         return 0.0
-
-    lcs_length = _compute_lcs_length(shingles1, shingles2)
-    return _normalize_similarity(lcs_length, len(shingles1), len(shingles2))
+    return SequenceMatcher(None, shingles1, shingles2, autojunk=False).ratio()
 
 
 def _read_source_lines(file_path: Path, start_line: int, end_line: int) -> list[str]:
@@ -71,9 +54,7 @@ def _compute_source_similarity(
     if not lines1 or not lines2:
         return 0.0
 
-    # Use LCS on actual source lines
-    lcs_length = _compute_lcs_length(lines1, lines2)
-    return _normalize_similarity(lcs_length, len(lines1), len(lines2))
+    return SequenceMatcher(None, lines1, lines2, autojunk=False).ratio()
 
 
 def _check_signature_match(
@@ -187,8 +168,8 @@ def verify_similar_groups(
 ) -> list["SimilarRegionGroup"]:
     """Verify candidate groups using order-sensitive similarity.
 
-    For each group, recalculates similarity using pairwise LCS comparison
-    to ensure matches respect line order (not just set similarity).
+    For each group, recalculates similarity using pairwise SequenceMatcher
+    comparison to ensure matches respect line order (not just set similarity).
     """
     logger.info("Verifying %d candidate group(s) with order-sensitive similarity", len(groups))
 
