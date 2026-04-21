@@ -216,10 +216,16 @@ def _create_region_for_node(
     rule: Rule | None,
     parsed_file: ParsedFile,
     rule_engine: "RuleEngine",
-) -> ExtractedRegion | None:
-    """Return an ExtractedRegion for a matched node, using injection when applicable."""
+) -> ExtractedRegion:
+    """Return an ExtractedRegion for a matched node, using injection when applicable.
+
+    If injection is configured but fails (e.g. empty block or unknown language),
+    falls back to a plain target region so the block is not silently dropped.
+    """
     if rule is not None and rule.injection_language is not None:
-        return _do_language_injection(node, rule, parsed_file, rule_engine)
+        injected = _do_language_injection(node, rule, parsed_file, rule_engine)
+        if injected is not None:
+            return injected
     return _create_target_region(node, region_type, parsed_file)
 
 
@@ -248,9 +254,7 @@ def extract_regions(
     )
     regions = []
     for node, region_type, rule in matching_nodes_list:
-        region = _create_region_for_node(node, region_type, rule, parsed_file, rule_engine)
-        if region is not None:
-            regions.append(region)
+        regions.append(_create_region_for_node(node, region_type, rule, parsed_file, rule_engine))
 
     for region in regions:
         record_used_node_type(parsed_file.language, region.region.region_type)
