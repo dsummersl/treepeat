@@ -177,3 +177,46 @@ def test_embedded_shingles_overlap_with_standalone(embedded_lang, standalone_pat
         f"Markdown {embedded_lang!r} block and standalone {standalone_lang!r} file "
         f"share no common shingles — similarity detection would miss this pair"
     )
+
+
+# ---------------------------------------------------------------------------
+# Unknown language guard
+# ---------------------------------------------------------------------------
+
+
+def test_unknown_language_skips_injection_and_warns(caplog):
+    """A fenced code block with an unsupported language tag produces no injection
+    and emits a warning naming the unknown language.
+    """
+    import logging
+
+    from tree_sitter_language_pack import get_parser
+
+    from treepeat.pipeline.languages.markdown import _resolve_code_block_language
+
+    source = b"```ruby\nputs 'hello'\n```\n"
+    parser = get_parser("markdown")
+    tree = parser.parse(source)
+
+    fenced_node = next(
+        (n for n in tree.root_node.children if n.type == "fenced_code_block"),
+        None,
+    )
+    # tree-sitter-markdown may nest the block inside a section; walk one level deeper if needed
+    if fenced_node is None:
+        for child in tree.root_node.children:
+            fenced_node = next(
+                (n for n in child.children if n.type == "fenced_code_block"), None
+            )
+            if fenced_node is not None:
+                break
+
+    assert fenced_node is not None, "Could not find fenced_code_block node in parsed tree"
+
+    with caplog.at_level(logging.WARNING, logger="treepeat.pipeline.languages.markdown"):
+        result = _resolve_code_block_language(fenced_node, source)
+
+    assert result == "", f"Expected '' for unsupported language 'ruby', got {result!r}"
+    assert any("ruby" in msg for msg in caplog.messages), (
+        "Expected a warning mentioning 'ruby' for the unsupported language"
+    )

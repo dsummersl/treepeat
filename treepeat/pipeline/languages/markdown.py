@@ -1,8 +1,12 @@
+import logging
+
 from tree_sitter import Node
 
 from treepeat.pipeline.rules.models import Rule
 
 from .base import LanguageConfig, RegionExtractionRule
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_code_block_language(node: Node, source: bytes) -> str:
@@ -14,14 +18,25 @@ def _resolve_code_block_language(node: Node, source: bytes) -> str:
     rule so that each block is injected and shingled using its own language's
     normalization rules.
 
-    Returns an empty string when no language tag is present; the injection
-    mechanism treats an empty string as "no injection".
+    Returns an empty string when no language tag is present or the declared
+    language is not supported; the injection mechanism treats an empty string
+    as "no injection".
     """
     for child in node.children:
         if child.type == "info_string":
             lang_text = source[child.start_byte : child.end_byte].decode("utf-8", errors="ignore").strip()
+            if not lang_text:
+                return ""
             # Language identifiers may have extra text (e.g. "python title='foo'")
-            return lang_text.split()[0].lower() if lang_text else ""
+            lang = lang_text.split()[0].lower()
+            from treepeat.pipeline.languages import LANGUAGE_CONFIGS  # lazy import avoids circular import
+            if lang not in LANGUAGE_CONFIGS:
+                logger.warning(
+                    "Markdown code block declares unsupported language %r; skipping injection",
+                    lang,
+                )
+                return ""
+            return lang
     return ""
 
 
