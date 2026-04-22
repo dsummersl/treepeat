@@ -4,18 +4,12 @@ from collections import deque
 from pathlib import Path
 from typing import Iterable, cast
 
-from tqdm import tqdm  # type: ignore[import-untyped]
+from tqdm import tqdm
 from tree_sitter import Node
 
-from treepeat.models.ast import ParsedFile, ParseResult
+from treepeat.models.ast import ParsedFile
 from treepeat.models.normalization import NodeRepresentation, SkipNode
-from treepeat.models.shingle import (
-    Shingle,
-    ShingledFile,
-    ShingledRegion,
-    ShingleList,
-    ShingleResult,
-)
+from treepeat.models.shingle import Shingle, ShingledRegion, ShingleList
 from treepeat.pipeline.region_extraction import ExtractedRegion
 from treepeat.pipeline.rules.engine import RuleEngine
 from treepeat.pipeline.rules.models import SkipNodeException
@@ -37,41 +31,39 @@ class ASTShingler:
         self.rule_engine = rule_engine
         self.k = k
 
-    def shingle_file(self, parsed_file: ParsedFile) -> ShingledFile:
-        shingles = self._extract_shingles(
-            parsed_file.root_node,
-            parsed_file.language,
-            parsed_file.source,
+    def _shingle_injected_region(self, extracted_region: ExtractedRegion) -> list[Shingle]:
+        injected_tree = extracted_region.injected_tree
+        injected_language = extracted_region.injected_language
+        injected_source = extracted_region.injected_source
+
+        assert injected_tree is not None, "injected_tree must be set for injected regions"
+        assert injected_language is not None and injected_source is not None, (
+            "injected_language and injected_source must be set when injected_tree is set"
         )
 
-        logger.debug(
-            "Extracted %d shingle(s) from %s (k=%d)",
-            len(shingles),
-            parsed_file.path,
-            self.k,
+        return self._extract_shingles(
+            injected_tree.root_node,
+            injected_language,
+            injected_source,
         )
 
-        return ShingledFile(
-            path=parsed_file.path,
-            language=parsed_file.language,
-            shingles=ShingleList(shingles=shingles),
-        )
+    def _shingle_section_region(self, nodes: list[Node], language: str, source: bytes) -> list[Shingle]:
+        all_shingles: list[Shingle] = []
+        for node in nodes:
+            all_shingles.extend(self._extract_shingles(node, language, source))
+        return all_shingles
 
     def shingle_region(self, extracted_region: ExtractedRegion, source: bytes) -> ShingledRegion:
         region = extracted_region.region
 
-        # If region has multiple nodes (section regions), extract shingles from all
-        if extracted_region.nodes is not None:
-            all_shingles: list[Shingle] = []
-            for node in extracted_region.nodes:
-                node_shingles = self._extract_shingles(node, region.language, source)
-                all_shingles.extend(node_shingles)
-            shingles = all_shingles
+        if extracted_region.injected_tree is not None:
+            shingles = self._shingle_injected_region(extracted_region)
+        elif extracted_region.nodes is not None:
+            shingles = self._shingle_section_region(extracted_region.nodes, region.language, source)
         else:
-            # Single node region (target regions like functions/classes or line-based regions)
-            # For line-based regions, we need to filter nodes by line range
-            start_line = region.start_line if region.region_type == "lines" else None
-            end_line = region.end_line if region.region_type == "lines" else None
+            start_line, end_line = (
+                (region.start_line, region.end_line) if region.region_type == "lines" else (None, None)
+            )
             shingles = self._extract_shingles(
                 extracted_region.node,
                 region.language,
@@ -195,39 +187,18 @@ class ASTShingler:
         return shingles
 
 
-def shingle_files(
-    parse_result: ParseResult,
-    rule_engine: RuleEngine,
-    k: int = 3,
-) -> ShingleResult:
-    logger.info("Shingling %d file(s) with k=%d", len(parse_result.parsed_files), k)
-
-    shingler = ASTShingler(rule_engine=rule_engine, k=k)
-    shingled_files = []
-
-    for parsed_file in parse_result.parsed_files:
-        try:
-            shingled_file = shingler.shingle_file(parsed_file)
-            shingled_files.append(shingled_file)
-        except Exception as e:
-            logger.warning("Failed to shingle %s: %s", parsed_file.path, e)
-
-    logger.info(
-        "Shingling complete: %d succeeded",
-        len(shingled_files),
-    )
-
-    return ShingleResult(
-        shingled_files=shingled_files,
-    )
-
-
 def _shingle_single_region(
     extracted_region: ExtractedRegion,
     path_to_source: dict[Path, bytes],
     shingler: ASTShingler,
 ) -> ShingledRegion | None:
-    source = path_to_source.get(extracted_region.region.path)
+    # Injected regions carry their own source bytes; other regions look up by path.
+    source: bytes | None
+    if extracted_region.injected_source is not None:
+        source = extracted_region.injected_source
+    else:
+        source = path_to_source.get(extracted_region.region.path)
+
     if source is None:
         logger.error(
             "Source not found for region %s in %s",
@@ -237,14 +208,20 @@ def _shingle_single_region(
         return None
 
     # Reset identifier counter for each region to ensure consistent anonymization
-    # This allows identical functions to get the same anonymized variable names
     shingler.rule_engine.reset_identifiers()
 
-    # Pre-execute all queries for this region to populate the cache upfront
-    # This is a performance optimization to avoid lazy query execution during traversal
-    shingler.rule_engine.precompute_queries(
-        extracted_region.node, extracted_region.region.language, source
-    )
+    # Pre-execute all queries upfront to populate the cache.
+    # For injected regions use the injected tree + language so that the target
+    # language's normalization rules are applied during traversal.
+    if extracted_region.injected_tree is not None:
+        assert extracted_region.injected_language is not None
+        shingler.rule_engine.precompute_queries(
+            extracted_region.injected_tree.root_node,
+            extracted_region.injected_language,
+            source,
+        )
+    else:
+        shingler.rule_engine.precompute_queries(extracted_region.node, extracted_region.region.language, source)
 
     return shingler.shingle_region(extracted_region, source)
 

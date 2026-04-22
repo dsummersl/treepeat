@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Hashable
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
-from tqdm import tqdm  # type: ignore[import-untyped]
+from tqdm import tqdm
 
 from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import (

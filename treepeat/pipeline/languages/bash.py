@@ -6,9 +6,6 @@ from .base import LanguageConfig, RegionExtractionRule
 class BashConfig(LanguageConfig):
     """Configuration for Bash language."""
 
-    def get_language_name(self) -> str:
-        return "bash"
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

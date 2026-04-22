@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from tqdm import tqdm  # type: ignore[import-untyped]
+from tqdm import tqdm
 
 from treepeat.models.shingle import ShingledRegion
 
@@ -41,20 +41,6 @@ def _read_source_lines(file_path: Path, start_line: int, end_line: int) -> list[
     except Exception as e:
         logger.warning("Failed to read source from %s: %s", file_path, e)
         return []
-
-
-def _compute_source_similarity(
-    file_path1: Path, start_line1: int, end_line1: int,
-    file_path2: Path, start_line2: int, end_line2: int
-) -> float:
-    """Compute similarity between two regions based on their actual source text."""
-    lines1 = _read_source_lines(file_path1, start_line1, end_line1)
-    lines2 = _read_source_lines(file_path2, start_line2, end_line2)
-
-    if not lines1 or not lines2:
-        return 0.0
-
-    return SequenceMatcher(None, lines1, lines2, autojunk=False).ratio()
 
 
 def _check_signature_match(

@@ -35,26 +35,6 @@ class RegionSignature(BaseModel):
     shingle_count: int = Field(description="Number of shingles used to create signature")
 
 
-class SimilarRegionPair(BaseModel):
-    """A pair of similar regions with their similarity score."""
-
-    region1: Region = Field(description="First region")
-    region2: Region = Field(description="Second region")
-    similarity: float = Field(
-        ge=0.0, le=1.0, description="Estimated Jaccard similarity (0.0 to 1.0)"
-    )
-
-    @property
-    def is_self_similarity(self) -> bool:
-        """True if both regions are from the same file."""
-        return self.region1.path == self.region2.path
-
-    def __repr__(self) -> str:
-        return (
-            f"SimilarRegionPair({self.region1!r} ↔ {self.region2!r} {self.similarity:.2%} similar)"
-        )
-
-
 class SimilarRegionGroup(BaseModel):
     """A group of similar regions with their similarity score."""
 
@@ -92,11 +72,6 @@ class SimilarityResult(BaseModel):
     )
 
     @property
-    def total_regions(self) -> int:
-        """Total number of regions processed."""
-        return len(self.signatures)
-
-    @property
     def total_files(self) -> int:
         """Total number of unique files processed."""
         files = {sig.region.path for sig in self.signatures}
@@ -106,11 +81,6 @@ class SimilarityResult(BaseModel):
     def success_count(self) -> int:
         """Number of successfully processed regions."""
         return len(self.signatures)
-
-    @property
-    def group_count(self) -> int:
-        """Number of similar groups found."""
-        return len(self.similar_groups)
 
     @property
     def self_similarity_count(self) -> int:

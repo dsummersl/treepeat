@@ -177,19 +177,6 @@ def _run_pipeline_with_ui(path: Path, output_format: str, progress: bool = False
         return run_pipeline(path, progress=False)
 
 
-def _group_signatures_by_file(
-    signatures: list[RegionSignature],
-) -> dict[Path, list[RegionSignature]]:
-    """Group region signatures by file path."""
-    regions_by_file: dict[Path, list[RegionSignature]] = {}
-    for sig in signatures:
-        path = sig.region.path
-        if path not in regions_by_file:
-            regions_by_file[path] = []
-        regions_by_file[path].append(sig)
-    return regions_by_file
-
-
 def _get_group_sort_key(group: SimilarRegionGroup) -> tuple[float, float]:
     """Get sort key for a similarity group by similarity and average line count."""
     avg_lines = sum(r.end_line - r.start_line + 1 for r in group.regions) / len(group.regions)

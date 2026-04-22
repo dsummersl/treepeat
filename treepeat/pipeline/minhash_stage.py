@@ -4,7 +4,7 @@ import logging
 import sys
 
 from datasketch import MinHash  # type: ignore[import-untyped]
-from tqdm import tqdm  # type: ignore[import-untyped]
+from tqdm import tqdm
 
 from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import RegionSignature

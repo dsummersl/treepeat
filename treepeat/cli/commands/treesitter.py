@@ -177,7 +177,7 @@ def _reconstruct_transformed_source(parsed_file: Any, shingler: Any) -> dict[int
     # Track which source bytes have been covered by nodes
     line_parts: dict[int, list[tuple[int, str]]] = {}
 
-    def traverse(node: Any, parent_skipped: bool = False) -> bool:
+    def traverse(node: Any) -> bool:
         """Traverse AST and reconstruct source from normalized nodes."""
         node_skipped = False
         try:
@@ -191,7 +191,7 @@ def _reconstruct_transformed_source(parsed_file: Any, shingler: Any) -> dict[int
         # Process children
         any_child_processed = False
         for child in node.children:
-            child_skipped = traverse(child, node_skipped)
+            child_skipped = traverse(child)
             if not child_skipped:
                 any_child_processed = True
 

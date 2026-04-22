@@ -6,9 +6,6 @@ from .base import LanguageConfig, RegionExtractionRule
 class HTMLConfig(LanguageConfig):
     """Configuration for HTML language."""
 
-    def get_language_name(self) -> str:
-        return "html"
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

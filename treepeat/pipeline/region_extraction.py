@@ -1,34 +1,20 @@
-"""Extract regions (functions, classes, sections, etc) from parsed files."""
-
 import logging
 import sys
 from collections import Counter
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
-from tqdm import tqdm  # type: ignore[import-untyped]
-from tree_sitter import Node
+from tqdm import tqdm
+from tree_sitter import Node, Tree
+from tree_sitter_language_pack import get_parser
 
 from treepeat.models.ast import ParsedFile
 from treepeat.models.similarity import Region
 from treepeat.pipeline.rules.engine import RuleEngine
+from treepeat.pipeline.rules.models import Rule
 from treepeat.pipeline.verbose_metrics import record_used_node_type
 
 logger = logging.getLogger(__name__)
-
-
-def _extract_node_types_from_query(query: str) -> set[str]:
-    """Extract tree-sitter node type names from a query string.
-
-    Parses queries like "(function_definition) @region" to extract "function_definition".
-    Also handles alternatives like "[(func_a) (func_b)] @region".
-    """
-    import re
-    # Match node types in parentheses: (node_type) or (node_type ...)
-    # This handles both simple matches and matches with predicates/children
-    pattern = r'\((\w+)(?:\s|[)\]])'
-    matches = re.findall(pattern, query)
-    return set(matches)
 
 
 class ExtractedRegion(BaseModel):
@@ -39,6 +25,12 @@ class ExtractedRegion(BaseModel):
     region: Region = Field(description="Region metadata")
     node: Node = Field(description="Primary AST node for this region")
     nodes: list[Node] | None = Field(default=None, description="Multiple nodes for section regions")
+    # Language-injection fields: when set, the shingler uses these instead of the
+    # primary parse tree so that injected content (e.g. TypeScript inside an Astro
+    # frontmatter block) produces target-language-quality shingles.
+    injected_tree: Tree | None = Field(default=None, description="Re-parsed tree for injected language")
+    injected_language: str | None = Field(default=None, description="Language of the injected tree")
+    injected_source: bytes | None = Field(default=None, description="Source bytes of the injected content")
 
 
 @dataclass
@@ -47,15 +39,20 @@ class RegionTypeMapping:
 
     query: str  # TreeSitter query to match nodes
     region_type: str  # Region type label (e.g., "function")
+    rule: Rule | None = None  # Full rule object, needed for injection metadata
 
 
 def _get_region_mappings_from_engine(engine: "RuleEngine", language: str) -> list[RegionTypeMapping]:
     """Get region extraction rules from the rule engine for a language."""
-    rules = engine.get_region_extraction_rules(language)
-    mappings = []
-    for query, region_type in rules:
-        mappings.append(RegionTypeMapping(query=query, region_type=region_type))
-    return mappings
+    rules = engine.get_region_extraction_rule_objects(language)
+    return [
+        RegionTypeMapping(
+            query=rule.query,
+            region_type=rule.params.get("region_type", "unknown"),
+            rule=rule,
+        )
+        for rule in rules
+    ]
 
 
 def _extract_node_name(node: Node, source: bytes) -> str:
@@ -70,18 +67,101 @@ def _extract_node_name(node: Node, source: bytes) -> str:
 
 def _collect_all_matching_nodes(
     root_node: Node, mappings: list[RegionTypeMapping], language: str, engine: "RuleEngine"
-) -> list[tuple[Node, str]]:
-    """Execute queries to collect all matching nodes and their region types."""
-    matching_nodes: list[tuple[Node, str]] = []
+) -> list[tuple[Node, str, Rule | None]]:
+    """Execute queries to collect all matching nodes, their region types, and rules."""
+    matching_nodes: list[tuple[Node, str, Rule | None]] = []
 
     for mapping in mappings:
         nodes = engine.get_nodes_matching_query(root_node, mapping.query, language)
         for node in nodes:
-            matching_nodes.append((node, mapping.region_type))
+            matching_nodes.append((node, mapping.region_type, mapping.rule))
 
     # Sort by start position to maintain document order
     matching_nodes.sort(key=lambda x: (x[0].start_byte, x[0].end_byte))
     return matching_nodes
+
+
+def _extract_injection_bytes(
+    node: Node,
+    rule: Rule,
+    parsed_file: ParsedFile,
+    rule_engine: RuleEngine,
+) -> tuple[bytes, int] | None:
+    """Return (content_bytes, line_offset) for injection, or None if unavailable."""
+    if rule.injection_content_query:
+        content_nodes = rule_engine.get_nodes_matching_query(node, rule.injection_content_query, parsed_file.language)
+        if not content_nodes:
+            return None
+        content_node = content_nodes[0]
+        return parsed_file.source[content_node.start_byte : content_node.end_byte], content_node.start_point[0]
+    return parsed_file.source[node.start_byte : node.end_byte], node.start_point[0]
+
+
+def _do_language_injection(
+    node: Node,
+    rule: Rule,
+    parsed_file: ParsedFile,
+    rule_engine: RuleEngine,
+) -> ExtractedRegion | None:
+    """Re-parse matched-node content as the rule's target language.
+
+    When a ``RegionExtractionRule`` carries a ``target_language``, the raw
+    bytes of the node (or of the child identified by ``injection_content_query``)
+    are re-parsed with the target language's grammar.  The resulting tree is
+    stored on the ``ExtractedRegion`` so that the shingler can traverse it with
+    target-language normalization rules, producing the same shingle hashes as
+    identical code in a standalone source file.
+
+    Line-number preservation: the content bytes extracted from the primary AST
+    node already start at the right offset within the original file (e.g.
+    ``frontmatter_js_block.text`` for Astro files begins with the ``\\n``
+    immediately after ``---``, so tree-sitter row *R* in the injected tree maps
+    to original line *R + 1*).  For nodes that do *not* carry a built-in
+    leading newline (e.g. Markdown ``code_fence_content``) the bytes are padded
+    with ``content_node.start_point[0]`` blank lines so the same formula holds.
+    """
+
+    target_lang = rule.resolve_injection_language(node, parsed_file.source)
+    if not target_lang:
+        return None
+
+    result = _extract_injection_bytes(node, rule, parsed_file, rule_engine)
+    if result is None:
+        return None
+    content_bytes, line_offset = result
+
+    if not content_bytes.strip():
+        return None
+
+    # Pad with blank lines so injected row R maps to original line R + 1.
+    padded = b"\n" * line_offset + content_bytes
+
+    try:
+        parser = get_parser(target_lang)  # type: ignore[arg-type]
+        injected_tree = parser.parse(padded)
+    except Exception as e:
+        logger.debug("Injection: failed to parse content as %s: %s", target_lang, e)
+        return None
+
+    region_type = rule.params.get("region_type", rule.query)
+    name = _extract_node_name(node, parsed_file.source)
+
+    region = Region(
+        path=parsed_file.path,
+        language=parsed_file.language,
+        region_type=region_type,
+        region_name=name,
+        start_line=node.start_point[0] + 1,
+        end_line=node.end_point[0] + 1,
+    )
+
+    return ExtractedRegion(
+        region=region,
+        node=node,
+        injected_tree=injected_tree,
+        injected_language=target_lang,
+        injected_source=padded,
+    )
 
 
 def _create_target_region(
@@ -112,6 +192,25 @@ def _create_target_region(
     return ExtractedRegion(region=region, node=node)
 
 
+def _create_region_for_node(
+    node: Node,
+    region_type: str,
+    rule: Rule | None,
+    parsed_file: ParsedFile,
+    rule_engine: "RuleEngine",
+) -> ExtractedRegion:
+    """Return an ExtractedRegion for a matched node, using injection when applicable.
+
+    If injection is configured but fails (e.g. empty block or unknown language),
+    falls back to a plain target region so the block is not silently dropped.
+    """
+    if rule is not None and rule.injection_language is not None:
+        injected = _do_language_injection(node, rule, parsed_file, rule_engine)
+        if injected is not None:
+            return injected
+    return _create_target_region(node, region_type, parsed_file)
+
+
 def extract_regions(
     parsed_file: ParsedFile,
     rule_engine: "RuleEngine",
@@ -122,11 +221,9 @@ def extract_regions(
     """
     logger.debug("Extracting explicit regions from %s (%s)", parsed_file.path, parsed_file.language)
 
-    # Get region mappings from the rule engine
     mappings = _get_region_mappings_from_engine(rule_engine, parsed_file.language)
 
     if not mappings:
-        # No explicit rules for this language - log warning and skip file
         logger.warning(
             "No region extraction rules for language %s. Skipping file %s.",
             parsed_file.language,
@@ -134,13 +231,13 @@ def extract_regions(
         )
         return []
 
-    # Recursive extraction: find ALL matching nodes (methods, nested functions, etc.)
     matching_nodes_list = _collect_all_matching_nodes(
         parsed_file.root_node, mappings, parsed_file.language, rule_engine
     )
-    regions = [_create_target_region(node, region_type, parsed_file) for node, region_type in matching_nodes_list]
+    regions = []
+    for node, region_type, rule in matching_nodes_list:
+        regions.append(_create_region_for_node(node, region_type, rule, parsed_file, rule_engine))
 
-    # Record used node types for verbose output
     for region in regions:
         record_used_node_type(parsed_file.language, region.region.region_type)
 
@@ -156,9 +253,7 @@ def _is_explicit_type(region_type: str) -> bool:
 
 def _should_replace_region(new: ExtractedRegion, existing: ExtractedRegion) -> bool:
     """Determine if new region should replace existing one (prefer explicit types)."""
-    return _is_explicit_type(new.region.region_type) and not _is_explicit_type(
-        existing.region.region_type
-    )
+    return _is_explicit_type(new.region.region_type) and not _is_explicit_type(existing.region.region_type)
 
 
 def _make_region_key(region: ExtractedRegion) -> tuple[str, int, int]:
@@ -221,8 +316,6 @@ def _log_region_type_statistics(regions: list[ExtractedRegion], method: str) -> 
         logger.info("  ... and %d more type(s)", len(type_counts) - 10)
 
 
-
-
 def extract_all_regions(
     parsed_files: list[ParsedFile],
     rule_engine: "RuleEngine",
@@ -235,11 +328,7 @@ def extract_all_regions(
 
     all_regions: list[ExtractedRegion] = []
 
-    iterable = (
-        tqdm(parsed_files, desc="Extracting", unit="file", file=sys.stderr)
-        if progress
-        else parsed_files
-    )
+    iterable = tqdm(parsed_files, desc="Extracting", unit="file", file=sys.stderr) if progress else parsed_files
 
     for parsed_file in iterable:
         try:

@@ -3,7 +3,7 @@ import sys
 from fnmatch import fnmatch
 from pathlib import Path
 
-from tqdm import tqdm  # type: ignore[import-untyped]
+from tqdm import tqdm
 from tree_sitter_language_pack import SupportedLanguage, get_parser
 
 from treepeat.config import get_settings

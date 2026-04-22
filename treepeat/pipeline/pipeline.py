@@ -9,7 +9,6 @@ from treepeat.models.similarity import (
     RegionSignature,
     SimilarityResult,
     SimilarRegionGroup,
-    SimilarRegionPair,
 )
 from treepeat.pipeline.lsh_stage import detect_similarity
 from treepeat.pipeline.minhash_stage import compute_region_signatures
@@ -73,31 +72,6 @@ def _filter_groups_by_min_lines(
             logger.debug(
                 "Filtered out group with %d regions - at least one region below min_lines threshold",
                 len(group.regions),
-            )
-    return filtered
-
-
-def _filter_pairs_by_min_lines(
-    pairs: list[SimilarRegionPair], min_lines: int
-) -> list[SimilarRegionPair]:
-    """Filter similar pairs to only include those meeting the minimum line count."""
-    filtered = []
-    for pair in pairs:
-        lines1 = pair.region1.end_line - pair.region1.start_line + 1
-        lines2 = pair.region2.end_line - pair.region2.start_line + 1
-        if lines1 >= min_lines and lines2 >= min_lines:
-            filtered.append(pair)
-        else:
-            logger.debug(
-                "Filtered out match: %s:%d-%d (%d lines) ↔ %s:%d-%d (%d lines) - below min_lines threshold",
-                pair.region1.path,
-                pair.region1.start_line,
-                pair.region1.end_line,
-                lines1,
-                pair.region2.path,
-                pair.region2.start_line,
-                pair.region2.end_line,
-                lines2,
             )
     return filtered
 

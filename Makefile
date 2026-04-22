@@ -8,6 +8,7 @@ help:
 	@echo "  fix              - Auto-fix linting issues"
 	@echo "  type             - Run type checking with mypy"
 	@echo "  radon            - Run radon complexity checks"
+	@echo "  vulture          - Run vulture to find dead code"
 	@echo "  ci               - Run all CI checks (lint, type, test, radon)"
 
 setup:
@@ -20,6 +21,10 @@ test:
 lint:
 	uv run ruff check .
 
+vulture:
+  # vulture erroneously flags pydantic model_config settings as unused.
+	uv run vulture --min-confidence 55 --ignore-names 'model_config' treepeat
+
 fix:
 	uv run ruff check . --fix
 
@@ -29,4 +34,4 @@ type:
 radon:
 	uv run .github/scripts/check_radon.sh
 
-ci: lint type test radon
+ci: lint type test radon vulture

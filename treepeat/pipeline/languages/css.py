@@ -6,9 +6,6 @@ from .base import LanguageConfig, RegionExtractionRule
 class CSSConfig(LanguageConfig):
     """Configuration for CSS language."""
 
-    def get_language_name(self) -> str:
-        return "css"
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
