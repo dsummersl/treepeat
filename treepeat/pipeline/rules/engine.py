@@ -28,7 +28,7 @@ class RuleEngine:
         # "*" entries are rules that match all languages.
         self._rules_by_language: dict[str, list[Rule]] = {}
         for rule in rules:
-            for lang in rule.languages:
+            for lang in set(rule.languages):
                 self._rules_by_language.setdefault(lang, []).append(rule)
         self._source: bytes | None = None  # Store source for value extraction
 
