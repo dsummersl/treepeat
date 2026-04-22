@@ -268,6 +268,11 @@ class RuleEngine:
         root_node: Optional[Node] = None,
     ) -> tuple[Optional[str], Optional[str]]:
         """Apply all matching rules to a node."""
+        # Fast path: precompute_queries runs all queries upfront and indexes
+        # matched nodes by ID. A node absent from the cache had no rule matches.
+        if node.id not in self._query_matches_cache:
+            return None, None
+
         node_type = node_name or node.type
         name = None
         value = None
