@@ -3,7 +3,6 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Hashable
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
 from tqdm import tqdm
@@ -17,6 +16,15 @@ from treepeat.models.similarity import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _sig_key(sig: RegionSignature) -> str:
+    """Return the canonical string key for a RegionSignature.
+
+    region_name is included to disambiguate shingle windows that share line ranges.
+    """
+    r = sig.region
+    return f"{r.path}:{r.region_name}:{r.start_line}-{r.end_line}"
 
 
 def _create_lsh_index(
@@ -34,10 +42,7 @@ def _create_lsh_index(
     lsh = MinHashLSH(lsh_similarity_percent, num_perm)
 
     for sig in signatures:
-        # Create a unique key for each region
-        # Include region_name to handle shingle windows which may share line ranges
-        key = f"{sig.region.path}:{sig.region.region_name}:{sig.region.start_line}-{sig.region.end_line}"
-        lsh.insert(key, sig.minhash)
+        lsh.insert(_sig_key(sig), sig.minhash)
 
     logger.debug(
         "Inserted %d region signatures into LSH index (lsh_threshold=%.2f, filter_threshold=%.2f)",
@@ -46,22 +51,6 @@ def _create_lsh_index(
         similarity_percent,
     )
     return lsh
-
-
-def _find_signature_by_key(
-    signatures: list[RegionSignature],
-    key: Hashable,
-) -> RegionSignature | None:
-    """Find signature by region key."""
-    return next(
-        (
-            s
-            for s in signatures
-            if f"{s.region.path}:{s.region.region_name}:{s.region.start_line}-{s.region.end_line}"
-            == key
-        ),
-        None,
-    )
 
 
 def _regions_overlap(r1: Region, r2: Region) -> bool:
@@ -145,12 +134,12 @@ def _calculate_group_similarity(
 
 
 def _is_pairwise_similar(
-    other_key: Hashable,
+    other_key: str,
     sig: RegionSignature,
-    signatures: list[RegionSignature],
+    key_to_sig: dict[str, RegionSignature],
     similarity_percent: float,
 ) -> bool:
-    similar_sig = _find_signature_by_key(signatures, other_key)
+    similar_sig = key_to_sig.get(other_key)
     if similar_sig is None:
         return False
 
@@ -167,16 +156,16 @@ def _is_pairwise_similar(
 def _append_pairwise_similar(
     uf: UnionFind,
     current_key: str,
-    similar_keys: list[Hashable],
+    similar_keys: list[str],
     sig: RegionSignature,
-    signatures: list[RegionSignature],
+    key_to_sig: dict[str, RegionSignature],
     similarity_percent: float,
 ) -> None:
     pairwise_similar_keys = [
         sk
         for sk in similar_keys
-        if _is_pairwise_similar(sk, sig, signatures, similarity_percent)
         if sk != current_key
+        if _is_pairwise_similar(sk, sig, key_to_sig, similarity_percent)
     ]
     for similar_key in pairwise_similar_keys:
         uf.union(current_key, str(similar_key))
@@ -190,7 +179,11 @@ def _build_union_find_from_lsh(
 ) -> tuple[UnionFind, dict[str, RegionSignature]]:
     """Build union-find structure from LSH queries."""
     uf = UnionFind()
-    key_to_sig: dict[str, RegionSignature] = {}
+
+    key_to_sig: dict[str, RegionSignature] = {
+        _sig_key(sig): sig
+        for sig in signatures
+    }
 
     # Use a lower threshold for pairwise filtering since LSH similarity is approximate
     # The actual verified similarity may be higher than the MinHash Jaccard similarity
@@ -203,9 +196,7 @@ def _build_union_find_from_lsh(
     )
 
     for sig in iterable:
-        # Use same key format as LSH index
-        current_key = f"{sig.region.path}:{sig.region.region_name}:{sig.region.start_line}-{sig.region.end_line}"
-        key_to_sig[current_key] = sig
+        current_key = _sig_key(sig)
 
         similar_keys = lsh.query(sig.minhash)
         logger.debug(
@@ -217,7 +208,7 @@ def _build_union_find_from_lsh(
         )
 
         _append_pairwise_similar(
-            uf, current_key, similar_keys, sig, signatures, min_pair_similarity
+            uf, current_key, similar_keys, sig, key_to_sig, min_pair_similarity
         )
 
     return uf, key_to_sig
