@@ -26,6 +26,23 @@ const Counter = ({ initialCount }) => {
   );
 };
 
+// Component with a list rendering pattern
+const ItemList = ({ items, loading }) => {
+  return (
+    <div class={loading ? 'opacity-75' : ''}>
+      {items.map(item => (
+        <div key={item.id} class="mb-4">
+          <h3 class="font-semibold">{item.title}</h3>
+          <p class="text-gray-600">{item.description}</p>
+          <a href={`/items/${item.id}`} class="text-blue-500 hover:underline">
+            View Details
+          </a>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // Class component
 class UserProfile extends React.Component {
   constructor(props) {

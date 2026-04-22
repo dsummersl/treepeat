@@ -94,4 +94,8 @@ class JavaScriptConfig(LanguageConfig):
             ),
             RegionExtractionRule.from_node_type("method_definition"),
             RegionExtractionRule.from_node_type("class_declaration"),
+            RegionExtractionRule(
+                query="(jsx_element (jsx_expression) @region)",
+                label="jsx_expression",
+            ),
         ]

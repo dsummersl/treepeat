@@ -22,3 +22,5 @@ def test_jsx_rules_extract(rules):
     regions = extract_all_regions([parsed], engine)
 
     assert len(regions) > 0
+    region_types = {r.region.region_type for r in regions}
+    assert "jsx_expression" in region_types

@@ -34,6 +34,34 @@ const Counter = ({ initialCount }: CounterProps) => {
   );
 };
 
+interface Item {
+  id: string;
+  title: string;
+  description: string;
+}
+
+interface ItemListProps {
+  items: Item[];
+  loading: boolean;
+}
+
+// Component with a list rendering pattern
+const ItemList = ({ items, loading }: ItemListProps) => {
+  return (
+    <div class={loading ? 'opacity-75' : ''}>
+      {items.map(item => (
+        <div key={item.id} class="mb-4">
+          <h3 class="font-semibold">{item.title}</h3>
+          <p class="text-gray-600">{item.description}</p>
+          <a href={`/items/${item.id}`} class="text-blue-500 hover:underline">
+            View Details
+          </a>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 interface UserProfileProps {
   name: string;
   bio: string;
