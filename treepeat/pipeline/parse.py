@@ -4,16 +4,16 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from tqdm import tqdm
-from tree_sitter_language_pack import SupportedLanguage, get_parser
+from tree_sitter_language_pack import get_parser
 
 from treepeat.config import get_settings
 from treepeat.models import ParsedFile, ParseResult
-from treepeat.pipeline.languages import LANGUAGE_EXTENSIONS
+from treepeat.pipeline.languages import LANGUAGE_EXTENSIONS, get_grammar
 
 logger = logging.getLogger(__name__)
 
 
-def detect_language(file_path: Path) -> SupportedLanguage | None:
+def detect_language(file_path: Path) -> str | None:
     """Detect programming language from file extension."""
     suffix = file_path.suffix.lower()
     for lang, exts in LANGUAGE_EXTENSIONS.items():
@@ -31,11 +31,12 @@ def read_source_file(file_path: Path) -> bytes:
 
 
 def parse_source_code(
-    source: bytes, language_name: SupportedLanguage, file_path: Path
+    source: bytes, language_name: str, file_path: Path
 ) -> ParsedFile:
     """Parse source code using tree-sitter."""
+    grammar = get_grammar(language_name)
     try:
-        parser = get_parser(language_name)
+        parser = get_parser(grammar)  # type: ignore[arg-type]
     except Exception as e:
         raise RuntimeError(f"Failed to get parser for {language_name}: {e}") from e
 

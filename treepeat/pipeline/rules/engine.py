@@ -4,7 +4,7 @@ from typing import Any, Callable, DefaultDict, Iterable, Optional
 from tree_sitter import Node, Query, QueryCursor
 from tree_sitter_language_pack import get_language
 
-from ..languages import LANGUAGE_CONFIGS
+from ..languages import LANGUAGE_CONFIGS, get_grammar
 from .models import Rule, RuleAction, SkipNodeException
 
 
@@ -59,7 +59,8 @@ class RuleEngine:
         """Get or compile a query for a language."""
         key = (language, query_str)
         if key not in self._compiled_queries:
-            lang = get_language(language)  # type: ignore[arg-type]
+            grammar = get_grammar(language)
+            lang = get_language(grammar)  # type: ignore[arg-type]
             self._compiled_queries[key] = Query(lang, query_str)
         return self._compiled_queries[key]
 
