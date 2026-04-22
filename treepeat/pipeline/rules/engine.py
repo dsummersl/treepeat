@@ -24,6 +24,12 @@ class RuleEngine:
         self._action_handlers = self._build_action_handlers()
         self._compiled_queries: dict[tuple[str, str], Query] = {}
         self._query_matches_cache: dict[int, list[dict[str, Any]]] = {}
+        # Pre-partition rules by language for O(1) lookup during shingling.
+        # "*" entries are rules that match all languages.
+        self._rules_by_language: dict[str, list[Rule]] = {}
+        for rule in rules:
+            for lang in set(rule.languages):
+                self._rules_by_language.setdefault(lang, []).append(rule)
         self._source: bytes | None = None  # Store source for value extraction
 
     def _build_action_handlers(
@@ -222,8 +228,19 @@ class RuleEngine:
         return name, value
 
     def _iter_matching_rules(self, language: str) -> Iterable[Rule]:
-        for rule in self.rules:
-            if rule.matches_language(language):
+        # Yield wildcard rules first, then language-specific rules.
+        # Deduplication guard handles the (currently unused) case where a rule
+        # lists both "*" and a specific language in its languages field.
+        wildcard_rules = self._rules_by_language.get("*", [])
+        if not wildcard_rules:
+            yield from self._rules_by_language.get(language, [])
+            return
+        seen: set[int] = set()
+        for rule in wildcard_rules:
+            seen.add(id(rule))
+            yield rule
+        for rule in self._rules_by_language.get(language, []):
+            if id(rule) not in seen:
                 yield rule
 
     def _apply_rule_state(
@@ -285,7 +302,7 @@ class RuleEngine:
 
         # Pre-execute all queries once and cache results indexed by node.id
         self._query_matches_cache = self._get_all_matches(
-            root_node, [r for r in self.rules if r.matches_language(language)], language
+            root_node, list(self._iter_matching_rules(language)), language
         )
 
     def get_region_extraction_rules(self, language: str) -> list[tuple[str, str]]:
@@ -294,8 +311,8 @@ class RuleEngine:
         Returns list of tuples: (query, region_type)
         """
         region_rules = []
-        for rule in self.rules:
-            if rule.action == RuleAction.EXTRACT_REGION and rule.matches_language(language):
+        for rule in self._iter_matching_rules(language):
+            if rule.action == RuleAction.EXTRACT_REGION:
                 region_type = rule.params.get("region_type")
                 if region_type:
                     region_rules.append((rule.query, region_type))
