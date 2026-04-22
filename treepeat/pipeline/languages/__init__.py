@@ -13,6 +13,7 @@ from .markdown import MarkdownConfig
 from .python import PythonConfig
 from .rust import RustConfig
 from .sql import SQLConfig
+from .tsx import TsxConfig
 from .typescript import TypeScriptConfig
 
 # Registry mapping language names to their configurations
@@ -29,6 +30,7 @@ LANGUAGE_CONFIGS: dict[SupportedLanguage, LanguageConfig] = {
     "python": PythonConfig(),
     "rust": RustConfig(),
     "sql": SQLConfig(),
+    "tsx": TsxConfig(),
     "typescript": TypeScriptConfig(),
 }
 
@@ -45,7 +47,8 @@ LANGUAGE_EXTENSIONS: dict[SupportedLanguage, list[str]] = {
     "python": [".py"],
     "rust": [".rs"],
     "sql": [".sql"],
-    "typescript": [".ts", ".tsx"],
+    "tsx": [".tsx"],
+    "typescript": [".ts"],
 }
 
 __all__ = [
@@ -54,6 +57,7 @@ __all__ = [
     "PythonConfig",
     "JavaScriptConfig",
     "TypeScriptConfig",
+    "TsxConfig",
     "HTMLConfig",
     "CSSConfig",
     "JavaConfig",
