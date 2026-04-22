@@ -10,19 +10,19 @@ class JavaScriptConfig(LanguageConfig):
         return [
             Rule(
                 name="Ignore import/export statements",
-                languages=["javascript", "typescript", "tsx"],
+                languages=["javascript", "typescript", "tsx", "jsx"],
                 query="[(import_statement) (export_statement)] @import",
                 action=RuleAction.REMOVE,
             ),
             Rule(
                 name="Ignore comments",
-                languages=["javascript", "typescript", "tsx"],
+                languages=["javascript", "typescript", "tsx", "jsx"],
                 query="[(comment) (hash_bang_line)] @comment",
                 action=RuleAction.REMOVE,
             ),
             Rule(
                 name="Anonymize identifiers",
-                languages=["javascript", "typescript", "tsx"],
+                languages=["javascript", "typescript", "tsx", "jsx"],
                 query="[(identifier) (property_identifier)] @id",
                 target="id",
                 action=RuleAction.ANONYMIZE,
@@ -30,7 +30,7 @@ class JavaScriptConfig(LanguageConfig):
             ),
             Rule(
                 name="Anonymize function names",
-                languages=["javascript", "typescript", "tsx"],
+                languages=["javascript", "typescript", "tsx", "jsx"],
                 query="[(function_declaration (identifier) @name) (method_definition (property_identifier) @name)]",
                 target="name",
                 action=RuleAction.REPLACE_VALUE,
@@ -38,7 +38,7 @@ class JavaScriptConfig(LanguageConfig):
             ),
             Rule(
                 name="Anonymize class names",
-                languages=["javascript"],
+                languages=["javascript", "jsx"],
                 query="(class_declaration (identifier) @name)",
                 target="name",
                 action=RuleAction.REPLACE_VALUE,
@@ -58,7 +58,7 @@ class JavaScriptConfig(LanguageConfig):
         return [
             Rule(
                 name="Anonymize literal values",
-                languages=["javascript", "typescript", "tsx"],
+                languages=["javascript", "typescript", "tsx", "jsx"],
                 query="[(string) (number) (template_string)] @lit",
                 target="lit",
                 action=RuleAction.REPLACE_VALUE,
@@ -66,7 +66,7 @@ class JavaScriptConfig(LanguageConfig):
             ),
             Rule(
                 name="Anonymize collections",
-                languages=["javascript", "typescript", "tsx"],
+                languages=["javascript", "typescript", "tsx", "jsx"],
                 query="[(array) (object)] @coll",
                 target="coll",
                 action=RuleAction.REPLACE_NODE_TYPE,
@@ -74,7 +74,7 @@ class JavaScriptConfig(LanguageConfig):
             ),
             Rule(
                 name="Anonymize expressions",
-                languages=["javascript", "typescript", "tsx"],
+                languages=["javascript", "typescript", "tsx", "jsx"],
                 query=(
                     "[(binary_expression) (unary_expression) (update_expression) "
                     "(assignment_expression) (ternary_expression)] @exp"
@@ -94,8 +94,4 @@ class JavaScriptConfig(LanguageConfig):
             ),
             RegionExtractionRule.from_node_type("method_definition"),
             RegionExtractionRule.from_node_type("class_declaration"),
-            RegionExtractionRule(
-                query="(jsx_element (jsx_expression) @region)",
-                label="jsx_expression",
-            ),
         ]

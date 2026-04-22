@@ -1,11 +1,11 @@
 from pathlib import Path
 
 import pytest
-from tree_sitter_language_pack import get_parser
 
 from tests.rule_helper import RuleTester
 from treepeat.models.ast import ParsedFile
 from treepeat.models.similarity import Region, SimilarityResult, SimilarRegionGroup
+from treepeat.pipeline.parse import parse_source_code
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules
 
 # Legacy fixture paths (for backward compatibility)
@@ -31,15 +31,8 @@ def load_fixture(path: Path) -> bytes:
 
 def parse_fixture(path: Path, language: str) -> ParsedFile:
     """Parse a fixture file for any language."""
-    parser = get_parser(language)
     fixture = load_fixture(path)
-    tree = parser.parse(fixture)
-    return ParsedFile(
-        path=path,
-        language=language,
-        tree=tree,
-        source=fixture,
-    )
+    return parse_source_code(fixture, language, path)
 
 
 def assert_regions_in_same_group(
