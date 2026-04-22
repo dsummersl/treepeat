@@ -230,8 +230,12 @@ class RuleEngine:
         # Yield wildcard rules first, then language-specific rules.
         # Deduplication guard handles the (currently unused) case where a rule
         # lists both "*" and a specific language in its languages field.
+        wildcard_rules = self._rules_by_language.get("*", [])
+        if not wildcard_rules:
+            yield from self._rules_by_language.get(language, [])
+            return
         seen: set[int] = set()
-        for rule in self._rules_by_language.get("*", []):
+        for rule in wildcard_rules:
             seen.add(id(rule))
             yield rule
         for rule in self._rules_by_language.get(language, []):
