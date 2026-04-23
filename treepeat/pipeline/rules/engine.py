@@ -274,6 +274,11 @@ class RuleEngine:
         value = None
         root_node = root_node or node
 
+        # Most AST nodes do not match any normalization rule. Avoid scanning the
+        # rule list when precomputed query matches show this node has no work.
+        if node.id not in self._query_matches_cache:
+            return None, None
+
         # Apply rules in the order they are defined.
         # Later matching rules for the same node component (name or value) will overwrite earlier ones.
         for rule in self._iter_matching_rules(language):
@@ -294,7 +299,8 @@ class RuleEngine:
     ) -> None:
         """Pre-execute all queries for a root node to populate the cache.
 
-        This executes all queries once and indexes matches by node ID for O(1) lookup.
+        This executes all queries once and indexes matches by node ID, which
+        makes non-matching nodes cheap to skip during rule application.
         Call this once per region after reset_identifiers().
         """
         # Store source for use in anonymization
