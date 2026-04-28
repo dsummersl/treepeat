@@ -2,6 +2,7 @@ import difflib
 from collections.abc import Sequence
 
 from rich.console import Console
+from rich.markup import escape
 
 from treepeat.models.similarity import Region
 from treepeat.terminal_detect import get_diff_colors
@@ -164,8 +165,8 @@ def _print_inserted_lines(lines2: list[str], j1: int, j2: int, col_width: int) -
 def _print_diff_header(region1: Region, region2: Region, col_width: int) -> None:
     """Print diff header with file information."""
     console.print("[bold]Diff:[/bold]")
-    header1 = f"{region1.path}:{region1.start_line}-{region1.end_line}"
-    header2 = f"{region2.path}:{region2.start_line}-{region2.end_line}"
+    header1 = f"{escape(str(region1.path))}:{region1.start_line}-{region1.end_line}"
+    header2 = f"{escape(str(region2.path))}:{region2.start_line}-{region2.end_line}"
     console.print(f"[dim]{header1:<{col_width}}[/dim]│[dim]{header2:<{col_width}}[/dim]")
     console.print(f"{'-' * col_width}│{'-' * col_width}")
 

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import click
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from treepeat.config import (
@@ -203,7 +204,7 @@ def _display_group(group: SimilarRegionGroup, show_diff: bool = False) -> None:
         prefix = "  - " if i == 0 else "    "
         region_display = _format_region_name(region)
         console.print(
-            f"{prefix}{region.path} [{region.start_line}:{region.end_line}] "
+            f"{prefix}{escape(str(region.path))} [{region.start_line}:{region.end_line}] "
             f"({lines} lines) {region_display}"
         )
 
