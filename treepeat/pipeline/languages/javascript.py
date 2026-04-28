@@ -21,14 +21,6 @@ class JavaScriptConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                name="Anonymize identifiers",
-                languages=["javascript", "typescript", "tsx", "jsx"],
-                query="[(identifier) (property_identifier)] @id",
-                target="id",
-                action=RuleAction.ANONYMIZE,
-                params={"prefix": "VAR"},
-            ),
-            Rule(
                 name="Anonymize function names",
                 languages=["javascript", "typescript", "tsx", "jsx"],
                 query="[(function_declaration (identifier) @name) (method_definition (property_identifier) @name)]",
@@ -56,6 +48,14 @@ class JavaScriptConfig(LanguageConfig):
 
     def get_loose_rules(self) -> list[Rule]:
         return [
+            Rule(
+                name="Anonymize identifiers",
+                languages=["javascript", "typescript", "tsx", "jsx"],
+                query="[(identifier) (property_identifier)] @id",
+                target="id",
+                action=RuleAction.ANONYMIZE,
+                params={"prefix": "VAR"},
+            ),
             Rule(
                 name="Anonymize literal values",
                 languages=["javascript", "typescript", "tsx", "jsx"],
