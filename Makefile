@@ -22,8 +22,8 @@ lint:
 	uv run ruff check .
 
 vulture:
-  # vulture erroneously flags pydantic model_config settings as unused.
-	uv run vulture --min-confidence 55 --ignore-names 'model_config' treepeat
+	# vulture cannot detect pydantic validator methods referenced via decorators.
+	uv run vulture --min-confidence 55 --ignore-names 'model_config,_reject_wildcard_languages' treepeat
 
 fix:
 	uv run ruff check . --fix

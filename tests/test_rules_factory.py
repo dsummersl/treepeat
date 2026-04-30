@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from treepeat.config import PipelineSettings
 from treepeat.pipeline.rules_factory import build_rule_engine, get_ruleset_with_descriptions
 
@@ -57,3 +60,27 @@ def test_javascript_identifier_anonymization_is_only_in_loose_ruleset() -> None:
 
     assert "Anonymize identifiers" not in default_rule_names
     assert "Anonymize identifiers" in loose_rule_names
+
+
+def test_settings_reject_wildcard_region_filter_language() -> None:
+    with pytest.raises(ValidationError, match="Wildcard language '\\*' is not supported"):
+        PipelineSettings(
+            rules={"region_filters": {"*": {"function_definition"}, "python": {"class_definition"}}}
+        )
+
+
+def test_settings_reject_wildcard_additional_region_language() -> None:
+    with pytest.raises(ValidationError, match="Wildcard language '\\*' is not supported"):
+        PipelineSettings(rules={"additional_regions": {"*": {"function_definition"}}})
+
+
+def test_settings_reject_wildcard_language_on_assignment() -> None:
+    settings = PipelineSettings()
+
+    with pytest.raises(ValidationError, match="Wildcard language '\\*' is not supported"):
+        settings.rules.additional_regions = {"*": {"function_definition"}}
+
+
+def test_settings_reject_wildcard_excluded_region_language() -> None:
+    with pytest.raises(ValidationError, match="Wildcard language '\\*' is not supported"):
+        PipelineSettings(rules={"excluded_regions": {"*": {"function_definition"}}})

@@ -37,9 +37,15 @@ class Rule:
     # full matched-node bytes are used.
     injection_content_query: str | None = None
 
+    def __post_init__(self) -> None:
+        if "*" in self.languages:
+            raise ValueError(
+                "Wildcard rule languages ('*') are not supported; specify explicit languages"
+            )
+
     def matches_language(self, language: str) -> bool:
         """Check if this rule applies to the given language."""
-        return "*" in self.languages or language in self.languages
+        return language in self.languages
 
     def resolve_injection_language(self, node: Node, source: bytes) -> str | None:
         """Return the target language for injection, or None if not applicable."""
