@@ -14,6 +14,7 @@ from .rust import RustConfig
 from .sql import SQLConfig
 from .tsx import TsxConfig
 from .typescript import TypeScriptConfig
+from .yaml import YAMLConfig
 
 # Registry mapping language names to their configurations
 LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
@@ -32,6 +33,7 @@ LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
     "sql": SQLConfig(),
     "tsx": TsxConfig(),
     "typescript": TypeScriptConfig(),
+    "yaml": YAMLConfig(),
 }
 
 LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
@@ -50,6 +52,7 @@ LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "sql": [".sql"],
     "tsx": [".tsx"],
     "typescript": [".ts"],
+    "yaml": [".yaml", ".yml"],
 }
 
 # Languages that share a tree-sitter grammar with another language.
@@ -85,4 +88,5 @@ __all__ = [
     "GoConfig",
     "MarkdownConfig",
     "AstroConfig",
+    "YAMLConfig",
 ]

@@ -8,6 +8,11 @@ from .base import LanguageConfig, RegionExtractionRule
 
 logger = logging.getLogger(__name__)
 
+# Common info-string spellings that map onto a supported language name.
+_INFO_STRING_ALIASES = {
+    "yml": "yaml",
+}
+
 
 def _resolve_code_block_language(node: Node, source: bytes) -> str:
     """Return the language declared in a fenced_code_block's info_string.
@@ -29,6 +34,7 @@ def _resolve_code_block_language(node: Node, source: bytes) -> str:
                 return ""
             # Language identifiers may have extra text (e.g. "python title='foo'")
             lang = lang_text.split()[0].lower()
+            lang = _INFO_STRING_ALIASES.get(lang, lang)
             from treepeat.pipeline.languages import LANGUAGE_CONFIGS  # lazy import avoids circular import
             if lang not in LANGUAGE_CONFIGS:
                 logger.warning(
