@@ -11,6 +11,14 @@ logger = logging.getLogger(__name__)
 # Common info-string spellings that map onto a supported language name.
 _INFO_STRING_ALIASES = {
     "yml": "yaml",
+    "ts": "typescript",
+    "js": "javascript",
+    "py": "python",
+    "sh": "bash",
+    "shell": "bash",
+    "rs": "rust",
+    "kt": "kotlin",
+    "md": "markdown",
 }
 
 

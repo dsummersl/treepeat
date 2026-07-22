@@ -180,6 +180,53 @@ def test_embedded_shingles_overlap_with_standalone(embedded_lang, standalone_pat
 
 
 # ---------------------------------------------------------------------------
+# Info-string aliases
+# ---------------------------------------------------------------------------
+
+
+def _resolve_fence_language(source: bytes) -> str:
+    """Parse a single fenced code block and return its resolved injection language."""
+    from tree_sitter_language_pack import get_parser
+
+    from treepeat.pipeline.languages.markdown import _resolve_code_block_language
+
+    parser = get_parser("markdown")
+    tree = parser.parse(source)
+
+    fenced_node = next(
+        (n for n in tree.root_node.children if n.type == "fenced_code_block"),
+        None,
+    )
+    if fenced_node is None:
+        for child in tree.root_node.children:
+            fenced_node = next(
+                (n for n in child.children if n.type == "fenced_code_block"), None
+            )
+            if fenced_node is not None:
+                break
+
+    assert fenced_node is not None, "Could not find fenced_code_block node in parsed tree"
+    return _resolve_code_block_language(fenced_node, source)
+
+
+@pytest.mark.parametrize("info_string,expected", [
+    ("ts", "typescript"),
+    ("js", "javascript"),
+    ("py", "python"),
+    ("sh", "bash"),
+    ("shell", "bash"),
+    ("rs", "rust"),
+    ("kt", "kotlin"),
+    ("md", "markdown"),
+    ("yml", "yaml"),
+])
+def test_info_string_aliases_resolve(info_string, expected):
+    """Common short-form info strings map onto their supported language name."""
+    source = f"```{info_string}\ncode\n```\n".encode()
+    assert _resolve_fence_language(source) == expected
+
+
+# ---------------------------------------------------------------------------
 # Unknown language guard
 # ---------------------------------------------------------------------------
 
