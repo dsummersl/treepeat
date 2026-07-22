@@ -3,6 +3,7 @@
 import logging
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from datasketch import MinHashLSH  # type: ignore[import-untyped]
 from tqdm import tqdm
@@ -14,6 +15,9 @@ from treepeat.models.similarity import (
     SimilarityResult,
     SimilarRegionGroup,
 )
+
+if TYPE_CHECKING:
+    from treepeat.pipeline.rules.models import Rule
 
 logger = logging.getLogger(__name__)
 
@@ -328,6 +332,7 @@ def _verify_and_filter_groups(
     candidate_groups: list[SimilarRegionGroup],
     shingled_regions: list[ShingledRegion],
     similarity_percent: float,
+    rules: "list[Rule]",
     progress: bool = False,
 ) -> list[SimilarRegionGroup]:
     """Verify candidate groups and filter by minimum similarity similarity_percent."""
@@ -337,6 +342,7 @@ def _verify_and_filter_groups(
     verified_groups = verify_similar_groups(
         candidate_groups,
         shingled_regions,
+        rules=rules,
         progress=progress,
     )
 
@@ -404,24 +410,34 @@ def _filter_by_min_lines(
     return filtered_signatures, filtered_shingled
 
 
+def _log_min_lines_filter(total: int, kept: int, min_lines: int) -> None:
+    """Log how many signatures were dropped below the min_lines threshold."""
+    if kept < total:
+        logger.info(
+            "Filtered out %d region(s) below min_lines=%d before similarity detection",
+            total - kept,
+            min_lines,
+        )
+
+
 def detect_similarity(
     signatures: list[RegionSignature],
     similarity_percent: float,
     shingled_regions: list[ShingledRegion],
     min_lines: int = 5,
+    rules: "list[Rule] | None" = None,
     progress: bool = False,
 ) -> SimilarityResult:
-    """Detect similar regions using LSH."""
+    """Detect similar regions using LSH.
+
+    ``rules`` is the active ruleset, used during verification to decide whether
+    a name-only signature difference is intentional (see verification). When
+    omitted, signature verification runs without anonymization awareness.
+    """
     filtered_signatures, filtered_shingled = _filter_by_min_lines(
         signatures, shingled_regions, min_lines
     )
-
-    if len(filtered_signatures) < len(signatures):
-        logger.info(
-            "Filtered out %d region(s) below min_lines=%d before similarity detection",
-            len(signatures) - len(filtered_signatures),
-            min_lines,
-        )
+    _log_min_lines_filter(len(signatures), len(filtered_signatures), min_lines)
 
     if not filtered_signatures:
         return SimilarityResult(signatures=[], similar_groups=[])
@@ -447,6 +463,7 @@ def detect_similarity(
         candidate_groups,
         filtered_shingled,
         similarity_percent,
+        rules=rules or [],
         progress=progress,
     )
 

@@ -123,6 +123,7 @@ def _run_lsh_stage(
     shingled_regions: list[ShingledRegion],
     threshold: float,
     min_lines: int,
+    rule_engine: RuleEngine,
     progress: bool = False,
 ) -> SimilarityResult:
     """Run LSH similarity detection stage."""
@@ -133,6 +134,7 @@ def _run_lsh_stage(
         similarity_percent=threshold,
         shingled_regions=shingled_regions,
         min_lines=min_lines,
+        rules=rule_engine.rules,
         progress=progress,
     )
     elapsed = time.monotonic() - _t
@@ -217,6 +219,7 @@ def _run_region_matching(
         region_shingled,
         settings.lsh.similarity_percent,
         settings.lsh.min_lines,
+        rule_engine,
         progress=progress,
     )
 

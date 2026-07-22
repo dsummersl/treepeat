@@ -7,9 +7,11 @@ from typing import TYPE_CHECKING
 from tqdm import tqdm
 
 from treepeat.models.shingle import ShingledRegion
+from treepeat.pipeline.languages.base import rules_anonymize_region_name
 
 if TYPE_CHECKING:
     from treepeat.models.similarity import Region, SimilarRegionGroup
+    from treepeat.pipeline.rules.models import Rule
 
 logger = logging.getLogger(__name__)
 
@@ -73,19 +75,38 @@ def _build_region_lookup(
     return region_to_shingled
 
 
-def _should_verify_signatures(r1: "Region", r2: "Region", similarity: float) -> bool:
+_CODE_REGION_TYPES = ("function", "class", "method")
+
+
+def _both_names_anonymized(r1: "Region", r2: "Region", rules: "list[Rule]") -> bool:
+    """True if the active ruleset anonymizes the name of both regions.
+
+    When it does (e.g. JavaScript replaces function identifiers with FUNC), a
+    name-only signature difference is intentional — reading raw source would
+    undo that anonymization. Under the 'none' ruleset those rules are absent,
+    so name differences remain penalized, as expected.
+    """
+    return rules_anonymize_region_name(rules, r1.language, r1.region_type) and (
+        rules_anonymize_region_name(rules, r2.language, r2.region_type)
+    )
+
+
+def _should_verify_signatures(
+    r1: "Region", r2: "Region", similarity: float, rules: "list[Rule]"
+) -> bool:
     """Determine if signature verification should be performed for these regions."""
     if similarity < SOURCE_VERIFICATION_THRESHOLD:
         return False
-
-    code_region_types = ("function", "class", "method")
-    return r1.region_type in code_region_types and r2.region_type in code_region_types
+    if r1.region_type not in _CODE_REGION_TYPES or r2.region_type not in _CODE_REGION_TYPES:
+        return False
+    return not _both_names_anonymized(r1, r2, rules)
 
 
 def _compute_pair_similarity_with_verification(
     r1: "Region",
     r2: "Region",
     region_lookup: dict[Path, dict[int, ShingledRegion]],
+    rules: "list[Rule]",
 ) -> float:
     """Compute similarity between two regions with signature verification."""
     sr1 = region_lookup.get(r1.path, {}).get(r1.start_line)
@@ -107,7 +128,7 @@ def _compute_pair_similarity_with_verification(
 
     # For high similarity code regions, verify that signatures match
     # This catches cases where function/class names differ but bodies are similar
-    if not _should_verify_signatures(r1, r2, shingle_similarity):
+    if not _should_verify_signatures(r1, r2, shingle_similarity, rules):
         return shingle_similarity
 
     signatures_match = _check_signature_match(
@@ -130,6 +151,7 @@ def _compute_pair_similarity_with_verification(
 def _verify_group_pairwise_similarity(
     group_regions: list["Region"],
     region_lookup: dict[Path, dict[int, ShingledRegion]],
+    rules: "list[Rule]",
 ) -> float:
     """Calculate average pairwise order-sensitive similarity for a group."""
     if len(group_regions) < 2:
@@ -140,7 +162,9 @@ def _verify_group_pairwise_similarity(
 
     for i, r1 in enumerate(group_regions):
         for r2 in group_regions[i + 1 :]:
-            similarity = _compute_pair_similarity_with_verification(r1, r2, region_lookup)
+            similarity = _compute_pair_similarity_with_verification(
+                r1, r2, region_lookup, rules
+            )
             total_similarity += similarity
             pair_count += 1
 
@@ -150,12 +174,16 @@ def _verify_group_pairwise_similarity(
 def verify_similar_groups(
     groups: list["SimilarRegionGroup"],
     shingled_regions: list[ShingledRegion],
+    rules: "list[Rule]",
     progress: bool = False,
 ) -> list["SimilarRegionGroup"]:
     """Verify candidate groups using order-sensitive similarity.
 
     For each group, recalculates similarity using pairwise SequenceMatcher
     comparison to ensure matches respect line order (not just set similarity).
+    ``rules`` is the active ruleset; it drives whether a name-only signature
+    difference is penalized (see ``_should_verify_signatures``). Pass ``[]``
+    to opt out of anonymization-aware verification.
     """
     logger.info("Verifying %d candidate group(s) with order-sensitive similarity", len(groups))
 
@@ -171,7 +199,7 @@ def verify_similar_groups(
     for group in iterable:
         # Recalculate group similarity using order-sensitive verification
         verified_similarity = _verify_group_pairwise_similarity(
-            group.regions, region_lookup
+            group.regions, region_lookup, rules
         )
 
         logger.debug(
