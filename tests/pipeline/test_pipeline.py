@@ -79,7 +79,9 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
         ("none", class_with_methods_file, 0.9, 2, []),
         ("default", class_with_methods_file, 0.1, 1, []),
         ("default", class_with_methods_file, 0.3, 2, []),
-        ("default", class_with_methods_file, 0.5, 3, [(classA_region, classB_region)]),
+        # At the 0.5 cutoff the two classes and both method pairs connect into a
+        # single component (affine32 MinHash estimates; see note on the fn).
+        ("default", class_with_methods_file, 0.5, 1, [(classA_region, classB_region)]),
         (
             "none",
             python_fixtures,
@@ -194,7 +196,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             "none",
             python_fixtures,
             0.9,
-            4,
+            3,
             [
                 # Cross-file duplicate functions
                 (
@@ -234,12 +236,37 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         46,
                     ),
                 ),
+                # Duplicate method3 within same file (non-overlapping)
+                (
+                    _make_region(
+                        fixture_class_with_methods,
+                        "python",
+                        "function_definition",
+                        "method3",
+                        21,
+                        27,
+                    ),
+                    _make_region(
+                        fixture_class_with_methods,
+                        "python",
+                        "function_definition",
+                        "method3",
+                        48,
+                        54,
+                    ),
+                ),
             ],
         ),
     ],
 )
 def test_match_counts(ruleset, path, similarity_threshold, similar_groups, expected_regions):
-    """Testing with different rulesets and LSH thresholds."""
+    """Testing with different rulesets and LSH thresholds.
+
+    The group counts are computed from MinHash-estimated similarity, so cases
+    sitting near a threshold can shift if the estimator changes. These counts
+    reflect datasketch's default "affine32" scheme (>= 2.0.0); the expected_regions
+    pairs pin the meaningful matches independent of the exact total.
+    """
     set_settings(
         PipelineSettings(
             rules=RulesSettings(ruleset=ruleset),
