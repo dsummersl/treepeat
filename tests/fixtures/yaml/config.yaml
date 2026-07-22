@@ -1,0 +1,11 @@
+service:
+  name: treepeat
+  port: 8080
+  replicas: 3
+  env:
+    - LOG_LEVEL=info
+    - CACHE=redis
+  healthcheck:
+    path: /healthz
+    interval: 30
+    timeout: 5

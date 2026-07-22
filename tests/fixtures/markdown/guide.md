@@ -44,6 +44,24 @@ function check_requirements() {
 }
 ```
 
+## YAML Example
+
+Describe a deployable service:
+
+```yaml
+service:
+  name: treepeat
+  port: 8080
+  replicas: 3
+  env:
+    - LOG_LEVEL=info
+    - CACHE=redis
+  healthcheck:
+    path: /healthz
+    interval: 30
+    timeout: 5
+```
+
 ## Plain Text Example
 
 This block has no language tag and should not trigger injection:
