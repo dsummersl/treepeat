@@ -141,13 +141,25 @@ def _get_relative_path(file_path: Path, base_path: Path) -> str | None:
         return None
 
 
+def _match_path_component(rel_path_str: str, pattern: str) -> bool:
+    """Match a slash-less pattern against any path component.
+
+    A slash-less pattern (e.g. "node_modules") matches at any depth in git,
+    and when it matches a directory everything beneath it is ignored. Checking
+    each path component lets files inside such a directory be ignored too.
+    """
+    if "/" in pattern:
+        return False
+    return any(fnmatch(part, pattern) for part in Path(rel_path_str).parts)
+
+
 def _match_simple_pattern(rel_path_str: str, file_name: str, pattern: str) -> bool:
     """Match simple patterns (non-anchored, non-recursive)."""
     if fnmatch(rel_path_str, pattern) or fnmatch(file_name, pattern):
         return True
     if "**" in pattern:
         return _match_double_star_pattern(rel_path_str, file_name, pattern)
-    return False
+    return _match_path_component(rel_path_str, pattern)
 
 
 def _check_directory_pattern(rel_path_str: str, file_path: Path, pattern: str) -> tuple[bool, bool]:
