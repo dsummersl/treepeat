@@ -92,6 +92,30 @@ class TestMatchesPattern:
         other_file.touch()
         assert not matches_pattern(other_file, "build/", tmp_path)
 
+    def test_bare_directory_name_matches_contents(self, tmp_path):
+        """Test that a slash-less directory pattern ignores files inside it.
+
+        A pattern like ``node_modules`` (no trailing slash) is a valid git
+        pattern that matches a directory at any depth and ignores everything
+        beneath it.
+        """
+        nested = tmp_path / "node_modules" / "pkg"
+        nested.mkdir(parents=True)
+        file_in_nested = nested / "index.js"
+        file_in_nested.touch()
+
+        file_top = tmp_path / "node_modules" / "top.js"
+        file_top.touch()
+
+        assert matches_pattern(file_in_nested, "node_modules", tmp_path)
+        assert matches_pattern(file_top, "node_modules", tmp_path)
+
+        # Files outside node_modules should not match
+        other = tmp_path / "src" / "main.js"
+        other.parent.mkdir()
+        other.touch()
+        assert not matches_pattern(other, "node_modules", tmp_path)
+
     def test_double_star_pattern(self, tmp_path):
         """Test ** (recursive) patterns."""
         subdir = tmp_path / "src" / "utils"
@@ -293,6 +317,29 @@ class TestCollectSourceFilesWithIgnore:
         # src file should be collected, test file should be ignored
         assert src_file in files
         assert test_file not in files
+
+    def test_collect_ignores_bare_directory_name(self, tmp_path):
+        """Test that ``node_modules`` (no trailing slash) ignores its contents."""
+        gitignore = tmp_path / ".gitignore"
+        gitignore.write_text("node_modules\n")
+
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        src_file = src_dir / "main.py"
+        src_file.write_text("print('main')")
+
+        nm_dir = tmp_path / "node_modules" / "pkg"
+        nm_dir.mkdir(parents=True)
+        nm_file = nm_dir / "dep.py"
+        nm_file.write_text("print('dep')")
+
+        settings = PipelineSettings(ignore_file_patterns=["**/.gitignore"])
+        set_settings(settings)
+
+        files = collect_source_files(tmp_path)
+
+        assert src_file in files
+        assert nm_file not in files
 
     def test_collect_with_no_ignore(self, tmp_path):
         """Test collecting files with no ignore patterns."""

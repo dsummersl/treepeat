@@ -147,6 +147,11 @@ def _match_simple_pattern(rel_path_str: str, file_name: str, pattern: str) -> bo
         return True
     if "**" in pattern:
         return _match_double_star_pattern(rel_path_str, file_name, pattern)
+    # A slash-less pattern (e.g. "node_modules") matches at any depth in git,
+    # and when it matches a directory everything beneath it is ignored. Check
+    # each path component so files inside such a directory are ignored too.
+    if "/" not in pattern:
+        return any(fnmatch(part, pattern) for part in Path(rel_path_str).parts)
     return False
 
 
