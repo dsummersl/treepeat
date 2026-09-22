@@ -58,9 +58,16 @@ def _get_region_mappings_from_engine(engine: "RuleEngine", language: str) -> lis
 def _extract_node_name(node: Node, source: bytes) -> str:
     """Extract the name of a function/class/method from its node."""
     # Look for 'name', 'identifier', or 'property_identifier' child node
-    # property_identifier is used for JavaScript method names
+    # property_identifier is used for JavaScript method names; the index
+    # expressions are Lua's table-qualified names (`M.fn` and `M:fn`)
     for child in node.children:
-        if child.type in ("identifier", "name", "property_identifier"):
+        if child.type in (
+            "identifier",
+            "name",
+            "property_identifier",
+            "dot_index_expression",
+            "method_index_expression",
+        ):
             return source[child.start_byte : child.end_byte].decode("utf-8", errors="ignore")
     return "anonymous"
 

@@ -8,6 +8,7 @@ from .java import JavaConfig
 from .javascript import JavaScriptConfig
 from .jsx import JsxConfig
 from .kotlin import KotlinConfig
+from .lua import LuaConfig
 from .markdown import MarkdownConfig
 from .python import PythonConfig
 from .rust import RustConfig
@@ -27,6 +28,7 @@ LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
     "javascript": JavaScriptConfig(),
     "jsx": JsxConfig(),
     "kotlin": KotlinConfig(),
+    "lua": LuaConfig(),
     "markdown": MarkdownConfig(),
     "python": PythonConfig(),
     "rust": RustConfig(),
@@ -46,6 +48,7 @@ LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "javascript": [".js"],
     "jsx": [".jsx"],
     "kotlin": [".kt", ".kts"],
+    "lua": [".lua"],
     "markdown": [".md", ".markdown"],
     "python": [".py"],
     "rust": [".rs"],
@@ -82,6 +85,7 @@ __all__ = [
     "CSSConfig",
     "JavaConfig",
     "KotlinConfig",
+    "LuaConfig",
     "SQLConfig",
     "BashConfig",
     "RustConfig",
