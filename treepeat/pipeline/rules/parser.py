@@ -38,6 +38,12 @@ def _parse_yaml_rule(rule_dict: dict[str, Any], ruleset_name: str) -> Rule:
     if isinstance(languages, str):
         languages = [languages]
 
+    if "*" in languages:
+        raise RuleParseError(
+            f"Rule '{name}' in ruleset '{ruleset_name}' is invalid: "
+            "Wildcard rule languages ('*') are not supported; specify explicit languages"
+        )
+
     return Rule(
         name=name,
         languages=languages,

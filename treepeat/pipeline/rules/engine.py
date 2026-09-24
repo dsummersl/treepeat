@@ -25,7 +25,6 @@ class RuleEngine:
         self._compiled_queries: dict[tuple[str, str], Query] = {}
         self._query_matches_cache: dict[int, list[dict[str, Any]]] = {}
         # Pre-partition rules by language for O(1) lookup during shingling.
-        # "*" entries are rules that match all languages.
         self._rules_by_language: dict[str, list[Rule]] = {}
         for rule in rules:
             for lang in set(rule.languages):
@@ -228,20 +227,7 @@ class RuleEngine:
         return name, value
 
     def _iter_matching_rules(self, language: str) -> Iterable[Rule]:
-        # Yield wildcard rules first, then language-specific rules.
-        # Deduplication guard handles the (currently unused) case where a rule
-        # lists both "*" and a specific language in its languages field.
-        wildcard_rules = self._rules_by_language.get("*", [])
-        if not wildcard_rules:
-            yield from self._rules_by_language.get(language, [])
-            return
-        seen: set[int] = set()
-        for rule in wildcard_rules:
-            seen.add(id(rule))
-            yield rule
-        for rule in self._rules_by_language.get(language, []):
-            if id(rule) not in seen:
-                yield rule
+        yield from self._rules_by_language.get(language, [])
 
     def _apply_rule_state(
         self,

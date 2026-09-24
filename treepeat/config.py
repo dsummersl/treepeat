@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,6 +7,7 @@ class RulesSettings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="RULES_",
+        validate_assignment=True,
     )
 
     ruleset: str = Field(
@@ -35,6 +36,20 @@ class RulesSettings(BaseSettings):
             "(e.g., {'python': {'function_definition', 'class_definition'}})"
         ),
     )
+
+    @field_validator("region_filters", "additional_regions", "excluded_regions")
+    @classmethod
+    def _reject_wildcard_languages(
+        cls, value: dict[str, set[str]]
+    ) -> dict[str, set[str]]:
+        # Keep runtime-mutated settings aligned with Rule's language invariant.
+        # CLI configuration builds a settings object first, then assigns these
+        # mappings from parsed options.
+        if "*" in value:
+            raise ValueError(
+                "Wildcard language '*' is not supported; specify explicit languages"
+            )
+        return value
 
 
 class ShingleSettings(BaseSettings):
