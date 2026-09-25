@@ -1,13 +1,15 @@
 import logging
 import sys
-from difflib import SequenceMatcher
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from tqdm import tqdm
 
 from treepeat.models.shingle import ShingledRegion
+from treepeat.models.similarity import ScanIssue
+from treepeat.pipeline.bounded_verification import BoundedVerifier
 from treepeat.pipeline.languages.base import rules_anonymize_region_name
+from treepeat.pipeline.sequence_matching import ordered_ratio
 
 if TYPE_CHECKING:
     from treepeat.models.similarity import Region, SimilarRegionGroup
@@ -24,13 +26,10 @@ SOURCE_VERIFICATION_THRESHOLD = 0.98
 def _compute_ordered_similarity(shingles1: list[str], shingles2: list[str]) -> float:
     """Compute order-sensitive similarity between two shingle lists.
 
-    Uses Ratcliff/Obershelp (contiguous matching blocks) via SequenceMatcher,
-    which is C-implemented and far faster than a pure-Python LCS DP table.
-    autojunk=False ensures common shingles are never silently skipped.
+    Keep repeated tokens meaningful with autojunk disabled. Identical sequences
+    need no matching search, including large generated tables and copied classes.
     """
-    if not shingles1 or not shingles2:
-        return 0.0
-    return SequenceMatcher(None, shingles1, shingles2, autojunk=False).ratio()
+    return ordered_ratio(shingles1, shingles2)
 
 
 def _read_source_lines(file_path: Path, start_line: int, end_line: int) -> list[str]:
@@ -176,6 +175,8 @@ def verify_similar_groups(
     shingled_regions: list[ShingledRegion],
     rules: "list[Rule]",
     progress: bool = False,
+    timeout: float = 0.0,
+    issues: list[ScanIssue] | None = None,
 ) -> list["SimilarRegionGroup"]:
     """Verify candidate groups using order-sensitive similarity.
 
@@ -190,33 +191,45 @@ def verify_similar_groups(
     region_lookup = _build_region_lookup(shingled_regions)
     verified_groups = []
 
-    iterable = (
-        tqdm(groups, desc="Verifying", unit="group", file=sys.stderr)
-        if progress
-        else groups
-    )
+    iterable = tqdm(groups, desc="Verifying", unit="group", file=sys.stderr, disable=not progress)
 
-    for group in iterable:
-        # Recalculate group similarity using order-sensitive verification
-        verified_similarity = _verify_group_pairwise_similarity(
-            group.regions, region_lookup, rules
-        )
-
-        logger.debug(
-            "Verified group of %d regions: LSH=%.1f%%, Ordered=%.1f%%",
-            len(group.regions),
-            group.similarity * 100,
-            verified_similarity * 100,
-        )
-
-        # Import here to avoid circular dependency
-        from treepeat.models.similarity import SimilarRegionGroup
-
-        verified_group = SimilarRegionGroup(
-            regions=group.regions,
-            similarity=verified_similarity,
-        )
-        verified_groups.append(verified_group)
+    worker = BoundedVerifier(timeout, rules) if timeout else None
+    try:
+        for group in iterable:
+            verified = _verify_one_group(group, region_lookup, rules, worker, issues)
+            if verified is not None:
+                verified_groups.append(verified)
+    finally:
+        if worker is not None:
+            worker.close()
 
     logger.info("Verification complete: %d group(s) verified", len(verified_groups))
     return verified_groups
+
+
+def _verify_one_group(
+    group: "SimilarRegionGroup", lookup: dict[Path, dict[int, ShingledRegion]], rules: "list[Rule]",
+    worker: BoundedVerifier | None, issues: list[ScanIssue] | None,
+) -> "SimilarRegionGroup | None":
+    from treepeat.models.similarity import SimilarRegionGroup
+
+    try:
+        if worker is None:
+            score = _verify_group_pairwise_similarity(group.regions, lookup, rules)
+        else:
+            shingles = [lookup[r.path][r.start_line] for r in group.regions]
+            score = worker.verify(group, shingles)
+        return SimilarRegionGroup(regions=group.regions, similarity=score)
+    except (TimeoutError, EOFError, OSError, RuntimeError) as error:
+        _record_verification_error(group, error, issues)
+        return None
+
+
+def _record_verification_error(
+    group: "SimilarRegionGroup", error: Exception, issues: list[ScanIssue] | None,
+) -> None:
+    if issues is None:
+        raise error
+    code = "verification-timeout" if isinstance(error, TimeoutError) else "verification-error"
+    issues.append(ScanIssue(code=code, message=str(error), regions=group.regions))
+    logger.warning("Unresolved group of %d regions: %s", group.size, error)

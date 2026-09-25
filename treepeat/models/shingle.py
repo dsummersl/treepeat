@@ -1,6 +1,6 @@
 """Models for shingling stage."""
 
-from typing import Sequence
+from typing import Sequence, cast
 
 from pydantic import BaseModel, Field
 
@@ -60,5 +60,15 @@ class ShingledRegion(BaseModel):
         """Return the number of unique shingles in this region."""
         return self.shingles.size
 
+
+class CompactShingleList(ShingleList):
+    """Ordered strings for detection, without per-shingle display metadata."""
+
+    @classmethod
+    def from_contents(cls, contents: list[str]) -> "CompactShingleList":
+        return cls.model_construct(shingles=contents)
+
+    def get_contents(self) -> list[str]:
+        return cast(list[str], self.shingles)
 
 

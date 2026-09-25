@@ -31,6 +31,10 @@ jobs:
       - name: CI
         run: make ci
 
+      - name: Check scan memory, runtime, and cross-directory matches
+        timeout-minutes: 3
+        run: make benchmark-ci
+
       - name: Upload code coverage
         if: always()
         uses: actions/upload-artifact@v4

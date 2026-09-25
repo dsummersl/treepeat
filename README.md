@@ -37,6 +37,8 @@ Key flags:
 - `--format`: Output format - `console` (default) or `sarif` for CI integration
 - `--verbose`: Show additional run metrics, including per-stage timing when available
 - `--progress`: Show progress bars for long-running pipeline stages
+- `--verification-timeout`: Seconds allowed per candidate group (default: 30; 0 disables)
+- `--max-group-pairs`: Maximum comparisons per candidate group (default: 100000; 0 disables)
 
 ```bash
 # Find exact duplicates
@@ -56,6 +58,8 @@ treepeat detect --format sarif -o results.sarif /path/to/codebase
 ```
 
 `--progress` is intended primarily as interactive CLI feedback. The current implementation writes tqdm progress bars to `stderr`, leaving normal command output on `stdout` or `--output`.
+
+For CI, see [resource limits, exit codes, and performance checks](docs/ci-performance.md).
 
 ### Other sub commands
 
