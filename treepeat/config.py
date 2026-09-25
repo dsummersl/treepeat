@@ -79,6 +79,8 @@ class LSHSettings(BaseSettings):
     )
 
     similarity_percent: float = Field(default=0.8, ge=0.0, le=1.0, description="% treesitter similarity")
+    verification_timeout: float = Field(default=0.0, ge=0.0, description="Seconds per candidate group; 0 disables")
+    max_group_pairs: int = Field(default=0, ge=0, description="Maximum comparisons per group; 0 disables")
 
     ignore_node_types: list[str] = Field(
         default_factory=list,

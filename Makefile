@@ -35,3 +35,6 @@ radon:
 	uv run .github/scripts/check_radon.sh
 
 ci: lint type test radon vulture
+
+benchmark-ci:
+	uv run python tools/perf/ci_budget.py

@@ -8,7 +8,14 @@
 
 Pull requests welcome: This is very much an proof of concept - I'm happy with it, but I haven't supported very many languages at present. PRs welcome!
 
-Languages supported: astro, bash, css, go, html, javascript, lua, markdown, python, sql, typescript, java, kotlin, rust, yaml
+Languages supported: astro, bash, css, go, html, javascript, lua, markdown, php, python, sql, typescript, java, kotlin, rust, yaml
+
+PHP support covers `.php` and `.phtml` files, including PHP embedded in HTML.
+Regions include functions, methods, classes, closures, arrow functions, anonymous
+classes, interfaces, traits, and enums. The default ruleset ignores comments and
+namespace imports and normalizes declaration names. The loose ruleset also
+normalizes identifiers and literal values while preserving expression structure
+and interpolated variables.
 
 ## Usage
 
@@ -30,6 +37,8 @@ Key flags:
 - `--format`: Output format - `console` (default) or `sarif` for CI integration
 - `--verbose`: Show additional run metrics, including per-stage timing when available
 - `--progress`: Show progress bars for long-running pipeline stages
+- `--verification-timeout`: Seconds allowed per candidate group (default: 30; 0 disables)
+- `--max-group-pairs`: Maximum comparisons per candidate group (default: 100000; 0 disables)
 
 ```bash
 # Find exact duplicates
@@ -49,6 +58,8 @@ treepeat detect --format sarif -o results.sarif /path/to/codebase
 ```
 
 `--progress` is intended primarily as interactive CLI feedback. The current implementation writes tqdm progress bars to `stderr`, leaving normal command output on `stdout` or `--output`.
+
+For CI, see [resource limits, exit codes, and performance checks](docs/ci-performance.md).
 
 ### Other sub commands
 

@@ -16,6 +16,8 @@ from treepeat.pipeline.verbose_metrics import record_used_node_type
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["ExtractedRegion", "extract_all_regions", "extract_regions"]
+
 
 class ExtractedRegion(BaseModel):
     """A region with its AST node(s) for further processing."""

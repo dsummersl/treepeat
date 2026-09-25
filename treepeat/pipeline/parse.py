@@ -1,6 +1,7 @@
 import logging
 import sys
 from fnmatch import fnmatch
+from itertools import chain
 from pathlib import Path
 
 from tqdm import tqdm
@@ -270,15 +271,19 @@ def _collect_directory_files(
     """Collect all source files from a directory."""
     ignore_files_map = find_ignore_files(target_path, ignore_file_patterns)
 
-    files: list[Path] = []
-    for _lang, exts in LANGUAGE_EXTENSIONS.items():
-        for ext in exts:
-            for file in target_path.rglob(f"*{ext}"):
-                if not should_ignore_file(file, target_path, ignore_patterns, ignore_files_map):
-                    files.append(file)
+    files = [
+        file for file in _source_files(target_path)
+        if not should_ignore_file(file, target_path, ignore_patterns, ignore_files_map)
+    ]
 
     logger.info(f"Found {len(files)} source files in directory (after applying ignore patterns)")
-    return files
+    return sorted(files)
+
+
+def _source_files(target_path: Path) -> list[Path]:
+    """Discover supported files with one directory traversal."""
+    extensions = set(chain.from_iterable(LANGUAGE_EXTENSIONS.values()))
+    return [file for file in target_path.rglob("*") if file.suffix in extensions and file.is_file()]
 
 
 def collect_source_files(target_path: Path) -> list[Path]:

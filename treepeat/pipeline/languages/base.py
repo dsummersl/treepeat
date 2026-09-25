@@ -14,12 +14,13 @@ _FUNCTION_NODES = (
     "function_expression",
     "arrow_function",
     "method_definition",
+    "method_declaration",
 )
 _CLASS_NODES = ("class_declaration", "class_definition")
 
 # Identifier node types that carry a declaration's name across grammars.
 _IDENTIFIER_NODES = frozenset(
-    {"identifier", "property_identifier", "type_identifier", "field_identifier"}
+    {"identifier", "property_identifier", "type_identifier", "field_identifier", "name"}
 )
 
 # In a tree-sitter query a named node type is a lowercase word directly after an
