@@ -10,6 +10,7 @@ from .jsx import JsxConfig
 from .kotlin import KotlinConfig
 from .lua import LuaConfig
 from .markdown import MarkdownConfig
+from .php import PHPConfig
 from .python import PythonConfig
 from .rust import RustConfig
 from .sql import SQLConfig
@@ -30,6 +31,7 @@ LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
     "kotlin": KotlinConfig(),
     "lua": LuaConfig(),
     "markdown": MarkdownConfig(),
+    "php": PHPConfig(),
     "python": PythonConfig(),
     "rust": RustConfig(),
     "sql": SQLConfig(),
@@ -50,6 +52,7 @@ LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "kotlin": [".kt", ".kts"],
     "lua": [".lua"],
     "markdown": [".md", ".markdown"],
+    "php": [".php", ".phtml"],
     "python": [".py"],
     "rust": [".rs"],
     "sql": [".sql"],
@@ -77,6 +80,7 @@ __all__ = [
     "GRAMMAR_ALIASES",
     "get_grammar",
     "PythonConfig",
+    "PHPConfig",
     "JavaScriptConfig",
     "JsxConfig",
     "TypeScriptConfig",

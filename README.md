@@ -8,7 +8,14 @@
 
 Pull requests welcome: This is very much an proof of concept - I'm happy with it, but I haven't supported very many languages at present. PRs welcome!
 
-Languages supported: astro, bash, css, go, html, javascript, lua, markdown, python, sql, typescript, java, kotlin, rust, yaml
+Languages supported: astro, bash, css, go, html, javascript, lua, markdown, php, python, sql, typescript, java, kotlin, rust, yaml
+
+PHP support covers `.php` and `.phtml` files, including PHP embedded in HTML.
+Regions include functions, methods, classes, closures, arrow functions, anonymous
+classes, interfaces, traits, and enums. The default ruleset ignores comments and
+namespace imports and normalizes declaration names. The loose ruleset also
+normalizes identifiers and literal values while preserving expression structure
+and interpolated variables.
 
 ## Usage
 
