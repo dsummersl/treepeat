@@ -9,12 +9,14 @@ from tree_sitter import Node
 
 from treepeat.models.ast import ParsedFile
 from treepeat.models.normalization import NodeRepresentation, SkipNode
-from treepeat.models.shingle import Shingle, ShingledRegion, ShingleList
+from treepeat.models.shingle import CompactShingleList, Shingle, ShingledRegion, ShingleList
 from treepeat.pipeline.region_extraction import ExtractedRegion
 from treepeat.pipeline.rules.engine import RuleEngine
 from treepeat.pipeline.rules.models import SkipNodeException
 
 logger = logging.getLogger(__name__)
+
+__all__ = ["ASTShingler", "shingle_regions"]
 
 # Maximum length for node values in shingles (longer values are truncated)
 MAX_NODE_VALUE_LENGTH = 50
@@ -25,11 +27,54 @@ class ASTShingler:
         self,
         rule_engine: RuleEngine,
         k: int = 3,
+        symbols: dict[str, str] | None = None,
     ):
         if k < 1:
             raise ValueError("k must be at least 1")
         self.rule_engine = rule_engine
         self.k = k
+        self.symbols = symbols
+
+    def _extract_compact(self, root: Node, language: str, source: bytes) -> list[str]:
+        """Traverse once, sharing repeated strings without allocating Shingle models."""
+        contents: list[str] = []
+        path: list[str] = []
+        assert self.symbols is not None
+        symbols = self.symbols
+
+        def traverse(node: Node) -> None:
+            name = node.type
+            value = self._extract_node_value(node, source)
+            try:
+                name, value = self._apply_rules(node, name, value, language, source, root)
+            except SkipNodeException:
+                return
+            path.append(f"{name}({value})" if value else name)
+            if len(path) >= self.k:
+                content = "→".join(path[-self.k:])
+                contents.append(symbols.setdefault(content, content))
+            for child in node.children:
+                traverse(child)
+            path.pop()
+
+        traverse(root)
+        return contents
+
+    def _shingle_compact_region(self, extracted: ExtractedRegion, source: bytes) -> ShingledRegion:
+        """Keep injected and composite region behavior identical to display shingling."""
+        language = extracted.injected_language or extracted.region.language
+        nodes = self._compact_nodes(extracted)
+        if extracted.injected_source is not None:
+            source = extracted.injected_source
+        contents: list[str] = []
+        for node in nodes:
+            contents.extend(self._extract_compact(node, language, source))
+        return ShingledRegion(region=extracted.region, shingles=CompactShingleList.from_contents(contents))
+
+    def _compact_nodes(self, extracted: ExtractedRegion) -> list[Node]:
+        if extracted.injected_tree is not None:
+            return [extracted.injected_tree.root_node]
+        return extracted.nodes if extracted.nodes is not None else [extracted.node]
 
     def _shingle_injected_region(self, extracted_region: ExtractedRegion) -> list[Shingle]:
         injected_tree = extracted_region.injected_tree
@@ -54,6 +99,8 @@ class ASTShingler:
         return all_shingles
 
     def shingle_region(self, extracted_region: ExtractedRegion, source: bytes) -> ShingledRegion:
+        if self.symbols is not None:
+            return self._shingle_compact_region(extracted_region, source)
         region = extracted_region.region
 
         if extracted_region.injected_tree is not None:
@@ -266,6 +313,7 @@ def shingle_regions(
     rule_engine: RuleEngine,
     k: int = 3,
     progress: bool = False,
+    symbols: dict[str, str] | None = None,
 ) -> list[ShingledRegion]:
     logger.info(
         "Shingling %d region(s) across %d file(s) with k=%d",
@@ -275,7 +323,7 @@ def shingle_regions(
     )
 
     path_to_source = {pf.path: pf.source for pf in parsed_files}
-    shingler = ASTShingler(rule_engine=rule_engine, k=k)
+    shingler = ASTShingler(rule_engine=rule_engine, k=k, symbols=symbols)
     shingled_regions: list[ShingledRegion] = []
     filtered_count = 0
     iterable = _get_region_shingling_iterable(extracted_regions, progress)

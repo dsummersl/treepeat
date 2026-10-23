@@ -70,6 +70,14 @@ class SimilarityResult(BaseModel):
     similar_groups: list[SimilarRegionGroup] = Field(
         default_factory=list, description="Groups of similar regions above threshold"
     )
+    issues: list["ScanIssue"] = Field(default_factory=list)
+    files_discovered: int = 0
+    files_parsed: int = 0
+
+    @property
+    def complete(self) -> bool:
+        """Whether every discovered file and candidate completed processing."""
+        return not any(issue.level == "error" for issue in self.issues)
 
     @property
     def total_files(self) -> int:
@@ -86,3 +94,13 @@ class SimilarityResult(BaseModel):
     def self_similarity_count(self) -> int:
         """Number of similar groups within the same file."""
         return sum(1 for group in self.similar_groups if group.is_self_similarity)
+
+
+class ScanIssue(BaseModel):
+    """A parser warning or processing failure retained in the final report."""
+
+    code: str
+    message: str
+    level: str = "error"
+    path: Path | None = None
+    regions: list[Region] = Field(default_factory=list)

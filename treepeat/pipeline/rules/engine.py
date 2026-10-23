@@ -293,6 +293,7 @@ class RuleEngine:
         self._identifier_counters.clear()
         self._identifier_mapping.clear()
         self._query_matches_cache.clear()
+        self._source = None
 
     def precompute_queries(
         self, root_node: Node, language: str, source: bytes | None = None

@@ -120,11 +120,15 @@ def _configure_settings(
     ignore_node_types: str,
     add_regions: tuple[str, ...],
     exclude_regions: tuple[str, ...],
+    verification_timeout: float = 0.0,
+    max_group_pairs: int = 0,
 ) -> None:
     lsh_settings = LSHSettings(
         similarity_percent=similarity_percent / 100.0,
         min_lines=min_lines,
         ignore_node_types=_parse_patterns(ignore_node_types),
+        verification_timeout=verification_timeout,
+        max_group_pairs=max_group_pairs,
     )
 
     settings = PipelineSettings(
@@ -361,15 +365,16 @@ def _handle_output(
         console.print()
 
 
-def _check_result_errors(result: SimilarityResult, output_format: str) -> None:
+def _check_result_errors(result: SimilarityResult) -> None:
     """Check for errors in the result and exit if necessary."""
-    if result.success_count != 0:
-        return
-
-    if output_format.lower() == "console":
-        console.print("[bold red]Error:[/bold red] Failed to parse any files")
-
-    sys.exit(1)
+    if result.issues:
+        Console(stderr=True).print(
+            f"Analysis issues: {len(result.issues)}; "
+            f"unresolved errors: {sum(i.level == 'error' for i in result.issues)}. "
+            "See SARIF run properties and notifications for details.",
+        )
+    if not result.complete:
+        sys.exit(2)
 
 
 def _format_language_node_types(
@@ -552,6 +557,14 @@ def _display_verbose_metrics(elapsed_time: float) -> None:
     default=False,
     help="Show progress bars for long-running pipeline stages",
 )
+@click.option(
+    "--verification-timeout", type=click.FloatRange(min=0), default=30.0, show_default=True,
+    help="Seconds per candidate group; unresolved groups are reported and exit 2. Use 0 for unlimited.",
+)
+@click.option(
+    "--max-group-pairs", type=click.IntRange(min=0), default=100000, show_default=True,
+    help="Maximum comparisons per candidate group; larger groups remain unresolved. Use 0 for unlimited.",
+)
 def detect(
     ctx: click.Context,
     path: Path,
@@ -568,6 +581,8 @@ def detect(
     progress: bool,
     add_regions: tuple[str, ...],
     exclude_regions: tuple[str, ...],
+    verification_timeout: float,
+    max_group_pairs: int,
 ) -> None:
     log_level = ctx.obj["log_level"]
     ruleset = ctx.obj["ruleset"]
@@ -581,6 +596,8 @@ def detect(
         ignore_node_types,
         add_regions,
         exclude_regions,
+        verification_timeout,
+        max_group_pairs,
     )
 
     # Reset and track timing for verbose output
@@ -591,8 +608,8 @@ def detect(
 
     elapsed_time = time.time() - start_time
 
-    _check_result_errors(result, output_format)
     _handle_output(result, output_format, output, log_level, diff)
+    _check_result_errors(result)
 
     # Display verbose metrics if requested
     if verbose and output_format.lower() == "console":

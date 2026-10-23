@@ -1,3 +1,5 @@
+import json
+
 from sarif_pydantic import (  # type: ignore[import-untyped]
     ArtifactLocation,
     Level,
@@ -21,8 +23,18 @@ def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:
     sarif_log = _create_sarif_log(result)
 
     indent = 2 if pretty else None
-    json_output: str = sarif_log.model_dump_json(indent=indent, exclude_none=True)
-    return json_output
+    document = sarif_log.model_dump(mode="json", by_alias=True, exclude_none=True)
+    # sarif-pydantic does not model toolExecutionNotifications. Preserve the
+    # standard SARIF field explicitly rather than silently dropping diagnostics.
+    document["runs"][0]["invocations"] = [{
+        "executionSuccessful": result.complete,
+        "toolExecutionNotifications": [
+            {"level": issue.level, "descriptor": {"id": issue.code},
+             "message": {"text": f"{issue.path or ''}: {issue.message}"}}
+            for issue in result.issues
+        ],
+    }]
+    return json.dumps(document, indent=indent)
 
 
 def _create_sarif_log(result: SimilarityResult) -> Sarif:
@@ -39,6 +51,12 @@ def _create_run(result: SimilarityResult) -> Run:
     return Run(
         tool=_create_tool(),
         results=_create_results(result),
+        properties={
+            "processingComplete": result.complete,
+            "filesDiscovered": result.files_discovered,
+            "filesParsed": result.files_parsed,
+            "issues": [issue.model_dump(mode="json") for issue in result.issues],
+        },
     )
 
 

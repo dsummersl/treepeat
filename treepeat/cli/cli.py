@@ -9,7 +9,7 @@ from rich.logging import RichHandler
 
 from treepeat.cli.commands import detect, list_ruleset, treesitter
 
-console = Console()
+console = Console(stderr=True)
 
 
 def get_version() -> str:

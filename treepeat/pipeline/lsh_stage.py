@@ -12,6 +12,7 @@ from treepeat.models.shingle import ShingledRegion
 from treepeat.models.similarity import (
     Region,
     RegionSignature,
+    ScanIssue,
     SimilarityResult,
     SimilarRegionGroup,
 )
@@ -223,7 +224,9 @@ def _get_valid_group_signatures(
     key_to_sig: dict[str, RegionSignature],
 ) -> list[RegionSignature] | None:
     """Get signatures for member keys if at least 2 valid signatures exist."""
-    group_sigs = [key_to_sig[key] for key in member_keys if key in key_to_sig]
+    # SequenceMatcher's tie breaking is asymmetric. Fix the pair orientation
+    # independently of LSH set iteration and the process's hash seed.
+    group_sigs = [key_to_sig[key] for key in sorted(member_keys) if key in key_to_sig]
     return group_sigs if len(group_sigs) >= 2 else None
 
 
@@ -231,10 +234,15 @@ def _create_group_from_keys(
     member_keys: list[str],
     key_to_sig: dict[str, RegionSignature],
     similarity_percent: float,
+    max_group_pairs: int = 0,
+    issues: list[ScanIssue] | None = None,
 ) -> SimilarRegionGroup | None:
     """Create a similarity group from member keys."""
     group_sigs = _get_valid_group_signatures(member_keys, key_to_sig)
     if group_sigs is None:
+        return None
+
+    if _exceeds_group_limit(group_sigs, max_group_pairs, issues):
         return None
 
     group_similarity_percent = _calculate_group_similarity(group_sigs)
@@ -258,16 +266,22 @@ def _create_group_from_keys(
         len(regions),
         group_similarity_percent * 100,
     )
-    for region in regions:
-        logger.debug(
-            "  - %s [%d:%d] from %s",
-            region.region_name,
-            region.start_line,
-            region.end_line,
-            region.path.name,
-        )
 
     return SimilarRegionGroup(regions=regions, similarity=group_similarity_percent)
+
+
+def _exceeds_group_limit(
+    signatures: list[RegionSignature], maximum: int, issues: list[ScanIssue] | None,
+) -> bool:
+    pairs = len(signatures) * (len(signatures) - 1) // 2
+    if not maximum or pairs <= maximum:
+        return False
+    message = f"Candidate group needs {pairs} comparisons, exceeding limit {maximum}"
+    if issues is None:
+        raise RuntimeError(message)
+    issues.append(ScanIssue(code="candidate-limit", message=message, regions=[s.region for s in signatures]))
+    logger.warning(message)
+    return True
 
 
 def _collect_candidate_groups(
@@ -275,6 +289,8 @@ def _collect_candidate_groups(
     lsh: MinHashLSH,
     similarity_percent: float,
     progress: bool = False,
+    max_group_pairs: int = 0,
+    issues: list[ScanIssue] | None = None,
 ) -> list[SimilarRegionGroup]:
     """Collect similar region groups from LSH queries."""
     # Build union-find structure
@@ -295,7 +311,7 @@ def _collect_candidate_groups(
             continue
 
         # Create and validate group
-        group = _create_group_from_keys(member_keys, key_to_sig, similarity_percent)
+        group = _create_group_from_keys(member_keys, key_to_sig, similarity_percent, max_group_pairs, issues)
         if group is not None:
             groups.append(group)
 
@@ -303,7 +319,8 @@ def _collect_candidate_groups(
 
 
 def find_similar_groups(
-    signatures: list[RegionSignature], similarity_percent: float, progress: bool = False
+    signatures: list[RegionSignature], similarity_percent: float, progress: bool = False,
+    max_group_pairs: int = 0, issues: list[ScanIssue] | None = None,
 ) -> list[SimilarRegionGroup]:
     """Find similar region groups using LSH."""
     if len(signatures) < 2:
@@ -317,7 +334,9 @@ def find_similar_groups(
     )
 
     lsh = _create_lsh_index(signatures, similarity_percent)
-    groups = _collect_candidate_groups(signatures, lsh, similarity_percent, progress=progress)
+    groups = _collect_candidate_groups(
+        signatures, lsh, similarity_percent, progress=progress, max_group_pairs=max_group_pairs, issues=issues,
+    )
 
     groups.sort(key=lambda g: g.similarity, reverse=True)
     logger.info(
@@ -334,6 +353,8 @@ def _verify_and_filter_groups(
     similarity_percent: float,
     rules: "list[Rule]",
     progress: bool = False,
+    timeout: float = 0.0,
+    issues: list[ScanIssue] | None = None,
 ) -> list[SimilarRegionGroup]:
     """Verify candidate groups and filter by minimum similarity similarity_percent."""
     from treepeat.pipeline.verification import verify_similar_groups
@@ -344,6 +365,8 @@ def _verify_and_filter_groups(
         shingled_regions,
         rules=rules,
         progress=progress,
+        timeout=timeout,
+        issues=issues,
     )
 
     # Filter groups that fall below minimum similarity after verification
@@ -427,6 +450,8 @@ def detect_similarity(
     min_lines: int = 5,
     rules: "list[Rule] | None" = None,
     progress: bool = False,
+    verification_timeout: float = 0.0,
+    max_group_pairs: int = 0,
 ) -> SimilarityResult:
     """Detect similar regions using LSH.
 
@@ -442,10 +467,13 @@ def detect_similarity(
     if not filtered_signatures:
         return SimilarityResult(signatures=[], similar_groups=[])
 
+    issues: list[ScanIssue] = []
     candidate_groups = find_similar_groups(
         filtered_signatures,
         similarity_percent,
         progress=progress,
+        max_group_pairs=max_group_pairs,
+        issues=issues,
     )
 
     total_pairs = sum(
@@ -457,6 +485,7 @@ def detect_similarity(
         return SimilarityResult(
             signatures=filtered_signatures,
             similar_groups=[],
+            issues=issues,
         )
 
     similar_groups = _verify_and_filter_groups(
@@ -465,9 +494,12 @@ def detect_similarity(
         similarity_percent,
         rules=rules or [],
         progress=progress,
+        timeout=verification_timeout,
+        issues=issues,
     )
 
     return SimilarityResult(
         signatures=filtered_signatures,
         similar_groups=similar_groups,
+        issues=issues,
     )

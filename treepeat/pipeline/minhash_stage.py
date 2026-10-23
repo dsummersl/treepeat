@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from itertools import islice
 
 from datasketch import MinHash  # type: ignore[import-untyped]
 from tqdm import tqdm
@@ -11,6 +12,9 @@ from treepeat.models.similarity import RegionSignature
 
 logger = logging.getLogger(__name__)
 
+# Retain the batch API for callers that already have annotated shingles.
+__all__ = ["compute_region_signatures", "create_minhash_signature"]
+
 
 def create_minhash_signature(
     shingles: set[str],
@@ -18,8 +22,9 @@ def create_minhash_signature(
 ) -> MinHash:
     """Create a MinHash signature from a set of shingles. """
     minhash = MinHash(num_perm=num_perm)
-    for shingle in shingles:
-        minhash.update(shingle.encode("utf-8"))
+    values = iter(shingles)
+    while batch := list(islice(values, 256)):
+        minhash.update_batch([shingle.encode("utf-8") for shingle in batch])
     return minhash
 
 
