@@ -73,6 +73,8 @@ _KNOWN_EXTS: frozenset[str] = frozenset({
     ".cs",
     ".kt", ".kts",
     ".swift",
+    ".php", ".phtml",
+    ".lua",
 })
 
 # Dirs to skip when counting source files
