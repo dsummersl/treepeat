@@ -34,6 +34,8 @@ DEFAULT_MIN_LINES  = 5
 DEFAULT_CLONE_BASE = "~/.config/treepeat-dev"
 
 _USR_BIN_TIME = "/usr/bin/time"
+# Poll often enough that sub-minute runs still capture their peak (no /usr/bin/time on many Linux hosts).
+RSS_POLL_INTERVAL_S = 0.5
 
 
 @functools.lru_cache(maxsize=1)
@@ -135,7 +137,7 @@ class PerfResult:
     sarif_clones:      int   = 0
 
     # RSS time series: list of [elapsed_s, rss_mb] snapshots from background poller.
-    # Sampled every 15 s; runs shorter than the interval will have an empty list.
+    # Sampled every RSS_POLL_INTERVAL_S seconds.
     # Each entry is a 2-element list so it round-trips cleanly through JSON.
     rss_samples:       list  = field(default_factory=list)
 
@@ -543,7 +545,7 @@ def run_treepeat(
         stop_event = threading.Event()
         poll_thread = threading.Thread(
             target=_poll_rss,
-            args=(proc.pid, t0, stop_event, 15.0, rss_samples, use_wrapper),
+            args=(proc.pid, t0, stop_event, RSS_POLL_INTERVAL_S, rss_samples, use_wrapper),
             daemon=True,
         )
         poll_thread.start()

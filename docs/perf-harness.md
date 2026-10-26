@@ -109,7 +109,7 @@ in `ignore_dirs`.
 **Memory** (two independent sources):
 - `/usr/bin/time -l` (macOS) / `-v` (Linux): authoritative peak RSS on clean
   exit, plus hard page faults and swap counts — the key swapping indicators.
-- Background RSS poller: samples the treepeat process via `psutil` every 15 s.
+- Background RSS poller: samples the treepeat process via `psutil` every 0.5 s.
   This is the only memory source when treepeat times out.
 
 **Per-stage counts** (parsed from INFO log output):
