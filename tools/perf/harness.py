@@ -539,6 +539,8 @@ def run_treepeat(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             start_new_session=True,
+            # Wide console so rich never wraps the log lines parsed below.
+            env={**os.environ, "COLUMNS": "400"},
         )
 
         rss_samples: list = []

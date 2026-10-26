@@ -1,6 +1,6 @@
 """Models for shingling stage."""
 
-from typing import Sequence
+from typing import Sequence, cast
 
 from pydantic import BaseModel, Field
 
@@ -61,4 +61,16 @@ class ShingledRegion(BaseModel):
         return self.shingles.size
 
 
+class CompactShingleList(ShingleList):
+    """Ordered shingle strings without per-shingle line-range objects.
 
+    Detection only needs the shingle text, so this skips allocating a pydantic
+    Shingle per k-gram, which dominates memory on large scans.
+    """
+
+    @classmethod
+    def from_contents(cls, contents: list[str]) -> "CompactShingleList":
+        return cls.model_construct(shingles=contents)
+
+    def get_contents(self) -> list[str]:
+        return cast(list[str], self.shingles)

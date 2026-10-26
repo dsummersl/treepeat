@@ -294,6 +294,10 @@ class RuleEngine:
         self._identifier_mapping.clear()
         self._query_matches_cache.clear()
 
+    def release_source(self) -> None:
+        """Drop the reference to the last source bytes so a processed file can be freed."""
+        self._source = None
+
     def precompute_queries(
         self, root_node: Node, language: str, source: bytes | None = None
     ) -> None:

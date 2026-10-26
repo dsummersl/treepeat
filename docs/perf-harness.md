@@ -161,3 +161,20 @@ Features that would improve instrumentation without requiring external tools:
    stage counts so it is always visible without `--verbose`.
 5. **`--min-regions`** — skip repos with fewer than N extracted regions for
    quick early-exit on effectively-empty scans.
+
+## Results: streaming, interned shingling
+
+Peak RSS and wall time from `tools/perf/harness.py` (default config, 4 CPU / 15 GB
+Linux container, polled RSS at 0.5 s), before and after shingling moved to a
+per-file streaming pass with compact, interned shingle strings
+(`treepeat/pipeline/preprocessing.py`).  SARIF clone counts are identical for
+every repo.
+
+| Repo | Files | Before (MiB) | After (MiB) | Reduction | Before (s) | After (s) | Clones |
+|------|------:|-------------:|------------:|----------:|-----------:|----------:|-------:|
+| requests | 36 | 228 | 113 | 50% | 8 | 3 | 5 = 5 |
+| flask | 83 | 258 | 147 | 43% | 7 | 3 | 10 = 10 |
+| redux-toolkit | 677 | 1197 | 173 | 86% | 47 | 16 | 198 = 198 |
+| nestjs | 1608 | 197 | 109 | 45% | 23 | 20 | 20 = 20 |
+| django | 2869 | 5631 | 463 | 92% | 374 | 233 | 104 = 104 |
+| laravel | 2806 | 7550 | 491 | 93% | 384 | 192 | 262 = 262 |
