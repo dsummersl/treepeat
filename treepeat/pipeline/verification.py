@@ -1,9 +1,9 @@
 import logging
 import sys
-from difflib import SequenceMatcher
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from rapidfuzz.distance import Indel
 from tqdm import tqdm
 
 from treepeat.models.shingle import ShingledRegion
@@ -24,13 +24,15 @@ SOURCE_VERIFICATION_THRESHOLD = 0.98
 def _compute_ordered_similarity(shingles1: list[str], shingles2: list[str]) -> float:
     """Compute order-sensitive similarity between two shingle lists.
 
-    Uses Ratcliff/Obershelp (contiguous matching blocks) via SequenceMatcher,
-    which is C-implemented and far faster than a pure-Python LCS DP table.
-    autojunk=False ensures common shingles are never silently skipped.
+    Uses rapidfuzz's Indel normalized similarity, i.e. 2 * LCS / (len1 + len2):
+    the longest common subsequence respects shingle order while tolerating
+    insertions and deletions. rapidfuzz hashes the shingles once and runs a
+    bit-parallel LCS in C++, avoiding the per-pair index and match-block
+    bookkeeping of difflib.SequenceMatcher.
     """
     if not shingles1 or not shingles2:
         return 0.0
-    return SequenceMatcher(None, shingles1, shingles2, autojunk=False).ratio()
+    return Indel.normalized_similarity(shingles1, shingles2)
 
 
 def _read_source_lines(file_path: Path, start_line: int, end_line: int) -> list[str]:
@@ -179,8 +181,8 @@ def verify_similar_groups(
 ) -> list["SimilarRegionGroup"]:
     """Verify candidate groups using order-sensitive similarity.
 
-    For each group, recalculates similarity using pairwise SequenceMatcher
-    comparison to ensure matches respect line order (not just set similarity).
+    For each group, recalculates similarity using pairwise rapidfuzz
+    LCS comparison to ensure matches respect line order (not just set similarity).
     ``rules`` is the active ruleset; it drives whether a name-only signature
     difference is penalized (see ``_should_verify_signatures``). Pass ``[]``
     to opt out of anonymization-aware verification.
