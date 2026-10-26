@@ -14,6 +14,7 @@ dependencies = [
   "pydantic>=2.12.3",
   "pydantic-settings>=2.0.0",
   "python-magic>=0.4.27",
+  "rapidfuzz>=3.14.6",
   "rich>=14.2.0",
   "sarif-pydantic>=0.6.2",
   "tqdm>=4.0",

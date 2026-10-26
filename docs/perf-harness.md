@@ -88,6 +88,20 @@ without removing it.
 --output-dir DIR   Output directory (default: tools/perf/output/)
 ```
 
+## Before/after comparison
+
+Each repo's CSV/JSON also records CPU time (`cpu_user_s`, `cpu_sys_s`) and
+peak RSS, sampled once a second.  To measure a change, run the harness on the
+base commit and on the change (use separate checkouts or worktrees — the
+project is an editable install), then diff the two output directories:
+
+```bash
+uv run python tools/perf/harness.py --repo flask --output-dir /tmp/before
+# ...switch to the change...
+uv run python tools/perf/harness.py --repo flask --output-dir /tmp/after
+uv run python tools/perf/compare.py /tmp/before /tmp/after   # markdown table
+```
+
 ## Console summary
 
 The live per-repo summary is intentionally compact.

@@ -117,6 +117,10 @@ class PerfResult:
     page_faults:        int   = 0    # hard page faults (I/O reads) — key swapping indicator
     swaps:              int   = 0    # actual swap-out operations
 
+    # CPU time (seconds) consumed by treepeat and its children, from the last poller sample
+    cpu_user_s:         float = 0.0
+    cpu_sys_s:          float = 0.0
+
     # Stage counts (from INFO log lines on stdout)
     parse_succeeded:   int   = 0    # "Parse complete: N succeeded"
     regions_extracted: int   = 0    # "Extracted N total region(s)"
@@ -435,8 +439,11 @@ def _poll_rss(
     interval_s: float,
     samples: list,
     use_wrapper: bool,
+    cpu: list,
 ) -> None:
-    """Background thread: sample RSS every interval_s seconds.
+    """Background thread: sample RSS and CPU time every interval_s seconds.
+
+    ``cpu`` is overwritten with [user_s, sys_s] on every sample.
 
     When /usr/bin/time wraps treepeat, wrapper_pid is /usr/bin/time's PID
     and we look for its child (the actual treepeat process).  When no wrapper
@@ -447,7 +454,10 @@ def _poll_rss(
     def _sample(pid: int) -> bool:
         """Sample RSS for pid; return False if the process has exited."""
         try:
-            rss_bytes = psutil.Process(pid).memory_info().rss
+            proc = psutil.Process(pid)
+            rss_bytes = proc.memory_info().rss
+            t = proc.cpu_times()
+            cpu[:] = [t.user + t.children_user, t.system + t.children_system]
             rss_mb = rss_bytes / (1024 * 1024)
             elapsed = time.monotonic() - t0
             samples.append([elapsed, rss_mb])
@@ -544,10 +554,11 @@ def run_treepeat(
         )
 
         rss_samples: list = []
+        cpu_times: list = [0.0, 0.0]
         stop_event = threading.Event()
         poll_thread = threading.Thread(
             target=_poll_rss,
-            args=(proc.pid, t0, stop_event, RSS_POLL_INTERVAL_S, rss_samples, use_wrapper),
+            args=(proc.pid, t0, stop_event, RSS_POLL_INTERVAL_S, rss_samples, use_wrapper, cpu_times),
             daemon=True,
         )
         poll_thread.start()
@@ -569,6 +580,7 @@ def run_treepeat(
             poll_thread.join(timeout=5)
 
         result.rss_samples = rss_samples
+        result.cpu_user_s, result.cpu_sys_s = cpu_times
         if rss_samples:
             result.peak_polled_rss_mb = max(mb for _, mb in rss_samples)
 
@@ -619,7 +631,8 @@ _CSV_FIELDS = [
     "parse_succeeded", "regions_extracted", "regions_to_shingle", "regions_shingled",
     "signatures", "groups_found", "candidate_pairs", "sarif_clones",
     "t_parse_s", "t_extract_s", "t_shingle_s", "t_minhash_s", "t_lsh_s",
-    "elapsed_s", "peak_rss_mb", "peak_polled_rss_mb", "rss_sample_count", "page_faults", "swaps",
+    "elapsed_s", "cpu_user_s", "cpu_sys_s",
+    "peak_rss_mb", "peak_polled_rss_mb", "rss_sample_count", "page_faults", "swaps",
     "timed_out", "error",
 ]
 
