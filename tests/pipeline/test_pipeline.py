@@ -104,8 +104,8 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         "python",
                         "function_definition",
                         "my_adapted_one",
-                        21,
-                        26,
+                        23,
+                        28,
                     ),
                     _make_region(
                         python_fixtures / "dataclass2.py",

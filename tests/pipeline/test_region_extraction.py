@@ -56,7 +56,7 @@ def test_extract_regions_dataclass2():
 
     assert regions[0].region.start_line == 2
     assert regions[0].region.end_line == 7
-    assert regions[1].region.start_line == 9
+    assert regions[1].region.start_line == 10
     assert regions[1].region.end_line == 14
 
     assert regions[0].node.type == "function_definition"
