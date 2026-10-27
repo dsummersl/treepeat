@@ -1,4 +1,4 @@
-"""Tests for JSX language configuration and rules."""
+
 
 from pathlib import Path
 
@@ -16,7 +16,7 @@ fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "jsx"
     [rule for rule, _ in build_loose_rules()]
 ])
 def test_jsx_rules_extract(rules):
-    """Test that JSX files can be processed with different rule sets."""
+
     parsed = parse_fixture(fixture_comprehensive, "jsx")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)

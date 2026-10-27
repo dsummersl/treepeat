@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def detect_language(file_path: Path) -> str | None:
-    """Detect programming language from file extension."""
+
     suffix = file_path.suffix.lower()
     for lang, exts in LANGUAGE_EXTENSIONS.items():
         if suffix in exts:
@@ -23,7 +23,7 @@ def detect_language(file_path: Path) -> str | None:
 
 
 def read_source_file(file_path: Path) -> bytes:
-    """Read source code from file."""
+
     try:
         return file_path.read_bytes()
     except Exception as e:
@@ -33,7 +33,7 @@ def read_source_file(file_path: Path) -> bytes:
 def parse_source_code(
     source: bytes, language_name: str, file_path: Path
 ) -> ParsedFile:
-    """Parse source code using tree-sitter."""
+
     grammar = get_grammar(language_name)
     try:
         parser = get_parser(grammar)  # type: ignore[arg-type]
@@ -52,7 +52,7 @@ def parse_source_code(
 
 
 def parse_file(file_path: Path) -> ParsedFile:
-    """Parse a single source file using tree-sitter."""
+
     logger.debug(f"Parsing file: {file_path}")
 
     language_name = detect_language(file_path)
@@ -69,13 +69,13 @@ def parse_file(file_path: Path) -> ParsedFile:
 
 
 def parse_ignore_file(ignore_file: Path) -> list[str]:
-    """Parse an ignore file and return list of patterns."""
+
     try:
         patterns = []
         with ignore_file.open("r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                # Skip empty lines and comments
+
                 if line and not line.startswith("#"):
                     patterns.append(line)
         return patterns
@@ -85,7 +85,7 @@ def parse_ignore_file(ignore_file: Path) -> list[str]:
 
 
 def _process_ignore_file(ignore_file: Path, ignore_files_map: dict[Path, list[str]]) -> None:
-    """Process a single ignore file and update the map."""
+
     patterns = parse_ignore_file(ignore_file)
     if not patterns:
         return
@@ -98,7 +98,7 @@ def _process_ignore_file(ignore_file: Path, ignore_files_map: dict[Path, list[st
 
 
 def find_ignore_files(target_path: Path, ignore_file_patterns: list[str]) -> dict[Path, list[str]]:
-    """Find all ignore files in the directory hierarchy."""
+
     ignore_files_map: dict[Path, list[str]] = {}
 
     if not target_path.is_dir():
@@ -113,7 +113,7 @@ def find_ignore_files(target_path: Path, ignore_file_patterns: list[str]) -> dic
 
 
 def _match_double_star_pattern(rel_path_str: str, file_name: str, pattern: str) -> bool:
-    """Match patterns containing ** (recursive glob)."""
+
     pattern_parts = pattern.split("**", 1)
     if len(pattern_parts) != 2:
         return False
@@ -121,20 +121,20 @@ def _match_double_star_pattern(rel_path_str: str, file_name: str, pattern: str) 
     prefix = pattern_parts[0].strip("/")
     suffix = pattern_parts[1].strip("/")
 
-    # Pattern like "**/bar"
+
     if not prefix:
         return fnmatch(rel_path_str, f"*{suffix}") or fnmatch(file_name, suffix)
 
-    # Pattern like "foo/**"
+
     if not suffix:
         return rel_path_str.startswith(prefix)
 
-    # Pattern like "foo/**/bar"
+
     return fnmatch(rel_path_str, f"{prefix}*{suffix}")
 
 
 def _get_relative_path(file_path: Path, base_path: Path) -> str | None:
-    """Get relative path string, returning None if file is not under base."""
+
     try:
         return str(file_path.relative_to(base_path))
     except ValueError:
@@ -142,19 +142,14 @@ def _get_relative_path(file_path: Path, base_path: Path) -> str | None:
 
 
 def _match_path_component(rel_path_str: str, pattern: str) -> bool:
-    """Match a slash-less pattern against any path component.
 
-    A slash-less pattern (e.g. "node_modules") matches at any depth in git,
-    and when it matches a directory everything beneath it is ignored. Checking
-    each path component lets files inside such a directory be ignored too.
-    """
     if "/" in pattern:
         return False
     return any(fnmatch(part, pattern) for part in Path(rel_path_str).parts)
 
 
 def _match_simple_pattern(rel_path_str: str, file_name: str, pattern: str) -> bool:
-    """Match simple patterns (non-anchored, non-recursive)."""
+
     if fnmatch(rel_path_str, pattern) or fnmatch(file_name, pattern):
         return True
     if "**" in pattern:
@@ -163,7 +158,7 @@ def _match_simple_pattern(rel_path_str: str, file_name: str, pattern: str) -> bo
 
 
 def _check_directory_pattern(rel_path_str: str, file_path: Path, pattern: str) -> tuple[bool, bool]:
-    """Check if pattern is a directory pattern and match accordingly."""
+
     if pattern.endswith("/"):
         dir_name = pattern.rstrip("/")
         if file_path.is_dir():
@@ -175,7 +170,7 @@ def _check_directory_pattern(rel_path_str: str, file_path: Path, pattern: str) -
 
 
 def matches_pattern(file_path: Path, pattern: str, base_path: Path) -> bool:
-    """Check if a file matches an ignore pattern."""
+
     if pattern.startswith("!"):
         return False
 
@@ -194,7 +189,7 @@ def matches_pattern(file_path: Path, pattern: str, base_path: Path) -> bool:
 
 
 def _check_patterns_in_directory(file_path: Path, directory: Path, patterns: list[str]) -> bool:
-    """Check if file matches any patterns from a directory."""
+
     for pattern in patterns:
         if matches_pattern(file_path, pattern, directory):
             logger.debug(f"File {file_path} matched pattern '{pattern}' from {directory}")
@@ -203,12 +198,12 @@ def _check_patterns_in_directory(file_path: Path, directory: Path, patterns: lis
 
 
 def _should_stop_traversal(current: Path, target: Path) -> bool:
-    """Check if we should stop traversing up the directory tree."""
+
     return current in (target, current.parent)
 
 
 def _get_parent_directories(file_path: Path, target_path: Path) -> list[Path]:
-    """Get list of parent directories from file to target."""
+
     directories = []
     current = file_path.parent
     while not _should_stop_traversal(current, target_path):
@@ -217,7 +212,7 @@ def _get_parent_directories(file_path: Path, target_path: Path) -> list[Path]:
             current = current.parent
         except Exception:
             break
-    # Include the last directory (target_path or root)
+
     directories.append(current)
     return directories
 
@@ -225,7 +220,7 @@ def _get_parent_directories(file_path: Path, target_path: Path) -> list[Path]:
 def _check_hierarchical_ignores(
     file_path: Path, target_path: Path, ignore_files_map: dict[Path, list[str]]
 ) -> bool:
-    """Check if file matches any hierarchical ignore patterns."""
+
     for directory in _get_parent_directories(file_path, target_path):
         if directory in ignore_files_map:
             if _check_patterns_in_directory(file_path, directory, ignore_files_map[directory]):
@@ -239,21 +234,21 @@ def should_ignore_file(
     ignore_patterns: list[str],
     ignore_files_map: dict[Path, list[str]],
 ) -> bool:
-    """Check if a file should be ignored based on patterns."""
-    # Check direct ignore patterns from CLI
+
+
     for pattern in ignore_patterns:
         if matches_pattern(file_path, pattern, target_path):
             logger.debug(f"File {file_path} matched CLI ignore pattern: {pattern}")
             return True
 
-    # Check hierarchical ignore patterns from ignore files
+
     return _check_hierarchical_ignores(file_path, target_path, ignore_files_map)
 
 
 def _collect_single_file(
     target_path: Path, ignore_patterns: list[str], ignore_file_patterns: list[str]
 ) -> list[Path]:
-    """Collect a single file if not ignored."""
+
     if not (ignore_patterns or ignore_file_patterns):
         return [target_path]
 
@@ -267,7 +262,7 @@ def _collect_single_file(
 def _collect_directory_files(
     target_path: Path, ignore_patterns: list[str], ignore_file_patterns: list[str]
 ) -> list[Path]:
-    """Collect all source files from a directory."""
+
     ignore_files_map = find_ignore_files(target_path, ignore_file_patterns)
 
     files: list[Path] = []
@@ -282,7 +277,7 @@ def _collect_directory_files(
 
 
 def collect_source_files(target_path: Path) -> list[Path]:
-    """Collect all source files from a path with ignore patterns applied."""
+
     settings = get_settings()
     ignore_patterns = settings.ignore_patterns
     ignore_file_patterns = settings.ignore_file_patterns
@@ -297,7 +292,7 @@ def collect_source_files(target_path: Path) -> list[Path]:
 
 
 def parse_files(files: list[Path], result: ParseResult, progress: bool = False) -> None:
-    """Parse a list of files and update the result."""
+
     iterable = (
         tqdm(files, desc="Parsing", unit="file", file=sys.stderr)
         if progress
@@ -312,7 +307,7 @@ def parse_files(files: list[Path], result: ParseResult, progress: bool = False) 
 
 
 def parse_path(target_path: Path, progress: bool = False) -> ParseResult:
-    """Parse a file or directory of source files."""
+
     logger.info(f"Starting parse of: {target_path}")
 
     result = ParseResult()

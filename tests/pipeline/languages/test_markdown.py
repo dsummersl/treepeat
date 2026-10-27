@@ -1,4 +1,4 @@
-"""Tests for Markdown language configuration, code block injection, and cross-file similarity."""
+
 
 from pathlib import Path
 
@@ -23,9 +23,9 @@ fixture_js_date = FIXTURE_DIR / "javascript" / "date_utils.js"
 fixture_bash_req = FIXTURE_DIR / "bash" / "requirements.sh"
 
 
-# ---------------------------------------------------------------------------
-# MarkdownConfig interface
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_region_extraction_rules_exist():
@@ -36,16 +36,16 @@ def test_region_extraction_rules_exist():
 
 
 def test_fenced_code_block_rule_has_injection():
-    """The code_block rule must declare a dynamic target_language and content_query."""
+
     rules = MarkdownConfig().get_region_extraction_rules()
     code_block_rule = next(r for r in rules if r.label == "code_block")
     assert callable(code_block_rule.target_language)
     assert code_block_rule.content_query is not None
 
 
-# ---------------------------------------------------------------------------
-# guide.md parsing
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_parse_guide_md_no_errors():
@@ -61,14 +61,14 @@ def test_guide_md_source_contains_all_embedded_functions():
     assert b"check_requirements" in parsed.source
 
 
-# ---------------------------------------------------------------------------
-# Code block region extraction
-# ---------------------------------------------------------------------------
+
+
+
 
 
 @pytest.mark.parametrize("embedded_lang", ["python", "javascript", "bash"])
 def test_code_block_extracted_for_language(embedded_lang):
-    """Each fenced block with a known language tag is extracted with an injected tree."""
+
     parsed = parse_file(fixture_guide)
     engine = RuleEngine([r for r, _ in build_default_rules()])
     regions = extract_all_regions([parsed], engine)
@@ -79,7 +79,7 @@ def test_code_block_extracted_for_language(embedded_lang):
 
 @pytest.mark.parametrize("embedded_lang", ["python", "javascript", "bash"])
 def test_injected_tree_and_source_set(embedded_lang):
-    """Each embedded code block has injected_tree and injected_source populated."""
+
     parsed = parse_file(fixture_guide)
     engine = RuleEngine([r for r, _ in build_default_rules()])
     regions = extract_all_regions([parsed], engine)
@@ -91,7 +91,7 @@ def test_injected_tree_and_source_set(embedded_lang):
 
 @pytest.mark.parametrize("embedded_lang", ["python", "javascript", "bash"])
 def test_region_language_is_markdown(embedded_lang):
-    """Region metadata preserves the file language (markdown), not the injection language."""
+
     parsed = parse_file(fixture_guide)
     engine = RuleEngine([r for r, _ in build_default_rules()])
     regions = extract_all_regions([parsed], engine)
@@ -101,7 +101,7 @@ def test_region_language_is_markdown(embedded_lang):
 
 
 def test_unlabelled_code_block_not_injected():
-    """A fenced block with no language tag is extracted as a plain code_block (no injection)."""
+
     parsed = parse_file(fixture_guide)
     engine = RuleEngine([r for r, _ in build_default_rules()])
     regions = extract_all_regions([parsed], engine)
@@ -113,13 +113,13 @@ def test_unlabelled_code_block_not_injected():
     assert uninjected, "Expected at least one uninjected code_block region for the plain block"
 
 
-# ---------------------------------------------------------------------------
-# Cross-file shingle similarity — the core correctness invariant
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def _shingle_injected_region(region, engine: RuleEngine, shingler: ASTShingler) -> set[str]:
-    """Shingle a markdown-injected code block; return the set of shingle content strings."""
+
     engine.reset_identifiers()
     engine.precompute_queries(
         region.injected_tree.root_node,
@@ -131,7 +131,7 @@ def _shingle_injected_region(region, engine: RuleEngine, shingler: ASTShingler) 
 
 
 def _shingle_standalone_file(path: Path, language: str, rules: list) -> set[str]:
-    """Parse a standalone source file, shingle all its extracted regions, and return combined shingles."""
+
     parsed = parse_fixture(path, language)
     engine = RuleEngine(rules)
     shingler = ASTShingler(rule_engine=engine, k=3)
@@ -152,15 +152,10 @@ def _shingle_standalone_file(path: Path, language: str, rules: list) -> set[str]
     ("bash", fixture_bash_req, "bash"),
 ])
 def test_embedded_shingles_overlap_with_standalone(embedded_lang, standalone_path, standalone_lang):
-    """A function embedded in a markdown code block produces shingles that overlap
-    with the same function in a standalone source file.
 
-    This is the key property that allows treepeat to detect that documentation
-    examples are similar to their implementation files.
-    """
     rules = [r for r, _ in build_loose_rules()]
 
-    # --- Markdown (injection) path ---
+
     md_engine = RuleEngine(rules)
     md_shingler = ASTShingler(rule_engine=md_engine, k=3)
     md_parsed = parse_file(fixture_guide)
@@ -168,7 +163,7 @@ def test_embedded_shingles_overlap_with_standalone(embedded_lang, standalone_pat
     embedded_region = next(r for r in md_regions if r.injected_language == embedded_lang)
     md_shingles = _shingle_injected_region(embedded_region, md_engine, md_shingler)
 
-    # --- Standalone file path ---
+
     standalone_shingles = _shingle_standalone_file(standalone_path, standalone_lang, rules)
 
     assert md_shingles, f"No shingles produced from markdown {embedded_lang!r} block"
@@ -179,13 +174,13 @@ def test_embedded_shingles_overlap_with_standalone(embedded_lang, standalone_pat
     )
 
 
-# ---------------------------------------------------------------------------
-# Info-string aliases
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def _resolve_fence_language(source: bytes) -> str:
-    """Parse a single fenced code block and return its resolved injection language."""
+
     from tree_sitter_language_pack import get_parser
 
     from treepeat.pipeline.languages.markdown import _resolve_code_block_language
@@ -221,20 +216,18 @@ def _resolve_fence_language(source: bytes) -> str:
     ("yml", "yaml"),
 ])
 def test_info_string_aliases_resolve(info_string, expected):
-    """Common short-form info strings map onto their supported language name."""
+
     source = f"```{info_string}\ncode\n```\n".encode()
     assert _resolve_fence_language(source) == expected
 
 
-# ---------------------------------------------------------------------------
-# Unknown language guard
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_unknown_language_skips_injection_and_warns(caplog):
-    """A fenced code block with an unsupported language tag produces no injection
-    and emits a warning naming the unknown language.
-    """
+
     import logging
 
     from tree_sitter_language_pack import get_parser
@@ -249,7 +242,7 @@ def test_unknown_language_skips_injection_and_warns(caplog):
         (n for n in tree.root_node.children if n.type == "fenced_code_block"),
         None,
     )
-    # tree-sitter-markdown may nest the block inside a section; walk one level deeper if needed
+
     if fenced_node is None:
         for child in tree.root_node.children:
             fenced_node = next(

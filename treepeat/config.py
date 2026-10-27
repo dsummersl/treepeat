@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class RulesSettings(BaseSettings):
-    """Settings for the rules engine."""
+
 
     model_config = SettingsConfigDict(
         env_prefix="RULES_",
@@ -14,9 +14,9 @@ class RulesSettings(BaseSettings):
         description="Ruleset profile to use",
     )
 
-    # Mapping of language -> allowed region node types to extract
-    # When provided, only these languages and node types are used to build
-    # region-extraction and normalization rules for the rule engine.
+
+
+
     region_filters: dict[str, set[str]] = Field(
         default_factory=dict,
         description="Limit rules to these languages and region node types (e.g., {'python': {'function_definition'}})",
@@ -38,7 +38,7 @@ class RulesSettings(BaseSettings):
 
 
 class ShingleSettings(BaseSettings):
-    """Settings for shingling."""
+
 
     model_config = SettingsConfigDict(
         env_prefix="SHINGLE_",
@@ -52,7 +52,7 @@ class ShingleSettings(BaseSettings):
 
 
 class MinHashSettings(BaseSettings):
-    """Settings for MinHash."""
+
 
     model_config = SettingsConfigDict(
         env_prefix="MINHASH_",
@@ -66,7 +66,7 @@ class MinHashSettings(BaseSettings):
 
 
 class LSHSettings(BaseSettings):
-    """Settings for Locality Sensitive Hashing."""
+
 
     model_config = SettingsConfigDict(
         env_prefix="LSH_",
@@ -87,7 +87,7 @@ class LSHSettings(BaseSettings):
 
 
 class PipelineSettings(BaseSettings):
-    """Global settings for the entire pipeline."""
+
 
     model_config = SettingsConfigDict(
         env_prefix="TSSIM_",
@@ -107,12 +107,12 @@ class PipelineSettings(BaseSettings):
     )
 
 
-# Global settings instance that can be accessed throughout the application
+
 _settings: PipelineSettings | None = None
 
 
 def get_settings() -> PipelineSettings:
-    """Get the global settings instance."""
+
     global _settings
     if _settings is None:
         _settings = PipelineSettings()
@@ -120,6 +120,6 @@ def get_settings() -> PipelineSettings:
 
 
 def set_settings(settings: PipelineSettings) -> None:
-    """Set the global settings instance."""
+
     global _settings
     _settings = settings

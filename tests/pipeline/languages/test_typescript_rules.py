@@ -2,7 +2,7 @@ from treepeat.pipeline.languages.typescript import TypeScriptConfig
 
 
 def test_typescript_rules_detailed(rule_tester):
-    # TypeScript inherits all rules from JavaScript
+
     config = TypeScriptConfig()
     rule_tester.verify_rules(
         config,

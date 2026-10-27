@@ -1,13 +1,10 @@
-"""Models for normalization."""
+
 
 from pydantic import BaseModel, Field
 
 
 class NodeRepresentation(BaseModel):
-    """Representation of a node for shingling.
 
-    Each node has a name (its type) and an optional value (for leaf nodes).
-    """
 
     name: str = Field(description="Node type name (e.g., 'function_definition', 'identifier')")
     value: str | None = Field(
@@ -15,17 +12,13 @@ class NodeRepresentation(BaseModel):
     )
 
     def __str__(self) -> str:
-        """Format as string for shingle representation."""
+
         if self.value:
             return f"{self.name}({self.value})"
         return self.name
 
 
 class SkipNode(Exception):
-    """Exception raised by normalizers to indicate a node should be skipped.
 
-    When raised during normalization, the shingling process will skip
-    this node and its entire subtree.
-    """
 
     pass

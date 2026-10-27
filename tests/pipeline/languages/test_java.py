@@ -1,4 +1,4 @@
-"""Tests for Java language configuration and rules."""
+
 
 from pathlib import Path
 
@@ -8,7 +8,6 @@ from tests.conftest import parse_fixture
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-# Fixture path
 fixture_comprehensive = (
     Path(__file__).parent.parent.parent / "fixtures" / "java" / "comprehensive.java"
 )
@@ -19,17 +18,17 @@ fixture_comprehensive = (
     [[rule for rule, _ in build_default_rules()], [rule for rule, _ in build_loose_rules()]],
 )
 def test_java_rules_extract(rules):
-    """Test that Java files can be processed with different rule sets."""
+
     parsed = parse_fixture(fixture_comprehensive, "java")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)
 
-    # Should find at least Comprehensive class and two method declarations
+
     assert len(regions) >= 3
 
 
 def test_java_specific_rules():
-    """Test that Java specific rules (imports, comments) work."""
+
     from treepeat.models.similarity import Region
     from treepeat.pipeline.parse import parse_source_code
     from treepeat.pipeline.region_extraction import ExtractedRegion
@@ -68,11 +67,11 @@ def test_java_specific_rules():
 
     shingle_str = " ".join(shingled.shingles.get_contents())
 
-    # Imports and comments should be removed
+
     assert "import_declaration" not in shingle_str
     assert "line_comment" not in shingle_str
     assert "block_comment" not in shingle_str
 
-    # Class and method should be there
+
     assert "class_declaration" in shingle_str
     assert "method_declaration" in shingle_str

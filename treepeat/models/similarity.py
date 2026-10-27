@@ -1,4 +1,4 @@
-"""Models for similarity detection."""
+
 
 from pathlib import Path
 
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class Region(BaseModel):
-    """A region within a file (function, class, section, paragraph, etc)."""
+
 
     path: Path = Field(description="Path to the source file")
     language: str = Field(description="Language (python, javascript, markdown, html, etc)")
@@ -17,7 +17,7 @@ class Region(BaseModel):
     end_line: int = Field(ge=1, description="End line number (1-indexed)")
 
     def __repr__(self) -> str:
-        """Format as human-readable string."""
+
         path_str = str(self.path)[-10:]
         return (
             f"Region({self.region_name} ({self.region_type}) at "
@@ -26,7 +26,7 @@ class Region(BaseModel):
 
 
 class RegionSignature(BaseModel):
-    """MinHash signature for a region."""
+
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -36,7 +36,7 @@ class RegionSignature(BaseModel):
 
 
 class SimilarRegionGroup(BaseModel):
-    """A group of similar regions with their similarity score."""
+
 
     regions: list[Region] = Field(description="List of similar regions")
     similarity: float = Field(
@@ -45,7 +45,7 @@ class SimilarRegionGroup(BaseModel):
 
     @property
     def is_self_similarity(self) -> bool:
-        """True if all regions are from the same file."""
+
         if not self.regions:
             return False
         first_path = self.regions[0].path
@@ -53,7 +53,7 @@ class SimilarRegionGroup(BaseModel):
 
     @property
     def size(self) -> int:
-        """Number of regions in the group."""
+
         return len(self.regions)
 
     def __repr__(self) -> str:
@@ -62,7 +62,7 @@ class SimilarRegionGroup(BaseModel):
 
 
 class SimilarityResult(BaseModel):
-    """Result of similarity detection."""
+
 
     signatures: list[RegionSignature] = Field(
         default_factory=list, description="MinHash signatures for all regions"
@@ -73,16 +73,16 @@ class SimilarityResult(BaseModel):
 
     @property
     def total_files(self) -> int:
-        """Total number of unique files processed."""
+
         files = {sig.region.path for sig in self.signatures}
         return len(files)
 
     @property
     def success_count(self) -> int:
-        """Number of successfully processed regions."""
+
         return len(self.signatures)
 
     @property
     def self_similarity_count(self) -> int:
-        """Number of similar groups within the same file."""
+
         return sum(1 for group in self.similar_groups if group.is_self_similarity)

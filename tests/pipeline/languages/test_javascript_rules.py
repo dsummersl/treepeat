@@ -71,8 +71,8 @@ def test_javascript_family_loose_rules_anonymize_identifiers(config, language):
 
 
 def test_javascript_loose_rules_function_name_beats_anonymize():
-    # "Anonymize function names" (REPLACE_VALUE) runs after "Anonymize identifiers" (ANONYMIZE)
-    # and overwrites the value slot, so function names surface as FUNC not VAR_n.
+
+
     tokens = _shingle_tokens(JavaScriptConfig(), "javascript", "function foo() {}", loose=True)
     token_str = " ".join(tokens)
 

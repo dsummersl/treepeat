@@ -1,0 +1,16 @@
+id: no-comments-python
+language: python
+severity: error
+ignores:
+  - "treepeat/cli/**"
+  - "tests/fixtures/**"
+message: Comment not allowed. Prefer clear naming/types/tests; use "# WHY:" for a non-obvious rationale a reviewer would otherwise ask about.
+note: |
+  Allowlisted: shebangs, `# noqa`, `# type: ignore`, `# pragma`, `# WHY:`, SPDX headers.
+  Docstrings (`""" ... """`) are banned too -- see no-docstrings-python.yml,
+  since they're string literals rather than comment nodes and need their own rule.
+rule:
+  kind: comment
+  not:
+    regex: '^#!|noqa|type:\s*ignore|pragma|WHY:|SPDX-License-Identifier'
+fix: ''

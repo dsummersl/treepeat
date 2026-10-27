@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["ASTShingler", "shingle_regions"]
 
-# Maximum length for node values in shingles (longer values are truncated)
+
 MAX_NODE_VALUE_LENGTH = 50
 
 
@@ -29,7 +29,7 @@ class ASTShingler:
         k: int = 3,
         symbols: dict[str, str] | None = None,
     ):
-        """symbols: when given, shingle in compact mode, sharing equal strings through this table."""
+
         if k < 1:
             raise ValueError("k must be at least 1")
         self.rule_engine = rule_engine
@@ -37,7 +37,7 @@ class ASTShingler:
         self.symbols = symbols
 
     def _extract_compact(self, root: Node, language: str, source: bytes) -> list[str]:
-        """Traverse once, interning repeated shingles instead of allocating Shingle models."""
+
         assert self.symbols is not None
         symbols = self.symbols
         contents: list[str] = []
@@ -49,7 +49,7 @@ class ASTShingler:
                     node, node.type, self._extract_node_value(node, source), language, source, root
                 )
             except SkipNodeException:
-                return  # skip the node and its entire subtree
+                return
             path.append(f"{name}({value})" if value else name)
             if len(path) >= self.k:
                 content = "→".join(path[-self.k :])
@@ -138,7 +138,7 @@ class ASTShingler:
         text = source[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
         text = text.replace("→", "->").replace("\n", "\\n").replace("\t", "\\t")
 
-        # Truncate long values instead of dropping them
+
         if len(text) > MAX_NODE_VALUE_LENGTH:
             text = text[:MAX_NODE_VALUE_LENGTH]
 
@@ -153,7 +153,7 @@ class ASTShingler:
         source: bytes,
         root: Node,
     ) -> tuple[str, str | None]:
-        """Apply rules to a node and return the modified name and value."""
+
         rule_name, rule_value = self.rule_engine.apply_rules(node, language, name, root)
         if rule_name is not None:
             name = rule_name
@@ -168,13 +168,13 @@ class ASTShingler:
         source: bytes,
         root: Node,
     ) -> NodeRepresentation:
-        """Get the representation of a node with rules applied."""
+
         name = node.type
         value = self._extract_node_value(node, source)
         try:
             name, value = self._apply_rules(node, name, value, language, source, root)
         except SkipNodeException as sne:
-            # Convert to SkipNode for compatibility with existing code
+
             raise SkipNode(f"Node type '{name}' skipped by rule") from sne
         return NodeRepresentation(name=name, value=value)
 
@@ -186,36 +186,32 @@ class ASTShingler:
         start_line: int | None = None,
         end_line: int | None = None,
     ) -> list[Shingle]:
-        """Extract shingles from AST with line range metadata.
 
-        Note: start_line and end_line parameters are deprecated and ignored.
-        Line ranges are now tracked automatically from AST nodes.
-        """
         shingles: list[Shingle] = []
 
-        # Pre-order traversal to extract all paths
+
         def traverse(node: Node, path: deque[tuple[NodeRepresentation, Node]]) -> None:
-            # Get normalized representation (may raise SkipNode)
+
             try:
                 node_repr = self._get_node_representation(node, language, source, root)
             except SkipNode:
-                # Skip this node and its entire subtree
+
                 return
 
             path.append((node_repr, node))
 
-            # If path is long enough, create a shingle with line range metadata
+
             if len(path) >= self.k:
                 shingle_path = list(path)[-self.k :]
                 shingle_reprs = [repr for repr, _ in shingle_path]
                 shingle_nodes = [n for _, n in shingle_path]
 
-                # Create shingle content
+
                 shingle_content = "→".join(str(repr) for repr in shingle_reprs)
 
-                # Calculate line range from the nodes in this shingle
-                # Use the LAST node in the k-gram (most specific) for line positioning
-                # rather than min/max which often includes the root node spanning the entire file
+
+
+
                 last_node = shingle_nodes[-1]
                 start_line = last_node.start_point[0] + 1
                 end_line = last_node.end_point[0] + 1
@@ -223,11 +219,11 @@ class ASTShingler:
                 shingle = Shingle(content=shingle_content, start_line=start_line, end_line=end_line)
                 shingles.append(shingle)
 
-            # Recursively traverse children
+
             for child in node.children:
                 traverse(child, path)
 
-            # Backtrack
+
             _ = path.pop()
 
         traverse(root, deque())
@@ -239,7 +235,7 @@ def _shingle_single_region(
     path_to_source: dict[Path, bytes],
     shingler: ASTShingler,
 ) -> ShingledRegion | None:
-    # Injected regions carry their own source bytes; other regions look up by path.
+
     source: bytes | None
     if extracted_region.injected_source is not None:
         source = extracted_region.injected_source
@@ -254,12 +250,12 @@ def _shingle_single_region(
         )
         return None
 
-    # Reset identifier counter for each region to ensure consistent anonymization
+
     shingler.rule_engine.reset_identifiers()
 
-    # Pre-execute all queries upfront to populate the cache.
-    # For injected regions use the injected tree + language so that the target
-    # language's normalization rules are applied during traversal.
+
+
+
     if extracted_region.injected_tree is not None:
         assert extracted_region.injected_language is not None
         shingler.rule_engine.precompute_queries(

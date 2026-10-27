@@ -79,8 +79,8 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
         ("none", class_with_methods_file, 0.9, 2, []),
         ("default", class_with_methods_file, 0.1, 1, []),
         ("default", class_with_methods_file, 0.3, 2, []),
-        # At the 0.5 cutoff the two classes and both method pairs connect into a
-        # single component (affine32 MinHash estimates; see note on the fn).
+
+
         ("default", class_with_methods_file, 0.5, 1, [(classA_region, classB_region)]),
         (
             "none",
@@ -88,7 +88,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             0.7,
             5,
             [
-                # Cross-file duplicate functions
+
                 (
                     _make_region(
                         python_fixtures / "small_functions_b.py",
@@ -107,7 +107,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         18,
                     ),
                 ),
-                # Similar functions across dataclass files
+
                 (
                     _make_region(
                         python_fixtures / "dataclass1.py",
@@ -134,7 +134,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             0.8,
             5,
             [
-                # Cross-file duplicate functions
+
                 (
                     _make_region(
                         python_fixtures / "small_functions_b.py",
@@ -153,7 +153,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         18,
                     ),
                 ),
-                # Duplicate methods within same file (non-overlapping)
+
                 (
                     _make_region(
                         fixture_class_with_methods,
@@ -198,7 +198,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             0.9,
             3,
             [
-                # Cross-file duplicate functions
+
                 (
                     _make_region(
                         python_fixtures / "small_functions_b.py",
@@ -217,7 +217,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         18,
                     ),
                 ),
-                # Duplicate method2 within same file (non-overlapping)
+
                 (
                     _make_region(
                         fixture_class_with_methods,
@@ -236,7 +236,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         46,
                     ),
                 ),
-                # Duplicate method3 within same file (non-overlapping)
+
                 (
                     _make_region(
                         fixture_class_with_methods,
@@ -260,13 +260,7 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
     ],
 )
 def test_match_counts(ruleset, path, similarity_threshold, similar_groups, expected_regions):
-    """Testing with different rulesets and LSH thresholds.
 
-    The group counts are computed from MinHash-estimated similarity, so cases
-    sitting near a threshold can shift if the estimator changes. These counts
-    reflect datasketch's default "affine32" scheme (>= 2.0.0); the expected_regions
-    pairs pin the meaningful matches independent of the exact total.
-    """
     set_settings(
         PipelineSettings(
             rules=RulesSettings(ruleset=ruleset),

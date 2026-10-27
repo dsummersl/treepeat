@@ -1,4 +1,4 @@
-"""AST domain models."""
+
 
 from pathlib import Path
 
@@ -7,7 +7,7 @@ from tree_sitter import Node, Tree
 
 
 class ParsedFile(BaseModel):
-    """Represents a successfully parsed source file."""
+
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -18,12 +18,12 @@ class ParsedFile(BaseModel):
 
     @property
     def root_node(self) -> Node:
-        """Get the root node of the AST."""
+
         return self.tree.root_node
 
 
 class ParseResult(BaseModel):
-    """Result of parsing one or more files."""
+
 
     parsed_files: list[ParsedFile] = Field(
         default_factory=list, description="Successfully parsed files"
@@ -31,10 +31,10 @@ class ParseResult(BaseModel):
 
     @property
     def total_files(self) -> int:
-        """Total number of files processed."""
+
         return len(self.parsed_files)
 
     @property
     def success_count(self) -> int:
-        """Number of successfully parsed files."""
+
         return len(self.parsed_files)

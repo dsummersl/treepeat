@@ -4,7 +4,7 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class KotlinConfig(LanguageConfig):
-    """Configuration for Kotlin language."""
+
 
     def get_default_rules(self) -> list[Rule]:
         return [

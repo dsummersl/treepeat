@@ -6,7 +6,7 @@ from ..conftest import default_rule_engine, fixture_path1, fixture_path2, parsed
 
 
 def test_shingle_regions_basic():
-    """Test shingling regions from dataclass1.py fixture."""
+
     parsed_dataclass1 = parsed_fixture(fixture_path1)
     engine = default_rule_engine()
     shingled_regions = shingle_regions(
@@ -34,14 +34,14 @@ def test_identical_functions():
         rule_engine=RuleEngine([]),
     )
 
-    # With hybrid mode, filter to explicit regions (function types)
+
     explicit_shingled = [r for r in shingled_regions if r.region.region_type == "function_definition"]
 
-    # With recursive extraction, we get 2 explicit regions (no section regions)
+
     assert len(explicit_shingled) == 2
     assert [r.region.region_name for r in explicit_shingled] == ["one", "one_prime"]
     assert {r.region.path for r in explicit_shingled} == {fixture_path2}
     assert {r.region.language for r in explicit_shingled} == {"python"}
-    # The first function's first shingle starts at depth 3 in the tree traversal
-    # function_definition → parameters → (
+
+
     assert explicit_shingled[0].shingles.get_contents()[0] == "function_definition→parameters→((()"

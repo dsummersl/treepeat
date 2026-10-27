@@ -18,7 +18,6 @@ from .tsx import TsxConfig
 from .typescript import TypeScriptConfig
 from .yaml import YAMLConfig
 
-# Registry mapping language names to their configurations
 LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
     "astro": AstroConfig(),
     "bash": BashConfig(),
@@ -61,15 +60,15 @@ LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "yaml": [".yaml", ".yml"],
 }
 
-# Languages that share a tree-sitter grammar with another language.
-# JSX is parsed with the JavaScript grammar since no separate jsx grammar exists.
+
+
 GRAMMAR_ALIASES: dict[str, str] = {
     "jsx": "javascript",
 }
 
 
 def get_grammar(language: str) -> str:
-    """Return the tree-sitter grammar name for a language."""
+
     return GRAMMAR_ALIASES.get(language, language)
 
 

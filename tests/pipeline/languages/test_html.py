@@ -1,4 +1,4 @@
-"""Tests for HTML language configuration and rules."""
+
 
 from pathlib import Path
 
@@ -8,7 +8,6 @@ from tests.conftest import parse_fixture
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-# Fixture path
 fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "html" / "comprehensive.html"
 
 
@@ -17,7 +16,7 @@ fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "html
     [rule for rule, _ in build_loose_rules()]
 ])
 def test_html_rules_extract(rules):
-    """Test that HTML files can be processed with different rule sets."""
+
     parsed = parse_fixture(fixture_comprehensive, "html")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)

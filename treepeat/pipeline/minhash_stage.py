@@ -1,4 +1,4 @@
-"""MinHash stage for similarity detection."""
+
 
 import logging
 import sys
@@ -12,7 +12,7 @@ from treepeat.models.similarity import RegionSignature
 
 logger = logging.getLogger(__name__)
 
-# Batch API kept for callers that already hold shingled regions.
+
 __all__ = ["compute_region_signatures", "create_minhash_signature"]
 
 MINHASH_BATCH_SIZE = 256
@@ -22,7 +22,7 @@ def create_minhash_signature(
     shingles: set[str],
     num_perm: int = 128,
 ) -> MinHash:
-    """Create a MinHash signature from a set of shingles. """
+
     minhash = MinHash(num_perm=num_perm)
     values = iter(shingles)
     while batch := list(islice(values, MINHASH_BATCH_SIZE)):
@@ -35,7 +35,7 @@ def compute_region_signatures(
     num_perm: int = 128,
     progress: bool = False,
 ) -> list[RegionSignature]:
-    """Compute MinHash signatures for all shingled regions. """
+
     logger.info(
         "Computing MinHash signatures for %d region(s) with num_perm=%d",
         len(shingled_regions),
@@ -51,7 +51,7 @@ def compute_region_signatures(
 
     for shingled_region in iterable:
         try:
-            # Get shingle contents as strings for MinHash
+
             shingle_contents = shingled_region.shingles.get_contents()
             minhash = create_minhash_signature(
                 set(shingle_contents),

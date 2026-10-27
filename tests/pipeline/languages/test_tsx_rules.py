@@ -2,7 +2,7 @@ from treepeat.pipeline.languages.tsx import TsxConfig
 
 
 def test_tsx_rules_detailed(rule_tester):
-    # TSX inherits all rules from TypeScript (which inherits from JavaScript)
+
     config = TsxConfig()
     rule_tester.verify_rules(
         config,

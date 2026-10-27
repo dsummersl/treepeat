@@ -8,7 +8,7 @@ from ..conftest import default_rule_engine, fixture_path1, fixture_path2, parsed
 
 
 def test_detect_similarity_1():
-    """Test similarity regions from dataclass1.py fixture."""
+
     parsed_dataclass1 = parsed_fixture(fixture_path1)
     engine = default_rule_engine()
     shingled_regions = shingle_regions(
@@ -20,12 +20,12 @@ def test_detect_similarity_1():
     result = detect_similarity(signatures, 0.1, shingled_regions)
 
     assert len(result.similar_groups) == 1
-    # After verification, the similarity is ~0.22
+
     assert result.similar_groups[0].similarity > 0.2
 
 
 def test_detect_similarity_2():
-    """Test similarity regions from dataclass2.py fixture."""
+
     parsed_dataclass2 = parsed_fixture(fixture_path2)
     engine = default_rule_engine()
     shingled_regions = shingle_regions(
@@ -34,7 +34,7 @@ def test_detect_similarity_2():
         rule_engine=RuleEngine([]),
     )
     signatures = compute_region_signatures(shingled_regions)
-    # Use lower min_similarity to allow the match through after verification
+
     result = detect_similarity(signatures, 0.5, shingled_regions)
 
     assert len(result.similar_groups) == 1

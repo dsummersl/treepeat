@@ -1,0 +1,17 @@
+id: no-docstrings-python
+language: python
+severity: error
+ignores:
+  - "treepeat/cli/**"
+  - "tests/fixtures/**"
+message: Docstring not allowed. Prefer a clear function/class name and tests over a docstring.
+rule:
+  kind: expression_statement
+  has:
+    kind: string
+  any:
+    - precedes:
+        regex: '.'
+    - follows:
+        regex: '.'
+fix: ''

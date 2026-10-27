@@ -8,7 +8,7 @@ from .base import LanguageConfig, RegionExtractionRule
 
 logger = logging.getLogger(__name__)
 
-# Common info-string spellings that map onto a supported language name.
+
 _INFO_STRING_ALIASES = {
     "yml": "yaml",
     "ts": "typescript",
@@ -23,27 +23,16 @@ _INFO_STRING_ALIASES = {
 
 
 def _resolve_code_block_language(node: Node, source: bytes) -> str:
-    """Return the language declared in a fenced_code_block's info_string.
 
-    Markdown fenced code blocks may begin with an info string that names the
-    language of the block (e.g. ` ```python `).  This callable is used as the
-    dynamic ``target_language`` for the ``fenced_code_block`` region extraction
-    rule so that each block is injected and shingled using its own language's
-    normalization rules.
-
-    Returns an empty string when no language tag is present or the declared
-    language is not supported; the injection mechanism treats an empty string
-    as "no injection".
-    """
     for child in node.children:
         if child.type == "info_string":
             lang_text = source[child.start_byte : child.end_byte].decode("utf-8", errors="ignore").strip()
             if not lang_text:
                 return ""
-            # Language identifiers may have extra text (e.g. "python title='foo'")
+
             lang = lang_text.split()[0].lower()
             lang = _INFO_STRING_ALIASES.get(lang, lang)
-            from treepeat.pipeline.languages import LANGUAGE_CONFIGS  # lazy import avoids circular import
+            from treepeat.pipeline.languages import LANGUAGE_CONFIGS
             if lang not in LANGUAGE_CONFIGS:
                 logger.warning(
                     "Markdown code block declares unsupported language %r; skipping injection",
@@ -55,7 +44,7 @@ def _resolve_code_block_language(node: Node, source: bytes) -> str:
 
 
 class MarkdownConfig(LanguageConfig):
-    """Configuration for Markdown language."""
+
 
     def get_default_rules(self) -> list[Rule]:
         return []
@@ -69,10 +58,10 @@ class MarkdownConfig(LanguageConfig):
                 query="[(atx_heading) (setext_heading) (section)] @region",
                 label="heading",
             ),
-            # Fenced code blocks are injected into their declared language so
-            # the shingler produces language-specific shingles.  Blocks with no
-            # language tag fall back to opaque shingling (empty string returned
-            # by _resolve_code_block_language → injection skipped).
+
+
+
+
             RegionExtractionRule(
                 query="(fenced_code_block) @region",
                 label="code_block",

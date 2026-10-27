@@ -1,0 +1,19 @@
+id: no-docstrings-only-body-python
+language: python
+severity: error
+ignores:
+  - "treepeat/cli/**"
+  - "tests/fixtures/**"
+message: Docstring not allowed. Prefer a clear function/class name and tests over a docstring.
+note: Same as no-docstrings-python, but the docstring is the whole body, so it's replaced with `pass` to keep the code valid.
+rule:
+  kind: expression_statement
+  has:
+    kind: string
+  not:
+    any:
+      - precedes:
+          regex: '.'
+      - follows:
+          regex: '.'
+fix: pass

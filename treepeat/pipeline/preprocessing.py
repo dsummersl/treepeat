@@ -1,10 +1,4 @@
-"""Streaming parse → extract → shingle → MinHash, one file at a time.
 
-Retaining every parse tree (and every region's tree-sitter nodes) until all
-files are processed dominates memory on large scans. Here each file's tree is
-released as soon as its regions are fingerprinted; only compact, interned
-shingle strings and MinHash signatures are kept for the global comparison.
-"""
 
 import logging
 import sys
@@ -33,7 +27,7 @@ STAGES = ("parse", "extract", "shingle", "minhash")
 
 @dataclass
 class Preprocessed:
-    """Comparison inputs retained after all parse trees have been released."""
+
 
     shingled_regions: list[ShingledRegion] = field(default_factory=list)
     signatures: list[RegionSignature] = field(default_factory=list)
@@ -85,7 +79,7 @@ def _process_file(
     except Exception as e:
         logger.warning("Failed to process %s: %s", path, e)
     finally:
-        # Query captures hold tree-sitter Nodes and the engine holds the source bytes.
+
         shingler.rule_engine.reset_identifiers()
         shingler.rule_engine.release_source()
 
@@ -96,13 +90,13 @@ def preprocess(
     settings: PipelineSettings,
     progress: bool = False,
 ) -> Preprocessed:
-    """Fingerprint every source file under target_path without retaining its parse tree."""
+
     files = collect_source_files(target_path)
     if not files:
         logger.warning("Path does not exist or contains no source files: %s", target_path)
 
     out = Preprocessed()
-    # Shared by every region so equal shingle strings are stored once.
+
     shingler = ASTShingler(rule_engine, k=settings.shingle.k, symbols={})
     iterable = tqdm(files, desc="Preprocessing", unit="file", file=sys.stderr) if progress else files
     for path in iterable:

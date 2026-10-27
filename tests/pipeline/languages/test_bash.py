@@ -1,4 +1,4 @@
-"""Tests for Bash language configuration and rules."""
+
 
 from pathlib import Path
 
@@ -8,7 +8,6 @@ from tests.conftest import parse_fixture
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-# Fixture path
 fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "bash" / "comprehensive.sh"
 
 
@@ -18,10 +17,10 @@ fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "bash
     [rule for rule, _ in build_loose_rules()]
 ])
 def test_bash_rules_extract(rules):
-    """Test that Bash files can be processed with different rule sets."""
+
     parsed = parse_fixture(fixture_comprehensive, "bash")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)
 
-    # Bash doesn't define region extraction rules, so we may get 0 regions
+
     assert len(regions) >= 0

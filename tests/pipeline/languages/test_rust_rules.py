@@ -4,12 +4,12 @@ from treepeat.pipeline.languages.rust import RustConfig
 def test_macro_names_mode_separation(rule_tester):
     config = RustConfig()
     source = 'fn f() { println!("hello"); }'
-    # preserved in default mode
+
     rule_tester._verify_with_rules(
         config, config.get_default_rules(),
         "Anonymize macro names", source, "println", None, "Default Rules"
     )
-    # removed in loose mode
+
     rule_tester._verify_with_rules(
         config, config.get_loose_rules(),
         "Anonymize macro names", source, None, "println", "Loose Rules"

@@ -4,7 +4,7 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class JavaConfig(LanguageConfig):
-    """Configuration for Java language."""
+
 
     def get_default_rules(self) -> list[Rule]:
         return [
