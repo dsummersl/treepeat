@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 import pytest
@@ -8,9 +6,7 @@ from tests.conftest import parse_fixture
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-fixture_comprehensive = (
-    Path(__file__).parent.parent.parent / "fixtures" / "rust" / "comprehensive.rs"
-)
+fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "rust" / "comprehensive.rs"
 
 
 @pytest.mark.parametrize(
@@ -23,11 +19,14 @@ def test_rust_rules_extract(rules):
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)
 
-
     region_types = {r.region.region_type for r in regions}
     assert region_types == {
-        "function_item", "impl_item", "struct_item",
-        "enum_item", "trait_item", "macro_definition",
+        "function_item",
+        "impl_item",
+        "struct_item",
+        "enum_item",
+        "trait_item",
+        "macro_definition",
     }
 
 
@@ -109,14 +108,12 @@ impl Foo {
 
     shingle_str = " ".join(shingled.shingles.get_contents())
 
-
     assert "use_declaration" not in shingle_str
     assert "extern_crate_declaration" not in shingle_str
     assert "line_comment" not in shingle_str
     assert "block_comment" not in shingle_str
     assert "attribute_item" not in shingle_str
     assert "inner_attribute_item" not in shingle_str
-
 
     assert "struct_item" in shingle_str
     assert "impl_item" in shingle_str

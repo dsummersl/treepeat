@@ -1,5 +1,3 @@
-
-
 import logging
 import sys
 from pathlib import Path
@@ -35,10 +33,6 @@ def _create_lsh_index(
 
     num_perm = signatures[0].minhash.hashvalues.shape[0]
 
-
-
-
-
     lsh_similarity_percent = min(0.5, 0.7 * similarity_percent)
     lsh = MinHashLSH(lsh_similarity_percent, num_perm)
 
@@ -62,8 +56,6 @@ def _regions_overlap(r1: Region, r2: Region) -> bool:
 
 
 class UnionFind:
-
-
     def __init__(self) -> None:
 
         self.parent: dict[str, str] = {}
@@ -76,7 +68,6 @@ class UnionFind:
             self.rank[key] = 0
             return key
 
-
         if self.parent[key] != key:
             self.parent[key] = self.find(self.parent[key])
         return self.parent[key]
@@ -88,7 +79,6 @@ class UnionFind:
 
         if root1 == root2:
             return
-
 
         if self.rank[root1] < self.rank[root2]:
             self.parent[root1] = root2
@@ -163,10 +153,7 @@ def _append_pairwise_similar(
     similarity_percent: float,
 ) -> None:
     pairwise_similar_keys = [
-        sk
-        for sk in similar_keys
-        if sk != current_key
-        if _is_pairwise_similar(sk, sig, key_to_sig, similarity_percent)
+        sk for sk in similar_keys if sk != current_key if _is_pairwise_similar(sk, sig, key_to_sig, similarity_percent)
     ]
     for similar_key in pairwise_similar_keys:
         uf.union(current_key, str(similar_key))
@@ -181,20 +168,11 @@ def _build_union_find_from_lsh(
 
     uf = UnionFind()
 
-    key_to_sig: dict[str, RegionSignature] = {
-        _sig_key(sig): sig
-        for sig in signatures
-    }
-
-
+    key_to_sig: dict[str, RegionSignature] = {_sig_key(sig): sig for sig in signatures}
 
     min_pair_similarity = 0.8 * similarity_percent
 
-    iterable = (
-        tqdm(signatures, desc="LSH", unit="signature", file=sys.stderr)
-        if progress
-        else signatures
-    )
+    iterable = tqdm(signatures, desc="LSH", unit="signature", file=sys.stderr) if progress else signatures
 
     for sig in iterable:
         current_key = _sig_key(sig)
@@ -208,9 +186,7 @@ def _build_union_find_from_lsh(
             len(similar_keys),
         )
 
-        _append_pairwise_similar(
-            uf, current_key, similar_keys, sig, key_to_sig, min_pair_similarity
-        )
+        _append_pairwise_similar(uf, current_key, similar_keys, sig, key_to_sig, min_pair_similarity)
 
     return uf, key_to_sig
 
@@ -235,9 +211,6 @@ def _create_group_from_keys(
         return None
 
     group_similarity_percent = _calculate_group_similarity(group_sigs)
-
-
-
 
     min_lsh_similarity = 0.8 * similarity_percent
     if group_similarity_percent < min_lsh_similarity:
@@ -274,7 +247,6 @@ def _collect_candidate_groups(
     progress: bool = False,
 ) -> list[SimilarRegionGroup]:
 
-
     uf, key_to_sig = _build_union_find_from_lsh(
         signatures,
         lsh,
@@ -282,15 +254,12 @@ def _collect_candidate_groups(
         progress=progress,
     )
 
-
     groups_dict = uf.get_groups()
     groups: list[SimilarRegionGroup] = []
 
     for _root, member_keys in groups_dict.items():
-
         if len(member_keys) < 2:
             continue
-
 
         group = _create_group_from_keys(member_keys, key_to_sig, similarity_percent)
         if group is not None:
@@ -342,7 +311,6 @@ def _verify_and_filter_groups(
         rules=rules,
         progress=progress,
     )
-
 
     similar_groups = [g for g in verified_groups if g.similarity >= similarity_percent]
     if len(similar_groups) < len(verified_groups):
@@ -400,9 +368,7 @@ def _filter_by_min_lines(
     if not filtered_signatures:
         return [], []
 
-    filtered_shingled = [
-        sr for sr in shingled_regions if (sr.region.path, sr.region.start_line) in kept_keys
-    ]
+    filtered_shingled = [sr for sr in shingled_regions if (sr.region.path, sr.region.start_line) in kept_keys]
 
     return filtered_signatures, filtered_shingled
 
@@ -426,9 +392,7 @@ def detect_similarity(
     progress: bool = False,
 ) -> SimilarityResult:
 
-    filtered_signatures, filtered_shingled = _filter_by_min_lines(
-        signatures, shingled_regions, min_lines
-    )
+    filtered_signatures, filtered_shingled = _filter_by_min_lines(signatures, shingled_regions, min_lines)
     _log_min_lines_filter(len(signatures), len(filtered_signatures), min_lines)
 
     if not filtered_signatures:
@@ -440,9 +404,7 @@ def detect_similarity(
         progress=progress,
     )
 
-    total_pairs = sum(
-        len(g.regions) * (len(g.regions) - 1) // 2 for g in candidate_groups
-    )
+    total_pairs = sum(len(g.regions) * (len(g.regions) - 1) // 2 for g in candidate_groups)
     logger.info("Total candidate pairs entering verification: %d", total_pairs)
 
     if not candidate_groups:

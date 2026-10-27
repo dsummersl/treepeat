@@ -19,9 +19,7 @@ from treepeat.pipeline.shingle import shingle_regions
 
 from ..conftest import assert_regions_in_same_group, default_rule_engine, parsed_fixture
 
-fixture_class_with_methods = (
-    Path(__file__).parent.parent / "fixtures" / "python" / "class_with_methods.py"
-)
+fixture_class_with_methods = Path(__file__).parent.parent / "fixtures" / "python" / "class_with_methods.py"
 fixture_path4 = Path(__file__).parent.parent / "fixtures" / "python" / "dataclass4.py"
 fixture_path5 = Path(__file__).parent.parent / "fixtures" / "python" / "dataclass5.py"
 
@@ -55,12 +53,8 @@ def _make_region(path, language, region_type, region_name, start_line, end_line)
     )
 
 
-classA_region = _make_region(
-    fixture_class_with_methods, "python", "class_definition", "ClassA", 4, 27
-)
-classB_region = _make_region(
-    fixture_class_with_methods, "python", "class_definition", "ClassB", 30, 54
-)
+classA_region = _make_region(fixture_class_with_methods, "python", "class_definition", "ClassA", 4, 27)
+classB_region = _make_region(fixture_class_with_methods, "python", "class_definition", "ClassB", 30, 54)
 
 
 python_fixtures = Path(__file__).parent.parent / "fixtures" / "python"
@@ -79,8 +73,6 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
         ("none", class_with_methods_file, 0.9, 2, []),
         ("default", class_with_methods_file, 0.1, 1, []),
         ("default", class_with_methods_file, 0.3, 2, []),
-
-
         ("default", class_with_methods_file, 0.5, 1, [(classA_region, classB_region)]),
         (
             "none",
@@ -88,7 +80,6 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             0.7,
             5,
             [
-
                 (
                     _make_region(
                         python_fixtures / "small_functions_b.py",
@@ -107,7 +98,6 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         18,
                     ),
                 ),
-
                 (
                     _make_region(
                         python_fixtures / "dataclass1.py",
@@ -134,7 +124,6 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             0.8,
             5,
             [
-
                 (
                     _make_region(
                         python_fixtures / "small_functions_b.py",
@@ -153,7 +142,6 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         18,
                     ),
                 ),
-
                 (
                     _make_region(
                         fixture_class_with_methods,
@@ -198,7 +186,6 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
             0.9,
             3,
             [
-
                 (
                     _make_region(
                         python_fixtures / "small_functions_b.py",
@@ -217,7 +204,6 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         18,
                     ),
                 ),
-
                 (
                     _make_region(
                         fixture_class_with_methods,
@@ -236,7 +222,6 @@ fixture_comprehensive_deleted_region = css_fixtures / "comprehensive-slight-mod.
                         46,
                     ),
                 ),
-
                 (
                     _make_region(
                         fixture_class_with_methods,

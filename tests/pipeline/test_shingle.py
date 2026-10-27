@@ -34,14 +34,11 @@ def test_identical_functions():
         rule_engine=RuleEngine([]),
     )
 
-
     explicit_shingled = [r for r in shingled_regions if r.region.region_type == "function_definition"]
-
 
     assert len(explicit_shingled) == 2
     assert [r.region.region_name for r in explicit_shingled] == ["one", "one_prime"]
     assert {r.region.path for r in explicit_shingled} == {fixture_path2}
     assert {r.region.language for r in explicit_shingled} == {"python"}
-
 
     assert explicit_shingled[0].shingles.get_contents()[0] == "function_definition→parameters→((()"

@@ -29,5 +29,3 @@ def test_template_filter_after_route_with_template(app, client):
     app.register_blueprint(bp, url_prefix="/py")
     rv = client.get("/")
     assert rv.data == b"dcba"
-
-

@@ -14,8 +14,6 @@ fixture_nested = Path(__file__).parent / "fixtures" / "python" / "nested_functio
 fixture_class_methods = Path(__file__).parent / "fixtures" / "python" / "class_with_methods.py"
 
 
-
-
 @pytest.fixture
 def rule_tester():
 
@@ -34,16 +32,12 @@ def parse_fixture(path: Path, language: str) -> ParsedFile:
     return parse_source_code(fixture, language, path)
 
 
-def assert_regions_in_same_group(
-    result: SimilarityResult, region1: Region, region2: Region
-) -> SimilarRegionGroup:
+def assert_regions_in_same_group(result: SimilarityResult, region1: Region, region2: Region) -> SimilarRegionGroup:
 
     for group in result.similar_groups:
         if region1 in group.regions and region2 in group.regions:
             return group
-    raise AssertionError(
-        f"Regions ({region1}, {region2}) not found in same group ({result.similar_groups})"
-    )
+    raise AssertionError(f"Regions ({region1}, {region2}) not found in same group ({result.similar_groups})")
 
 
 def parsed_fixture(path):

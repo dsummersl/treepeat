@@ -72,9 +72,7 @@ class ASTShingler:
         contents: list[str] = []
         for node in nodes:
             contents.extend(self._extract_compact(node, language, source))
-        return ShingledRegion(
-            region=extracted.region, shingles=CompactShingleList.from_contents(contents)
-        )
+        return ShingledRegion(region=extracted.region, shingles=CompactShingleList.from_contents(contents))
 
     def _shingle_injected_region(self, extracted_region: ExtractedRegion) -> list[Shingle]:
         injected_tree = extracted_region.injected_tree
@@ -138,7 +136,6 @@ class ASTShingler:
         text = source[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
         text = text.replace("→", "->").replace("\n", "\\n").replace("\t", "\\t")
 
-
         if len(text) > MAX_NODE_VALUE_LENGTH:
             text = text[:MAX_NODE_VALUE_LENGTH]
 
@@ -174,7 +171,6 @@ class ASTShingler:
         try:
             name, value = self._apply_rules(node, name, value, language, source, root)
         except SkipNodeException as sne:
-
             raise SkipNode(f"Node type '{name}' skipped by rule") from sne
         return NodeRepresentation(name=name, value=value)
 
@@ -189,28 +185,21 @@ class ASTShingler:
 
         shingles: list[Shingle] = []
 
-
         def traverse(node: Node, path: deque[tuple[NodeRepresentation, Node]]) -> None:
 
             try:
                 node_repr = self._get_node_representation(node, language, source, root)
             except SkipNode:
-
                 return
 
             path.append((node_repr, node))
-
 
             if len(path) >= self.k:
                 shingle_path = list(path)[-self.k :]
                 shingle_reprs = [repr for repr, _ in shingle_path]
                 shingle_nodes = [n for _, n in shingle_path]
 
-
                 shingle_content = "→".join(str(repr) for repr in shingle_reprs)
-
-
-
 
                 last_node = shingle_nodes[-1]
                 start_line = last_node.start_point[0] + 1
@@ -219,10 +208,8 @@ class ASTShingler:
                 shingle = Shingle(content=shingle_content, start_line=start_line, end_line=end_line)
                 shingles.append(shingle)
 
-
             for child in node.children:
                 traverse(child, path)
-
 
             _ = path.pop()
 
@@ -250,11 +237,7 @@ def _shingle_single_region(
         )
         return None
 
-
     shingler.rule_engine.reset_identifiers()
-
-
-
 
     if extracted_region.injected_tree is not None:
         assert extracted_region.injected_language is not None

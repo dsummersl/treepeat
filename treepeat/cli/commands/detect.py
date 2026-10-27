@@ -45,9 +45,7 @@ def _parse_add_region_arg(region_spec: str) -> tuple[str, set[str]]:
     nodes_str = m.group(2)
     node_types = {n.strip() for n in nodes_str.split(",") if n.strip()}
     if not node_types:
-        raise click.ClickException(
-            f"Invalid --add-regions value '{region_spec}'. Must include at least one node type"
-        )
+        raise click.ClickException(f"Invalid --add-regions value '{region_spec}'. Must include at least one node type")
     return language, node_types
 
 
@@ -65,9 +63,7 @@ def _parse_exclude_region_arg(region_spec: str) -> tuple[str, set[str]]:
     labels_str = m.group(2)
     labels = {label.strip() for label in labels_str.split(",") if label.strip()}
     if not labels:
-        raise click.ClickException(
-            f"Invalid --exclude-regions value '{region_spec}'. Must include at least one label"
-        )
+        raise click.ClickException(f"Invalid --exclude-regions value '{region_spec}'. Must include at least one label")
     return language, labels
 
 
@@ -169,6 +165,7 @@ def _run_pipeline_with_ui(path: Path, output_format: str, progress: bool = False
         return run_pipeline(path, progress=progress)
 
     from treepeat.config import get_settings
+
     settings = get_settings()
     console.print(f"\nRuleset: [cyan]{settings.rules.ruleset}[/cyan]")
     console.print(f"Analyzing: [cyan]{path}[/cyan]\n")
@@ -229,9 +226,7 @@ def display_similar_groups(result: SimilarityResult, show_diff: bool = False) ->
         _display_group(group, show_diff=show_diff)
 
 
-def _init_language_stats(
-    stats_by_format: dict[str, dict[str, int | set[Path]]], language: str
-) -> None:
+def _init_language_stats(stats_by_format: dict[str, dict[str, int | set[Path]]], language: str) -> None:
     """Initialize stats entry for a language if not present."""
     if language not in stats_by_format:
         stats_by_format[language] = {"files": set(), "groups": 0, "lines": 0}
@@ -386,11 +381,11 @@ def _format_language_node_types(
 
 
 _STAGE_LABELS: dict[str, tuple[str, str]] = {
-    "parse":   ("1/5 parse",   "files"),
+    "parse": ("1/5 parse", "files"),
     "extract": ("2/5 extract", "regions"),
     "shingle": ("3/5 shingle", "regions"),
     "minhash": ("4/5 minhash", "sigs"),
-    "lsh":     ("5/5 lsh",     "groups"),
+    "lsh": ("5/5 lsh", "groups"),
 }
 
 

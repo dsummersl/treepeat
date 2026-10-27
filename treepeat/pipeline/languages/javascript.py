@@ -4,8 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class JavaScriptConfig(LanguageConfig):
-
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

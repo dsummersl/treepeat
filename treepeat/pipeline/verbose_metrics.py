@@ -3,13 +3,10 @@ from dataclasses import dataclass, field
 
 @dataclass
 class VerboseMetrics:
-
-
     excluded_node_types_by_language: dict[str, set[str]] = field(default_factory=dict)
     used_node_types_by_language: dict[str, set[str]] = field(default_factory=dict)
     stage_timings: dict[str, float] = field(default_factory=dict)
     stage_counts: dict[str, int] = field(default_factory=dict)
-
 
 
 _metrics = VerboseMetrics()

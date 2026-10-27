@@ -9,8 +9,6 @@ from treepeat.pipeline.shingle import ASTShingler
 
 
 class RuleTester:
-
-
     def _get_language_name(self, config) -> str:
 
         class_name = config.__class__.__name__
@@ -19,15 +17,10 @@ class RuleTester:
 
     def verify_rule(self, config, rule_name, source, expected_symbol, unexpected_symbol=None):
 
-
         loose_rules = config.get_loose_rules()
         lang_name = self._get_language_name(config)
 
-
-        rule = next(
-            (r for r in loose_rules if r.name == rule_name and r.matches_language(lang_name)), None
-        )
-
+        rule = next((r for r in loose_rules if r.name == rule_name and r.matches_language(lang_name)), None)
 
         if not rule:
             rule = next((r for r in loose_rules if r.name == rule_name), None)
@@ -35,20 +28,11 @@ class RuleTester:
         if not rule:
             raise ValueError(f"Rule '{rule_name}' not found in {config.__class__.__name__}")
 
+        self._verify_with_rules(config, [rule], rule_name, source, expected_symbol, unexpected_symbol, "Single Rule")
 
-        self._verify_with_rules(
-            config, [rule], rule_name, source, expected_symbol, unexpected_symbol, "Single Rule"
-        )
+        self._verify_with_rules(config, loose_rules, rule_name, source, expected_symbol, unexpected_symbol, "All Rules")
 
-
-
-        self._verify_with_rules(
-            config, loose_rules, rule_name, source, expected_symbol, unexpected_symbol, "All Rules"
-        )
-
-    def _verify_with_rules(
-        self, config, rules, rule_name, source, expected_symbol, unexpected_symbol, context
-    ):
+    def _verify_with_rules(self, config, rules, rule_name, source, expected_symbol, unexpected_symbol, context):
 
         engine = RuleEngine(rules)
 
@@ -107,7 +91,6 @@ class RuleTester:
                 case.get("unexpected_symbol"),
             )
             tested_rule_names.add(case["rule_name"])
-
 
         all_rules = config.get_loose_rules()
         defined_rule_names = {r.name for r in all_rules}

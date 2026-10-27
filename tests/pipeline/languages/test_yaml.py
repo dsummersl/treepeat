@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 import pytest
@@ -18,11 +16,6 @@ fixture_config = FIXTURE_DIR / "yaml" / "config.yaml"
 fixture_guide = FIXTURE_DIR / "markdown" / "guide.md"
 
 
-
-
-
-
-
 def test_yaml_registered_in_configs():
     assert "yaml" in LANGUAGE_CONFIGS
     assert isinstance(LANGUAGE_CONFIGS["yaml"], YAMLConfig)
@@ -38,31 +31,24 @@ def test_yaml_region_extraction_rules_exist():
     assert "block_mapping_pair" in labels
 
 
-
-
-
-
-
 def test_parse_yaml_no_errors():
     parsed = parse_file(fixture_config)
     assert parsed.language == "yaml"
     assert not parsed.root_node.has_error
 
 
-@pytest.mark.parametrize("rules", [
-    [rule for rule, _ in build_default_rules()],
-    [rule for rule, _ in build_loose_rules()],
-])
+@pytest.mark.parametrize(
+    "rules",
+    [
+        [rule for rule, _ in build_default_rules()],
+        [rule for rule, _ in build_loose_rules()],
+    ],
+)
 def test_yaml_regions_extracted(rules):
     parsed = parse_fixture(fixture_config, "yaml")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)
     assert regions, "Expected at least one extracted region from the YAML fixture"
-
-
-
-
-
 
 
 def test_markdown_yaml_block_injected():
@@ -88,19 +74,12 @@ def test_yml_alias_resolves_to_yaml():
 
     fenced_node = None
     for child in [tree.root_node, *tree.root_node.children]:
-        fenced_node = next(
-            (n for n in child.children if n.type == "fenced_code_block"), None
-        )
+        fenced_node = next((n for n in child.children if n.type == "fenced_code_block"), None)
         if fenced_node is not None:
             break
 
     assert fenced_node is not None, "Could not find fenced_code_block node"
     assert _resolve_code_block_language(fenced_node, source) == "yaml"
-
-
-
-
-
 
 
 def _shingle_injected_region(region, engine, shingler):
@@ -144,6 +123,4 @@ def test_embedded_yaml_shingles_overlap_with_standalone():
 
     assert md_shingles, "No shingles produced from markdown yaml block"
     assert standalone_shingles, "No shingles produced from standalone yaml file"
-    assert md_shingles & standalone_shingles, (
-        "Markdown yaml block and standalone yaml file share no shingles"
-    )
+    assert md_shingles & standalone_shingles, "Markdown yaml block and standalone yaml file share no shingles"

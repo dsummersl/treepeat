@@ -33,6 +33,7 @@ def _resolve_code_block_language(node: Node, source: bytes) -> str:
             lang = lang_text.split()[0].lower()
             lang = _INFO_STRING_ALIASES.get(lang, lang)
             from treepeat.pipeline.languages import LANGUAGE_CONFIGS
+
             if lang not in LANGUAGE_CONFIGS:
                 logger.warning(
                     "Markdown code block declares unsupported language %r; skipping injection",
@@ -44,8 +45,6 @@ def _resolve_code_block_language(node: Node, source: bytes) -> str:
 
 
 class MarkdownConfig(LanguageConfig):
-
-
     def get_default_rules(self) -> list[Rule]:
         return []
 
@@ -58,10 +57,6 @@ class MarkdownConfig(LanguageConfig):
                 query="[(atx_heading) (setext_heading) (section)] @region",
                 label="heading",
             ),
-
-
-
-
             RegionExtractionRule(
                 query="(fenced_code_block) @region",
                 label="code_block",

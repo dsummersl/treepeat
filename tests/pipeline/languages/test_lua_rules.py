@@ -80,8 +80,6 @@ def test_lua_rules_detailed(rule_tester):
                 "rule_name": "Anonymize string literals",
                 "source": 'local s = "hello"',
                 "expected_symbol": "<STR>",
-
-
                 "unexpected_symbol": None,
             },
             {
@@ -104,7 +102,7 @@ def test_lua_rules_detailed(rule_tester):
             },
             {
                 "rule_name": "Anonymize binary expressions",
-                "source": 'local x = a .. b',
+                "source": "local x = a .. b",
                 "expected_symbol": "<BINOP>",
                 "unexpected_symbol": "binary_expression",
             },
@@ -120,7 +118,6 @@ def test_lua_rules_detailed(rule_tester):
 
 def test_lua_function_name_rule_wins_over_identifier_anonymization():
 
-
     tokens = _loose_tokens("local function foo() end")
 
     assert "identifier(FUNC)" in tokens
@@ -128,7 +125,6 @@ def test_lua_function_name_rule_wins_over_identifier_anonymization():
 
 
 def test_lua_method_table_name_is_preserved():
-
 
     tokens = _loose_tokens("function Obj:method() end")
 

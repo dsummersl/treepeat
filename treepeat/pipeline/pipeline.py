@@ -18,16 +18,11 @@ from treepeat.pipeline.verbose_metrics import record_stage_count, record_stage_t
 logger = logging.getLogger(__name__)
 
 
-def _filter_groups_by_min_lines(
-    groups: list[SimilarRegionGroup], min_lines: int
-) -> list[SimilarRegionGroup]:
+def _filter_groups_by_min_lines(groups: list[SimilarRegionGroup], min_lines: int) -> list[SimilarRegionGroup]:
 
     filtered = []
     for group in groups:
-
-        all_meet_threshold = all(
-            region.end_line - region.start_line + 1 >= min_lines for region in group.regions
-        )
+        all_meet_threshold = all(region.end_line - region.start_line + 1 >= min_lines for region in group.regions)
         if all_meet_threshold:
             filtered.append(group)
         else:
@@ -69,13 +64,9 @@ def _run_lsh_stage(
     return similarity_result
 
 
-def _filter_and_log_groups(
-    result: SimilarityResult, min_lines: int
-) -> list[SimilarRegionGroup]:
+def _filter_and_log_groups(result: SimilarityResult, min_lines: int) -> list[SimilarRegionGroup]:
     for group in result.similar_groups:
-        logger.debug(
-            "  Group: %d regions, similarity=%.2f%%", len(group.regions), group.similarity * 100
-        )
+        logger.debug("  Group: %d regions, similarity=%.2f%%", len(group.regions), group.similarity * 100)
     filtered = _filter_groups_by_min_lines(result.similar_groups, min_lines)
     logger.info(
         "Region matching complete: %d groups after filtering (was %d)",
@@ -94,7 +85,6 @@ def run_pipeline(target_path: str | Path, progress: bool = False) -> SimilarityR
         target_path = Path(target_path)
 
     rule_engine = build_rule_engine(settings)
-
 
     logger.info("Stages 1-4/5: Parsing, extracting, shingling and fingerprinting...")
     pre = preprocess(target_path, rule_engine, settings, progress=progress)

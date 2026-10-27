@@ -61,7 +61,6 @@ LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
 }
 
 
-
 GRAMMAR_ALIASES: dict[str, str] = {
     "jsx": "javascript",
 }

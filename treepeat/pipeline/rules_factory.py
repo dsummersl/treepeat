@@ -30,9 +30,7 @@ def _log_active_rules(rules: list[Rule]) -> None:
         )
 
 
-def get_ruleset_with_descriptions(
-    ruleset: str, filters: dict[str, set[str]] | None = None
-) -> list[tuple[Rule, str]]:
+def get_ruleset_with_descriptions(ruleset: str, filters: dict[str, set[str]] | None = None) -> list[tuple[Rule, str]]:
 
     ruleset = ruleset.lower()
     if ruleset == "default":
@@ -62,11 +60,7 @@ def _filter_rules_by_region_filters(
             region_type = rule.params.get("region_type") if hasattr(rule, "params") else None
             if not region_type:
                 return False
-            return any(
-                region_type in filters.get(lang, set())
-                for lang in rule.languages
-                if lang in allowed_langs
-            )
+            return any(region_type in filters.get(lang, set()) for lang in rule.languages if lang in allowed_langs)
 
         return True
 
@@ -104,13 +98,12 @@ def _is_excluded_region_type(rule: Rule, excluded_regions: dict[str, set[str]]) 
 
     return any(region_type in excluded_regions.get(lang, set()) for lang in rule.languages)
 
+
 def _filter_extract_region_rules(rules: list[Rule]) -> list[Rule]:
     return [rule for rule in rules if rule.action == RuleAction.EXTRACT_REGION]
 
 
-def _filter_excluded_regions(
-    rules: list[Rule], excluded_regions: dict[str, set[str]]
-) -> list[Rule]:
+def _filter_excluded_regions(rules: list[Rule], excluded_regions: dict[str, set[str]]) -> list[Rule]:
     if not excluded_regions:
         return rules
 
@@ -128,7 +121,6 @@ def build_rule_engine(settings: PipelineSettings) -> RuleEngine:
     rules = _load_ruleset_rules(settings.rules.ruleset.lower(), filters)
     if additional_regions:
         rules.extend(_build_additional_region_rules(additional_regions))
-
 
     rules = _filter_excluded_regions(rules, excluded_regions)
 

@@ -7,15 +7,10 @@ from tree_sitter import Node
 
 class RuleAction(Enum):
     REMOVE = "remove"
-    REPLACE_NODE_TYPE = (
-        "replace_node_type"
-    )
+    REPLACE_NODE_TYPE = "replace_node_type"
     REPLACE_VALUE = "replace_value"
     ANONYMIZE = "anonymize"
     EXTRACT_REGION = "extract_region"
-
-
-
 
 
 TargetLanguage = Union[str, Callable[[Node, bytes], str], None]
@@ -30,10 +25,7 @@ class Rule:
     target: str | None = None
     params: dict[str, str] = field(default_factory=dict)
 
-
     injection_language: TargetLanguage = field(default=None, compare=False, hash=False)
-
-
 
     injection_content_query: str | None = None
 

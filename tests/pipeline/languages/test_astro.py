@@ -15,11 +15,6 @@ fixture_two = FIXTURE_DIR / "two.astro"
 fixture_template_only = FIXTURE_DIR / "template_only.astro"
 
 
-
-
-
-
-
 def test_region_extraction_rules_exist():
     rules = AstroConfig().get_region_extraction_rules()
     assert len(rules) >= 1
@@ -32,11 +27,6 @@ def test_frontmatter_rule_injects_typescript():
     frontmatter_rule = next(r for r in rules if r.label == "frontmatter")
     assert frontmatter_rule.target_language == "typescript"
     assert frontmatter_rule.content_query is not None
-
-
-
-
-
 
 
 def test_parse_file_astro_language():
@@ -57,11 +47,6 @@ def test_parse_file_astro_source_contains_frontmatter_and_template():
     assert b"---" in parsed.source
     assert b"<Layout" in parsed.source
     assert b"buildPageTitle" in parsed.source
-
-
-
-
-
 
 
 @pytest.mark.parametrize(
@@ -133,11 +118,6 @@ def test_region_line_numbers_match_original_file():
     assert fm.region.end_line == 20
 
 
-
-
-
-
-
 def _make_parsed_file(path: Path, language: str, source: bytes) -> ParsedFile:
     parser = get_parser(language)  # type: ignore[arg-type]
     tree = parser.parse(source)
@@ -153,7 +133,6 @@ def test_injected_shingles_match_standalone_typescript():
     engine = RuleEngine(rules)
     shingler = ASTShingler(rule_engine=engine, k=3)
 
-
     astro_parsed = parse_file(fixture_one)
     astro_regions = extract_all_regions([astro_parsed], engine)
     fm_region = next(r for r in astro_regions if r.region.region_type == "frontmatter")
@@ -165,8 +144,6 @@ def test_injected_shingles_match_standalone_typescript():
         fm_region.injected_source,
     )
     astro_shingled = shingler.shingle_region(fm_region, fm_region.injected_source)
-
-
 
     ts_source = fm_region.injected_source
     ts_path = fixture_one.with_suffix(".ts")
@@ -183,17 +160,10 @@ def test_injected_shingles_match_standalone_typescript():
         ts_shingled = shingler.shingle_region(ts_region, ts_source)
         ts_all_shingles.update(s.content for s in ts_shingled.shingles.shingles)
 
-
-
     astro_shingle_set = {s.content for s in astro_shingled.shingles.shingles}
     assert astro_shingle_set, "No shingles produced from injected frontmatter"
 
     assert astro_shingle_set & ts_all_shingles, "No common shingles between Astro frontmatter and standalone TypeScript"
-
-
-
-
-
 
 
 def test_parse_template_only_language():
@@ -241,11 +211,6 @@ def test_template_only_extract_all_regions_does_not_raise():
     engine = RuleEngine([r for r, _ in build_loose_rules()])
     regions = extract_all_regions([parsed], engine)
     assert isinstance(regions, list)
-
-
-
-
-
 
 
 def test_template_rule_registered():
@@ -332,7 +297,5 @@ def test_template_shingles_overlap_between_similar_components():
     assert shingles_one, "No shingles from one.astro template"
     assert shingles_two, "No shingles from two.astro template"
     assert shingles_one & shingles_two, (
-        "one.astro and two.astro have identical template structures "
-        "but share no common shingles"
+        "one.astro and two.astro have identical template structures but share no common shingles"
     )
-

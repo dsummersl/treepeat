@@ -4,8 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class AstroConfig(LanguageConfig):
-
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
@@ -37,22 +35,12 @@ class AstroConfig(LanguageConfig):
 
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
         return [
-
-
-
-
-
             RegionExtractionRule(
                 query="(frontmatter) @region",
                 label="frontmatter",
                 target_language="typescript",
                 content_query="(frontmatter_js_block) @content",
             ),
-
-
-
-
-
             RegionExtractionRule(
                 query="(document (element) @region)",
                 label="template",

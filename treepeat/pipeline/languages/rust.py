@@ -4,8 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class RustConfig(LanguageConfig):
-
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
@@ -21,10 +19,6 @@ class RustConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
-
-
-
-
                 name="Ignore generic lifetimes",
                 languages=["rust"],
                 query='((lifetime) @life (#not-eq? @life "\'static"))',
@@ -43,8 +37,6 @@ class RustConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
-
-
                 name="Ignore attribute items",
                 languages=["rust"],
                 query="[(attribute_item) (inner_attribute_item)] @attr",
@@ -58,11 +50,6 @@ class RustConfig(LanguageConfig):
                 params={"value": "FUNC"},
             ),
             Rule(
-
-
-
-
-
                 name="Anonymize type names",
                 languages=["rust"],
                 query="""[
@@ -80,15 +67,6 @@ class RustConfig(LanguageConfig):
     def get_loose_rules(self) -> list[Rule]:
         return [
             Rule(
-
-
-
-
-
-
-
-
-
                 name="Anonymize macro names",
                 languages=["rust"],
                 query="[(macro_invocation (identifier) @name) (macro_invocation (scoped_identifier) @name)]",
@@ -108,10 +86,6 @@ class RustConfig(LanguageConfig):
                 params={"prefix": "VAR"},
             ),
             Rule(
-
-
-
-
                 name="Anonymize string literals",
                 languages=["rust"],
                 query="[(string_literal) (raw_string_literal) (char_literal)] @str",
@@ -133,10 +107,6 @@ class RustConfig(LanguageConfig):
                 params={"value": "<BOOL>"},
             ),
             Rule(
-
-
-
-
                 name="Anonymize binary expressions",
                 languages=["rust"],
                 query="(binary_expression) @binop",

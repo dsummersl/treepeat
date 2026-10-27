@@ -3,8 +3,6 @@ from .typescript import TypeScriptConfig
 
 
 class TsxConfig(TypeScriptConfig):
-
-
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
         return [
             *super().get_region_extraction_rules(),

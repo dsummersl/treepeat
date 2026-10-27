@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 import pytest
@@ -8,9 +6,7 @@ from tests.conftest import parse_fixture
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-fixture_comprehensive = (
-    Path(__file__).parent.parent.parent / "fixtures" / "kotlin" / "comprehensive.kt"
-)
+fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "kotlin" / "comprehensive.kt"
 
 
 @pytest.mark.parametrize(
@@ -22,7 +18,6 @@ def test_kotlin_rules_extract(rules):
     parsed = parse_fixture(fixture_comprehensive, "kotlin")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)
-
 
     assert len(regions) >= 3
 
@@ -68,11 +63,9 @@ def test_kotlin_specific_rules():
 
     shingle_str = " ".join(shingled.shingles.get_contents())
 
-
     assert "import_directive" not in shingle_str
     assert "line_comment" not in shingle_str
     assert "multiline_comment" not in shingle_str
-
 
     assert "class_declaration" in shingle_str
     assert "function_declaration" in shingle_str

@@ -3,8 +3,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class RulesSettings(BaseSettings):
-
-
     model_config = SettingsConfigDict(
         env_prefix="RULES_",
     )
@@ -13,9 +11,6 @@ class RulesSettings(BaseSettings):
         default="default",
         description="Ruleset profile to use",
     )
-
-
-
 
     region_filters: dict[str, set[str]] = Field(
         default_factory=dict,
@@ -38,8 +33,6 @@ class RulesSettings(BaseSettings):
 
 
 class ShingleSettings(BaseSettings):
-
-
     model_config = SettingsConfigDict(
         env_prefix="SHINGLE_",
     )
@@ -52,8 +45,6 @@ class ShingleSettings(BaseSettings):
 
 
 class MinHashSettings(BaseSettings):
-
-
     model_config = SettingsConfigDict(
         env_prefix="MINHASH_",
     )
@@ -66,8 +57,6 @@ class MinHashSettings(BaseSettings):
 
 
 class LSHSettings(BaseSettings):
-
-
     model_config = SettingsConfigDict(
         env_prefix="LSH_",
     )
@@ -87,8 +76,6 @@ class LSHSettings(BaseSettings):
 
 
 class PipelineSettings(BaseSettings):
-
-
     model_config = SettingsConfigDict(
         env_prefix="TSSIM_",
     )
@@ -105,7 +92,6 @@ class PipelineSettings(BaseSettings):
         default_factory=lambda: ["**/.*ignore"],
         description="List of glob patterns to find ignore files (like .gitignore)",
     )
-
 
 
 _settings: PipelineSettings | None = None

@@ -25,12 +25,12 @@ from rich.table import Table
 # Paths
 # ---------------------------------------------------------------------------
 
-REPO_ROOT  = Path(__file__).resolve().parents[2]
-VENV_BIN   = REPO_ROOT / ".venv" / "bin"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+VENV_BIN = REPO_ROOT / ".venv" / "bin"
 
-DEFAULT_TIMEOUT_S  = 1800   # 30 minutes per repo
-DEFAULT_RULESET    = "default"
-DEFAULT_MIN_LINES  = 5
+DEFAULT_TIMEOUT_S = 1800  # 30 minutes per repo
+DEFAULT_RULESET = "default"
+DEFAULT_MIN_LINES = 5
 DEFAULT_CLONE_BASE = "~/.config/treepeat-dev"
 
 _USR_BIN_TIME = "/usr/bin/time"
@@ -58,97 +58,133 @@ def _time_wrapper_ok() -> bool:
     except Exception:
         return False
 
+
 # Strip ANSI escape codes (Rich logging emits these)
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\(B")
 
 # Extensions treepeat can process
-_KNOWN_EXTS: frozenset[str] = frozenset({
-    ".py", ".pyw",
-    ".js", ".jsx", ".mjs", ".cjs",
-    ".ts", ".tsx",
-    ".java",
-    ".rs",
-    ".go",
-    ".c", ".h",
-    ".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx",
-    ".rb",
-    ".cs",
-    ".kt", ".kts",
-    ".swift",
-    ".php", ".phtml",
-    ".lua",
-})
+_KNOWN_EXTS: frozenset[str] = frozenset(
+    {
+        ".py",
+        ".pyw",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".ts",
+        ".tsx",
+        ".java",
+        ".rs",
+        ".go",
+        ".c",
+        ".h",
+        ".cpp",
+        ".cc",
+        ".cxx",
+        ".hpp",
+        ".hh",
+        ".hxx",
+        ".rb",
+        ".cs",
+        ".kt",
+        ".kts",
+        ".swift",
+        ".php",
+        ".phtml",
+        ".lua",
+    }
+)
 
 # Dirs to skip when counting source files
-_SKIP_DIRS: frozenset[str] = frozenset({
-    ".git", ".hg", ".svn",
-    "node_modules", ".pnp",
-    "target", "build", "dist", ".gradle", ".maven",
-    ".venv", "venv", "__pycache__", ".pytest_cache", ".tox",
-    "coverage_html_report", ".next", ".nuxt", ".cache",
-    ".pio", "log", "archive",
-})
+_SKIP_DIRS: frozenset[str] = frozenset(
+    {
+        ".git",
+        ".hg",
+        ".svn",
+        "node_modules",
+        ".pnp",
+        "target",
+        "build",
+        "dist",
+        ".gradle",
+        ".maven",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".pytest_cache",
+        ".tox",
+        "coverage_html_report",
+        ".next",
+        ".nuxt",
+        ".cache",
+        ".pio",
+        "log",
+        "archive",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PerfResult:
-    name:              str
-    root:              str
-    languages:         list
+    name: str
+    root: str
+    languages: list
 
     # Pre-run file census
-    src_files:         int   = 0    # source files with known extensions
-    src_lines:         int   = 0    # total source lines
+    src_files: int = 0  # source files with known extensions
+    src_lines: int = 0  # total source lines
 
     # Outcome
-    timed_out:         bool  = False
-    error:             str   = ""
+    timed_out: bool = False
+    error: str = ""
 
     # Timing (seconds)
-    elapsed_s:         float = 0.0
+    elapsed_s: float = 0.0
 
     # Memory — two independent sources
-    peak_rss_mb:        float = 0.0  # from /usr/bin/time -l (authoritative on clean exit)
+    peak_rss_mb: float = 0.0  # from /usr/bin/time -l (authoritative on clean exit)
     peak_polled_rss_mb: float = 0.0  # max of background poller samples (only source on timeout)
-    page_faults:        int   = 0    # hard page faults (I/O reads) — key swapping indicator
-    swaps:              int   = 0    # actual swap-out operations
+    page_faults: int = 0  # hard page faults (I/O reads) — key swapping indicator
+    swaps: int = 0  # actual swap-out operations
 
     # CPU time (seconds) consumed by treepeat and its children, from the last poller sample
-    cpu_user_s:         float = 0.0
-    cpu_sys_s:          float = 0.0
+    cpu_user_s: float = 0.0
+    cpu_sys_s: float = 0.0
 
     # Stage counts (from INFO log lines on stdout)
-    parse_succeeded:   int   = 0    # "Parse complete: N succeeded"
-    regions_extracted: int   = 0    # "Extracted N total region(s)"
-    regions_to_shingle:int   = 0    # "Shingling N region(s) across" (after min_lines filter)
-    regions_shingled:  int   = 0    # "Shingling complete: N region(s)"
-    signatures:        int   = 0    # "Created N signature(s)"
-    groups_found:      int   = 0    # "found N similar group(s)"
-    candidate_pairs:   int   = 0    # "Total candidate pairs entering verification: N"
+    parse_succeeded: int = 0  # "Parse complete: N succeeded"
+    regions_extracted: int = 0  # "Extracted N total region(s)"
+    regions_to_shingle: int = 0  # "Shingling N region(s) across" (after min_lines filter)
+    regions_shingled: int = 0  # "Shingling complete: N region(s)"
+    signatures: int = 0  # "Created N signature(s)"
+    groups_found: int = 0  # "found N similar group(s)"
+    candidate_pairs: int = 0  # "Total candidate pairs entering verification: N"
 
     # Per-stage elapsed times (seconds) parsed from inline "(Xs)" suffixes
-    t_parse_s:         float = 0.0  # parse stage
-    t_extract_s:       float = 0.0  # region extraction
-    t_shingle_s:       float = 0.0  # shingling
-    t_minhash_s:       float = 0.0  # minhash
-    t_lsh_s:           float = 0.0  # LSH similarity search
+    t_parse_s: float = 0.0  # parse stage
+    t_extract_s: float = 0.0  # region extraction
+    t_shingle_s: float = 0.0  # shingling
+    t_minhash_s: float = 0.0  # minhash
+    t_lsh_s: float = 0.0  # LSH similarity search
 
     # Clone count from SARIF (cross-check vs groups_found)
-    sarif_clones:      int   = 0
+    sarif_clones: int = 0
 
     # RSS time series: list of [elapsed_s, rss_mb] snapshots from background poller.
     # Sampled every RSS_POLL_INTERVAL_S seconds.
     # Each entry is a 2-element list so it round-trips cleanly through JSON.
-    rss_samples:       list  = field(default_factory=list)
+    rss_samples: list = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # Config loading
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Defaults:
@@ -157,34 +193,32 @@ class Defaults:
 
 @dataclass
 class RepoConfig:
-    name:           str
-    languages:      list        = field(default_factory=list)
-    url:            str | None  = None
-    ref:            str | None  = None
-    path:           str | None  = None
-    clone_to:       str | None  = None
-    ignore_dirs:    list        = field(default_factory=list)  # dir names to skip
-    extra_args:     list        = field(default_factory=list)  # passed through to treepeat detect
-    enabled:        bool        = True
-    notes:          str         = ""
+    name: str
+    languages: list = field(default_factory=list)
+    url: str | None = None
+    ref: str | None = None
+    path: str | None = None
+    clone_to: str | None = None
+    ignore_dirs: list = field(default_factory=list)  # dir names to skip
+    extra_args: list = field(default_factory=list)  # passed through to treepeat detect
+    enabled: bool = True
+    notes: str = ""
 
 
 def load_config(toml_path: Path) -> tuple[Defaults, list[RepoConfig]]:
     with open(toml_path, "rb") as f:
         raw = tomllib.load(f)
-    defaults = Defaults(**{k: v for k, v in raw.get("defaults", {}).items()
-                            if k in Defaults.__dataclass_fields__})
-    repos = [RepoConfig(**{k: v for k, v in r.items()
-                            if k in RepoConfig.__dataclass_fields__})
-             for r in raw.get("repos", [])]
+    defaults = Defaults(**{k: v for k, v in raw.get("defaults", {}).items() if k in Defaults.__dataclass_fields__})
+    repos = [
+        RepoConfig(**{k: v for k, v in r.items() if k in RepoConfig.__dataclass_fields__}) for r in raw.get("repos", [])
+    ]
     return defaults, repos
 
 
 def resolve_root(repo: RepoConfig, defaults: Defaults) -> Path:
     if repo.path:
         return Path(repo.path).expanduser()
-    base = Path(repo.clone_to).expanduser() if repo.clone_to \
-           else Path(defaults.clone_base).expanduser() / repo.name
+    base = Path(repo.clone_to).expanduser() if repo.clone_to else Path(defaults.clone_base).expanduser() / repo.name
     return base
 
 
@@ -203,10 +237,7 @@ def count_source_files(root: Path, ignore_dirs: list[str]) -> tuple[int, int]:
     total_lines = 0
 
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [
-            d for d in dirnames
-            if d not in skip and not d.startswith(".")
-        ]
+        dirnames[:] = [d for d in dirnames if d not in skip and not d.startswith(".")]
         for fname in filenames:
             fpath = Path(dirpath) / fname
             if fpath.suffix.lower() not in _KNOWN_EXTS:
@@ -248,20 +279,24 @@ def clone_repo(repo: RepoConfig, root: Path) -> bool:
             # Full clone (no --depth) then checkout the commit
             subprocess.run(
                 ["git", "clone", repo.url, str(root)],
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 timeout=CLONE_TIMEOUT_S,
             )
             subprocess.run(
                 ["git", "-C", str(root), "checkout", str(ref)],
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 timeout=60,
             )
         else:
             subprocess.run(
-                ["git", "clone", "--depth", "1",
-                 *(["--branch", ref] if ref else []),
-                 repo.url, str(root)],
-                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                ["git", "clone", "--depth", "1", *(["--branch", ref] if ref else []), repo.url, str(root)],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 timeout=CLONE_TIMEOUT_S,
             )
         return True
@@ -278,6 +313,7 @@ def clone_repo(repo: RepoConfig, root: Path) -> bool:
 # ---------------------------------------------------------------------------
 # Treepeat runner
 # ---------------------------------------------------------------------------
+
 
 def _find_treepeat_binary() -> str | None:
     """Find treepeat binary in venv or PATH."""
@@ -359,7 +395,7 @@ def _parse_stage_counts(text: str) -> dict:
     m = re.search(r"Parse complete:\s*(\d+) succeeded.*?\(([\d.]+)s\)", clean)
     if m:
         counts["parse_succeeded"] = int(m.group(1))
-        counts["t_parse_s"]       = float(m.group(2))
+        counts["t_parse_s"] = float(m.group(2))
     else:
         m = re.search(r"Parse complete:\s*(\d+) succeeded", clean)
         if m:
@@ -379,7 +415,7 @@ def _parse_stage_counts(text: str) -> dict:
     m = re.search(r"Shingling complete:\s*(\d+) region.*?\(([\d.]+)s\)", clean)
     if m:
         counts["regions_shingled"] = int(m.group(1))
-        counts["t_shingle_s"]      = float(m.group(2))
+        counts["t_shingle_s"] = float(m.group(2))
     else:
         m = re.search(r"Shingling complete:\s*(\d+) region", clean)
         if m:
@@ -387,7 +423,7 @@ def _parse_stage_counts(text: str) -> dict:
 
     m = re.search(r"Created (\d+) signature.*?\(([\d.]+)s\)", clean)
     if m:
-        counts["signatures"]  = int(m.group(1))
+        counts["signatures"] = int(m.group(1))
         counts["t_minhash_s"] = float(m.group(2))
     else:
         m = re.search(r"Created (\d+) signature", clean)
@@ -397,7 +433,7 @@ def _parse_stage_counts(text: str) -> dict:
     m = re.search(r"found (\d+) similar group.*?\(([\d.]+)s\)", clean)
     if m:
         counts["groups_found"] = int(m.group(1))
-        counts["t_lsh_s"]      = float(m.group(2))
+        counts["t_lsh_s"] = float(m.group(2))
     else:
         m = re.search(r"found (\d+) similar group", clean)
         if m:
@@ -469,9 +505,7 @@ def _poll_rss(
     # Give the process a moment to start before the first read.
     stop.wait(1.0)
     if not stop.is_set():
-        pid0 = (
-            _find_treepeat_child_pid(wrapper_pid) if use_wrapper else wrapper_pid
-        ) or wrapper_pid
+        pid0 = (_find_treepeat_child_pid(wrapper_pid) if use_wrapper else wrapper_pid) or wrapper_pid
         _sample(pid0)
         target_pid = pid0 if pid0 != wrapper_pid else None
 
@@ -520,12 +554,18 @@ def run_treepeat(
     try:
         cmd = [
             binary,
-            "-l", "INFO",
-            "-r", DEFAULT_RULESET,
-            "detect", str(root),
-            "-f", "sarif",
-            "-o", str(sarif_path),
-            "--min-lines", str(DEFAULT_MIN_LINES),
+            "-l",
+            "INFO",
+            "-r",
+            DEFAULT_RULESET,
+            "detect",
+            str(root),
+            "-f",
+            "sarif",
+            "-o",
+            str(sarif_path),
+            "--min-lines",
+            str(DEFAULT_MIN_LINES),
         ]
         if ignore_globs:
             cmd += ["--ignore", ignore_globs]
@@ -588,7 +628,7 @@ def run_treepeat(
         stderr_text = stderr_bytes.decode(errors="replace")
 
         with open(log_path, "a", encoding="utf-8") as lf:
-            lf.write(f"\n{'='*60}\n{repo.name}  ({root})\n{'='*60}\n")
+            lf.write(f"\n{'=' * 60}\n{repo.name}  ({root})\n{'=' * 60}\n")
             lf.write(f"cmd: {' '.join(cmd)}\n")
             lf.write(f"elapsed: {result.elapsed_s:.1f}s  timed_out: {result.timed_out}\n")
             lf.write("\n--- STDOUT ---\n")
@@ -607,12 +647,12 @@ def run_treepeat(
             ts = _parse_time_stats(stderr_text)
             result.peak_rss_mb = ts["peak_rss_mb"]
             result.page_faults = ts["page_faults"]
-            result.swaps       = ts["swaps"]
+            result.swaps = ts["swaps"]
         else:
             ts = _parse_time_stats(stderr_text)
-            result.peak_rss_mb  = ts["peak_rss_mb"]
-            result.page_faults  = ts["page_faults"]
-            result.swaps        = ts["swaps"]
+            result.peak_rss_mb = ts["peak_rss_mb"]
+            result.page_faults = ts["page_faults"]
+            result.swaps = ts["swaps"]
             result.sarif_clones = _count_sarif_clones(sarif_path)
 
     finally:
@@ -626,14 +666,33 @@ def run_treepeat(
 # ---------------------------------------------------------------------------
 
 _CSV_FIELDS = [
-    "name", "languages",
-    "src_files", "src_lines",
-    "parse_succeeded", "regions_extracted", "regions_to_shingle", "regions_shingled",
-    "signatures", "groups_found", "candidate_pairs", "sarif_clones",
-    "t_parse_s", "t_extract_s", "t_shingle_s", "t_minhash_s", "t_lsh_s",
-    "elapsed_s", "cpu_user_s", "cpu_sys_s",
-    "peak_rss_mb", "peak_polled_rss_mb", "rss_sample_count", "page_faults", "swaps",
-    "timed_out", "error",
+    "name",
+    "languages",
+    "src_files",
+    "src_lines",
+    "parse_succeeded",
+    "regions_extracted",
+    "regions_to_shingle",
+    "regions_shingled",
+    "signatures",
+    "groups_found",
+    "candidate_pairs",
+    "sarif_clones",
+    "t_parse_s",
+    "t_extract_s",
+    "t_shingle_s",
+    "t_minhash_s",
+    "t_lsh_s",
+    "elapsed_s",
+    "cpu_user_s",
+    "cpu_sys_s",
+    "peak_rss_mb",
+    "peak_polled_rss_mb",
+    "rss_sample_count",
+    "page_faults",
+    "swaps",
+    "timed_out",
+    "error",
 ]
 
 
@@ -691,16 +750,18 @@ def _add_result_row(table: Table, result: PerfResult, include_repo: bool) -> Non
     row = [_status_symbol(result)]
     if include_repo:
         row.append(result.name)
-    row.extend([
-        str(result.src_files),
-        str(result.regions_shingled),
-        str(result.candidate_pairs),
-        str(result.sarif_clones),
-        f"{result.t_shingle_s:.1f}",
-        f"{result.t_minhash_s:.1f}",
-        f"{result.t_lsh_s:.1f}",
-        _format_mem(result),
-    ])
+    row.extend(
+        [
+            str(result.src_files),
+            str(result.regions_shingled),
+            str(result.candidate_pairs),
+            str(result.sarif_clones),
+            f"{result.t_shingle_s:.1f}",
+            f"{result.t_minhash_s:.1f}",
+            f"{result.t_lsh_s:.1f}",
+            _format_mem(result),
+        ]
+    )
     table.add_row(*row)
 
 
@@ -733,6 +794,7 @@ def _emit(msg: str) -> None:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def _default_config_path() -> Path:
     return Path(__file__).with_name("perf_repos.toml")
@@ -821,8 +883,8 @@ def main(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path  = output_dir / f"run_{ts}.log"
-    csv_path  = output_dir / f"run_{ts}.csv"
+    log_path = output_dir / f"run_{ts}.log"
+    csv_path = output_dir / f"run_{ts}.csv"
     json_path = output_dir / f"run_{ts}.json"
 
     binary = _find_treepeat_binary()
@@ -855,16 +917,21 @@ def main(
             _emit(f"   ✗ error: {result.error}  ({result.elapsed_s:.1f}s)")
             print_repo_summary(result)
         elif result.timed_out:
-            rss_note = (f"  rss_peak={result.peak_polled_rss_mb:.0f}MiB"
-                        f" ({len(result.rss_samples)} samples)"
-                        if result.rss_samples else "")
+            rss_note = (
+                f"  rss_peak={result.peak_polled_rss_mb:.0f}MiB ({len(result.rss_samples)} samples)"
+                if result.rss_samples
+                else ""
+            )
             _emit(f"   ✗ TIMEOUT after {result.elapsed_s:.0f}s{rss_note}")
             print_repo_summary(result)
         else:
-            rss    = (f"  rss={result.peak_rss_mb:.0f}MiB(time)/{result.peak_polled_rss_mb:.0f}MiB(poll)"
-                      if result.peak_rss_mb or result.peak_polled_rss_mb else "")
+            rss = (
+                f"  rss={result.peak_rss_mb:.0f}MiB(time)/{result.peak_polled_rss_mb:.0f}MiB(poll)"
+                if result.peak_rss_mb or result.peak_polled_rss_mb
+                else ""
+            )
             faults = f"  pfaults={result.page_faults:,}" if result.page_faults else ""
-            swaps  = f"  swaps={result.swaps}" if result.swaps else ""
+            swaps = f"  swaps={result.swaps}" if result.swaps else ""
             _emit(
                 f"   ✓ {result.elapsed_s:.1f}s{rss}{faults}{swaps}"
                 f"  files={result.src_files}"

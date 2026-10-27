@@ -37,7 +37,6 @@ def _prepare_diff_lines(region1: Region, region2: Region) -> tuple[list[str], li
     if not lines1 or not lines2:
         return None
 
-
     lines1 = [line.rstrip("\n\r") for line in lines1]
     lines2 = [line.rstrip("\n\r") for line in lines2]
 
@@ -131,7 +130,6 @@ def _print_replaced_lines(
             console.print(f"{left}│{right}")
             continue
 
-
         right_line = _truncate_line(lines2[j1 + idx], col_width)
         padding = col_width - len(right_line)
         left = f"[{_colors.left_bg}]{' ' * col_width}[/{_colors.left_bg}]"
@@ -187,7 +185,6 @@ def _process_diff_opcodes(
 
 def display_diff(region1: Region, region2: Region) -> None:
 
-
     prepared = _prepare_diff_lines(region1, region2)
     if prepared is None:
         console.print("[yellow]Unable to generate diff (failed to read file content)[/yellow]\n")
@@ -195,19 +192,15 @@ def display_diff(region1: Region, region2: Region) -> None:
 
     lines1, lines2 = prepared
 
-
     matcher = difflib.SequenceMatcher(None, lines1, lines2)
     opcodes = matcher.get_opcodes()
-
 
     if _regions_are_identical(opcodes):
         console.print("[green]No differences found (regions are identical)[/green]\n")
         return
 
-
     terminal_width = console.width
     col_width = terminal_width // 2
-
 
     _print_diff_header(region1, region2, col_width)
     _process_diff_opcodes(lines1, lines2, opcodes, col_width)

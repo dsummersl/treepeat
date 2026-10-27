@@ -29,9 +29,7 @@ def _print_empty_ruleset_message(language_filter: str | None) -> None:
         console.print("  [dim]No normalization rules - raw AST comparison[/dim]\n")
 
 
-def _filter_rules_by_language(
-    rules: list[tuple[Any, str]], language_filter: str | None
-) -> list[tuple[Any, str]]:
+def _filter_rules_by_language(rules: list[tuple[Any, str]], language_filter: str | None) -> list[tuple[Any, str]]:
     """Filter rules by language if specified."""
     if not language_filter:
         return rules

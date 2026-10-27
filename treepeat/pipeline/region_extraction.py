@@ -20,15 +20,11 @@ __all__ = ["ExtractedRegion", "extract_all_regions", "extract_regions"]
 
 
 class ExtractedRegion(BaseModel):
-
-
     model_config = {"arbitrary_types_allowed": True}
 
     region: Region = Field(description="Region metadata")
     node: Node = Field(description="Primary AST node for this region")
     nodes: list[Node] | None = Field(default=None, description="Multiple nodes for section regions")
-
-
 
     injected_tree: Tree | None = Field(default=None, description="Re-parsed tree for injected language")
     injected_language: str | None = Field(default=None, description="Language of the injected tree")
@@ -37,8 +33,6 @@ class ExtractedRegion(BaseModel):
 
 @dataclass
 class RegionTypeMapping:
-
-
     query: str
     region_type: str
     rule: Rule | None = None
@@ -58,9 +52,6 @@ def _get_region_mappings_from_engine(engine: "RuleEngine", language: str) -> lis
 
 
 def _extract_node_name(node: Node, source: bytes) -> str:
-
-
-
 
     for child in node.children:
         if child.type in (
@@ -84,7 +75,6 @@ def _collect_all_matching_nodes(
         nodes = engine.get_nodes_matching_query(root_node, mapping.query, language)
         for node in nodes:
             matching_nodes.append((node, mapping.region_type, mapping.rule))
-
 
     matching_nodes.sort(key=lambda x: (x[0].start_byte, x[0].end_byte))
     return matching_nodes
@@ -113,7 +103,6 @@ def _do_language_injection(
     rule_engine: RuleEngine,
 ) -> ExtractedRegion | None:
 
-
     target_lang = rule.resolve_injection_language(node, parsed_file.source)
     if not target_lang:
         return None
@@ -125,7 +114,6 @@ def _do_language_injection(
 
     if not content_bytes.strip():
         return None
-
 
     padded = b"\n" * line_offset + content_bytes
 
@@ -290,7 +278,6 @@ def _log_region_type_statistics(regions: list[ExtractedRegion], method: str) -> 
         len(type_counts),
     )
 
-
     for region_type, count in type_counts.most_common(10):
         logger.info("  %s: %d region(s)", region_type, count)
 
@@ -312,13 +299,11 @@ def extract_all_regions(
 
     for parsed_file in iterable:
         try:
-
             regions = extract_regions(parsed_file, rule_engine)
             deduped = _deduplicate_regions(regions)
             all_regions.extend(deduped)
         except Exception as e:
             logger.error("Failed to extract regions from %s: %s", parsed_file.path, e)
-
 
     logger.info("Extracted %d total region(s) from %d file(s)", len(all_regions), len(parsed_files))
     _log_region_type_statistics(all_regions, "explicit")

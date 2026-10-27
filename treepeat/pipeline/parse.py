@@ -30,9 +30,7 @@ def read_source_file(file_path: Path) -> bytes:
         raise ValueError(f"Failed to read file {file_path}: {e}") from e
 
 
-def parse_source_code(
-    source: bytes, language_name: str, file_path: Path
-) -> ParsedFile:
+def parse_source_code(source: bytes, language_name: str, file_path: Path) -> ParsedFile:
 
     grammar = get_grammar(language_name)
     try:
@@ -121,14 +119,11 @@ def _match_double_star_pattern(rel_path_str: str, file_name: str, pattern: str) 
     prefix = pattern_parts[0].strip("/")
     suffix = pattern_parts[1].strip("/")
 
-
     if not prefix:
         return fnmatch(rel_path_str, f"*{suffix}") or fnmatch(file_name, suffix)
 
-
     if not suffix:
         return rel_path_str.startswith(prefix)
-
 
     return fnmatch(rel_path_str, f"{prefix}*{suffix}")
 
@@ -217,9 +212,7 @@ def _get_parent_directories(file_path: Path, target_path: Path) -> list[Path]:
     return directories
 
 
-def _check_hierarchical_ignores(
-    file_path: Path, target_path: Path, ignore_files_map: dict[Path, list[str]]
-) -> bool:
+def _check_hierarchical_ignores(file_path: Path, target_path: Path, ignore_files_map: dict[Path, list[str]]) -> bool:
 
     for directory in _get_parent_directories(file_path, target_path):
         if directory in ignore_files_map:
@@ -235,19 +228,15 @@ def should_ignore_file(
     ignore_files_map: dict[Path, list[str]],
 ) -> bool:
 
-
     for pattern in ignore_patterns:
         if matches_pattern(file_path, pattern, target_path):
             logger.debug(f"File {file_path} matched CLI ignore pattern: {pattern}")
             return True
 
-
     return _check_hierarchical_ignores(file_path, target_path, ignore_files_map)
 
 
-def _collect_single_file(
-    target_path: Path, ignore_patterns: list[str], ignore_file_patterns: list[str]
-) -> list[Path]:
+def _collect_single_file(target_path: Path, ignore_patterns: list[str], ignore_file_patterns: list[str]) -> list[Path]:
 
     if not (ignore_patterns or ignore_file_patterns):
         return [target_path]
@@ -293,11 +282,7 @@ def collect_source_files(target_path: Path) -> list[Path]:
 
 def parse_files(files: list[Path], result: ParseResult, progress: bool = False) -> None:
 
-    iterable = (
-        tqdm(files, desc="Parsing", unit="file", file=sys.stderr)
-        if progress
-        else files
-    )
+    iterable = tqdm(files, desc="Parsing", unit="file", file=sys.stderr) if progress else files
     for file_path in iterable:
         try:
             parsed = parse_file(file_path)

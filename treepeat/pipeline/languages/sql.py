@@ -4,8 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class SQLConfig(LanguageConfig):
-
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
@@ -33,8 +31,6 @@ class SQLConfig(LanguageConfig):
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),
-
-
             Rule(
                 name="Anonymize expressions",
                 languages=["sql"],

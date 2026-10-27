@@ -85,7 +85,6 @@ def _create_result_from_group(group: SimilarRegionGroup) -> Result:
     similarity_percent = group.similarity * 100
     level = _get_level(group.similarity)
 
-
     region_descriptions = [
         f"{region.path}:{region.start_line}-{region.end_line} ({region.end_line - region.start_line + 1} lines)"
         for region in group.regions
@@ -94,9 +93,7 @@ def _create_result_from_group(group: SimilarRegionGroup) -> Result:
         region_descriptions
     )
 
-
     primary_region = group.regions[0]
-
 
     related_locations = [
         {

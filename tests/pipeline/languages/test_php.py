@@ -144,7 +144,6 @@ class First {
     (tmp_path / "one.php").write_text(source)
     (tmp_path / "two.php").write_text(source.replace("First", "Second").replace("first", "second"))
 
-
     set_settings(
         PipelineSettings(
             rules=RulesSettings(region_filters={"php": {region_type}}),

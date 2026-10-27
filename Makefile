@@ -29,6 +29,7 @@ vulture:
 fix:
 	uv run ast-grep scan --update-all treepeat tests
 	uv run ruff check . --fix
+	uv run ruff format .
 
 type:
 	uv run mypy

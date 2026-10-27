@@ -72,7 +72,6 @@ def test_javascript_family_loose_rules_anonymize_identifiers(config, language):
 
 def test_javascript_loose_rules_function_name_beats_anonymize():
 
-
     tokens = _shingle_tokens(JavaScriptConfig(), "javascript", "function foo() {}", loose=True)
     token_str = " ".join(tokens)
 

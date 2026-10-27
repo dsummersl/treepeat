@@ -3,8 +3,6 @@ from .javascript import JavaScriptConfig
 
 
 class TypeScriptConfig(JavaScriptConfig):
-
-
     def get_region_extraction_rules(self) -> list[RegionExtractionRule]:
 
         return [

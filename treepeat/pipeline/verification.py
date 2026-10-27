@@ -16,8 +16,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-
-
 SOURCE_VERIFICATION_THRESHOLD = 0.98
 
 
@@ -31,26 +29,22 @@ def _compute_ordered_similarity(shingles1: list[str], shingles2: list[str]) -> f
 def _read_source_lines(file_path: Path, start_line: int, end_line: int) -> list[str]:
 
     try:
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             lines = f.readlines()
 
-            return [line.rstrip() for line in lines[start_line - 1:end_line]]
+            return [line.rstrip() for line in lines[start_line - 1 : end_line]]
     except Exception as e:
         logger.warning("Failed to read source from %s: %s", file_path, e)
         return []
 
 
-def _check_signature_match(
-    file_path1: Path, start_line1: int,
-    file_path2: Path, start_line2: int
-) -> bool:
+def _check_signature_match(file_path1: Path, start_line1: int, file_path2: Path, start_line2: int) -> bool:
 
     lines1 = _read_source_lines(file_path1, start_line1, start_line1)
     lines2 = _read_source_lines(file_path2, start_line2, start_line2)
 
     if not lines1 or not lines2:
         return True
-
 
     return lines1[0].strip() == lines2[0].strip()
 
@@ -77,9 +71,7 @@ def _both_names_anonymized(r1: "Region", r2: "Region", rules: "list[Rule]") -> b
     )
 
 
-def _should_verify_signatures(
-    r1: "Region", r2: "Region", similarity: float, rules: "list[Rule]"
-) -> bool:
+def _should_verify_signatures(r1: "Region", r2: "Region", similarity: float, rules: "list[Rule]") -> bool:
 
     if similarity < SOURCE_VERIFICATION_THRESHOLD:
         return False
@@ -106,24 +98,17 @@ def _compute_pair_similarity_with_verification(
         )
         return 0.0
 
-
     shingle_similarity = _compute_ordered_similarity(
         sr1.shingles.get_contents(),
         sr2.shingles.get_contents(),
     )
 
-
-
     if not _should_verify_signatures(r1, r2, shingle_similarity, rules):
         return shingle_similarity
 
-    signatures_match = _check_signature_match(
-        r1.path, r1.start_line,
-        r2.path, r2.start_line
-    )
+    signatures_match = _check_signature_match(r1.path, r1.start_line, r2.path, r2.start_line)
 
     if not signatures_match:
-
         logger.debug(
             "Signature mismatch for %s ↔ %s, treating as 0%% similar",
             r1.region_name,
@@ -148,9 +133,7 @@ def _verify_group_pairwise_similarity(
 
     for i, r1 in enumerate(group_regions):
         for r2 in group_regions[i + 1 :]:
-            similarity = _compute_pair_similarity_with_verification(
-                r1, r2, region_lookup, rules
-            )
+            similarity = _compute_pair_similarity_with_verification(r1, r2, region_lookup, rules)
             total_similarity += similarity
             pair_count += 1
 
@@ -169,17 +152,10 @@ def verify_similar_groups(
     region_lookup = _build_region_lookup(shingled_regions)
     verified_groups = []
 
-    iterable = (
-        tqdm(groups, desc="Verifying", unit="group", file=sys.stderr)
-        if progress
-        else groups
-    )
+    iterable = tqdm(groups, desc="Verifying", unit="group", file=sys.stderr) if progress else groups
 
     for group in iterable:
-
-        verified_similarity = _verify_group_pairwise_similarity(
-            group.regions, region_lookup, rules
-        )
+        verified_similarity = _verify_group_pairwise_similarity(group.regions, region_lookup, rules)
 
         logger.debug(
             "Verified group of %d regions: LSH=%.1f%%, Ordered=%.1f%%",
@@ -187,7 +163,6 @@ def verify_similar_groups(
             group.similarity * 100,
             verified_similarity * 100,
         )
-
 
         from treepeat.models.similarity import SimilarRegionGroup
 

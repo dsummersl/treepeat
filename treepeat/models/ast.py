@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -7,8 +5,6 @@ from tree_sitter import Node, Tree
 
 
 class ParsedFile(BaseModel):
-
-
     model_config = {"arbitrary_types_allowed": True}
 
     path: Path = Field(description="Path to the source file")
@@ -23,11 +19,7 @@ class ParsedFile(BaseModel):
 
 
 class ParseResult(BaseModel):
-
-
-    parsed_files: list[ParsedFile] = Field(
-        default_factory=list, description="Successfully parsed files"
-    )
+    parsed_files: list[ParsedFile] = Field(default_factory=list, description="Successfully parsed files")
 
     @property
     def total_files(self) -> int:

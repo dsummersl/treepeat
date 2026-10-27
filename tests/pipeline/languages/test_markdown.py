@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 import pytest
@@ -23,11 +21,6 @@ fixture_js_date = FIXTURE_DIR / "javascript" / "date_utils.js"
 fixture_bash_req = FIXTURE_DIR / "bash" / "requirements.sh"
 
 
-
-
-
-
-
 def test_region_extraction_rules_exist():
     rules = MarkdownConfig().get_region_extraction_rules()
     labels = [r.label for r in rules]
@@ -43,11 +36,6 @@ def test_fenced_code_block_rule_has_injection():
     assert code_block_rule.content_query is not None
 
 
-
-
-
-
-
 def test_parse_guide_md_no_errors():
     parsed = parse_file(fixture_guide)
     assert parsed.language == "markdown"
@@ -59,11 +47,6 @@ def test_guide_md_source_contains_all_embedded_functions():
     assert b"calculate_stats" in parsed.source
     assert b"formatDate" in parsed.source
     assert b"check_requirements" in parsed.source
-
-
-
-
-
 
 
 @pytest.mark.parametrize("embedded_lang", ["python", "javascript", "bash"])
@@ -106,16 +89,8 @@ def test_unlabelled_code_block_not_injected():
     engine = RuleEngine([r for r, _ in build_default_rules()])
     regions = extract_all_regions([parsed], engine)
 
-    uninjected = [
-        r for r in regions
-        if r.region.region_type == "code_block" and r.injected_tree is None
-    ]
+    uninjected = [r for r in regions if r.region.region_type == "code_block" and r.injected_tree is None]
     assert uninjected, "Expected at least one uninjected code_block region for the plain block"
-
-
-
-
-
 
 
 def _shingle_injected_region(region, engine: RuleEngine, shingler: ASTShingler) -> set[str]:
@@ -146,15 +121,17 @@ def _shingle_standalone_file(path: Path, language: str, rules: list) -> set[str]
     return all_shingles
 
 
-@pytest.mark.parametrize("embedded_lang,standalone_path,standalone_lang", [
-    ("python", fixture_py_stats, "python"),
-    ("javascript", fixture_js_date, "javascript"),
-    ("bash", fixture_bash_req, "bash"),
-])
+@pytest.mark.parametrize(
+    "embedded_lang,standalone_path,standalone_lang",
+    [
+        ("python", fixture_py_stats, "python"),
+        ("javascript", fixture_js_date, "javascript"),
+        ("bash", fixture_bash_req, "bash"),
+    ],
+)
 def test_embedded_shingles_overlap_with_standalone(embedded_lang, standalone_path, standalone_lang):
 
     rules = [r for r, _ in build_loose_rules()]
-
 
     md_engine = RuleEngine(rules)
     md_shingler = ASTShingler(rule_engine=md_engine, k=3)
@@ -162,7 +139,6 @@ def test_embedded_shingles_overlap_with_standalone(embedded_lang, standalone_pat
     md_regions = extract_all_regions([md_parsed], md_engine)
     embedded_region = next(r for r in md_regions if r.injected_language == embedded_lang)
     md_shingles = _shingle_injected_region(embedded_region, md_engine, md_shingler)
-
 
     standalone_shingles = _shingle_standalone_file(standalone_path, standalone_lang, rules)
 
@@ -172,11 +148,6 @@ def test_embedded_shingles_overlap_with_standalone(embedded_lang, standalone_pat
         f"Markdown {embedded_lang!r} block and standalone {standalone_lang!r} file "
         f"share no common shingles — similarity detection would miss this pair"
     )
-
-
-
-
-
 
 
 def _resolve_fence_language(source: bytes) -> str:
@@ -194,9 +165,7 @@ def _resolve_fence_language(source: bytes) -> str:
     )
     if fenced_node is None:
         for child in tree.root_node.children:
-            fenced_node = next(
-                (n for n in child.children if n.type == "fenced_code_block"), None
-            )
+            fenced_node = next((n for n in child.children if n.type == "fenced_code_block"), None)
             if fenced_node is not None:
                 break
 
@@ -204,26 +173,24 @@ def _resolve_fence_language(source: bytes) -> str:
     return _resolve_code_block_language(fenced_node, source)
 
 
-@pytest.mark.parametrize("info_string,expected", [
-    ("ts", "typescript"),
-    ("js", "javascript"),
-    ("py", "python"),
-    ("sh", "bash"),
-    ("shell", "bash"),
-    ("rs", "rust"),
-    ("kt", "kotlin"),
-    ("md", "markdown"),
-    ("yml", "yaml"),
-])
+@pytest.mark.parametrize(
+    "info_string,expected",
+    [
+        ("ts", "typescript"),
+        ("js", "javascript"),
+        ("py", "python"),
+        ("sh", "bash"),
+        ("shell", "bash"),
+        ("rs", "rust"),
+        ("kt", "kotlin"),
+        ("md", "markdown"),
+        ("yml", "yaml"),
+    ],
+)
 def test_info_string_aliases_resolve(info_string, expected):
 
     source = f"```{info_string}\ncode\n```\n".encode()
     assert _resolve_fence_language(source) == expected
-
-
-
-
-
 
 
 def test_unknown_language_skips_injection_and_warns(caplog):
@@ -245,9 +212,7 @@ def test_unknown_language_skips_injection_and_warns(caplog):
 
     if fenced_node is None:
         for child in tree.root_node.children:
-            fenced_node = next(
-                (n for n in child.children if n.type == "fenced_code_block"), None
-            )
+            fenced_node = next((n for n in child.children if n.type == "fenced_code_block"), None)
             if fenced_node is not None:
                 break
 

@@ -15,12 +15,7 @@ _FUNCTION_NODES = (
 _CLASS_NODES = ("class_declaration", "class_definition")
 
 
-_IDENTIFIER_NODES = frozenset(
-    {"identifier", "property_identifier", "type_identifier", "field_identifier", "name"}
-)
-
-
-
+_IDENTIFIER_NODES = frozenset({"identifier", "property_identifier", "type_identifier", "field_identifier", "name"})
 
 
 _NODE_TYPE_RE = re.compile(r"\(\s*([a-z_][a-z0-9_]*)")
@@ -29,6 +24,7 @@ _NODE_TYPE_RE = re.compile(r"\(\s*([a-z_][a-z0-9_]*)")
 def _query_node_types(query: str) -> set[str]:
 
     return set(_NODE_TYPE_RE.findall(query))
+
 
 _REGION_CATEGORIES: dict[str, tuple[str, ...]] = {
     "function": _FUNCTION_NODES,
@@ -50,17 +46,10 @@ def _region_name_nodes(region_type: str) -> tuple[str, ...]:
 
 @dataclass
 class RegionExtractionRule:
-
-
     label: str
     query: str
 
-
-
-
     target_language: TargetLanguage = None
-
-
 
     content_query: str | None = None
 
@@ -73,8 +62,6 @@ class RegionExtractionRule:
 
 
 class LanguageConfig(ABC):
-
-
     @abstractmethod
     def get_default_rules(self) -> list[Rule]:
 
@@ -96,14 +83,10 @@ def _rule_anonymizes_name(rule: Rule, language: str, node_types: tuple[str, ...]
     if rule.action is not RuleAction.REPLACE_VALUE or not rule.matches_language(language):
         return False
     query_nodes = _query_node_types(rule.query)
-    return not query_nodes.isdisjoint(_IDENTIFIER_NODES) and not query_nodes.isdisjoint(
-        node_types
-    )
+    return not query_nodes.isdisjoint(_IDENTIFIER_NODES) and not query_nodes.isdisjoint(node_types)
 
 
-def rules_anonymize_region_name(
-    rules: list[Rule], language: str, region_type: str
-) -> bool:
+def rules_anonymize_region_name(rules: list[Rule], language: str, region_type: str) -> bool:
 
     node_types = _region_name_nodes(region_type)
     if not node_types:

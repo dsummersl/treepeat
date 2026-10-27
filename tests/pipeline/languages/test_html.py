@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 import pytest
@@ -11,10 +9,9 @@ from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, buil
 fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "html" / "comprehensive.html"
 
 
-@pytest.mark.parametrize("rules", [
-    [rule for rule, _ in build_default_rules()],
-    [rule for rule, _ in build_loose_rules()]
-])
+@pytest.mark.parametrize(
+    "rules", [[rule for rule, _ in build_default_rules()], [rule for rule, _ in build_loose_rules()]]
+)
 def test_html_rules_extract(rules):
 
     parsed = parse_fixture(fixture_comprehensive, "html")

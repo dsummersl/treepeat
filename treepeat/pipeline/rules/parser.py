@@ -4,8 +4,6 @@ from .models import Rule, RuleAction
 
 
 class RuleParseError(Exception):
-
-
     pass
 
 
@@ -15,9 +13,7 @@ def _parse_action(action_str: str) -> RuleAction:
         return RuleAction(action_str)
     except ValueError as ve:
         valid_actions = [action.value for action in RuleAction]
-        raise RuleParseError(
-            f"Invalid action '{action_str}'. Valid actions: {', '.join(valid_actions)}"
-        ) from ve
+        raise RuleParseError(f"Invalid action '{action_str}'. Valid actions: {', '.join(valid_actions)}") from ve
 
 
 def _validate_yaml_rule_fields(rule_dict: dict[str, Any]) -> None:
@@ -81,7 +77,6 @@ def _resolve_extends(
 
     resolved.add(ruleset_name)
     ruleset = rulesets[ruleset_name]
-
 
     extended_rules = _get_extended_rules(rulesets, ruleset, resolved)
     own_rules = _parse_ruleset_rules(ruleset, ruleset_name)

@@ -1,5 +1,3 @@
-
-
 from typing import Sequence, cast
 
 from pydantic import BaseModel, Field
@@ -8,8 +6,6 @@ from treepeat.models.similarity import Region
 
 
 class Shingle(BaseModel):
-
-
     content: str = Field(description="The shingle content (stringified k-gram path)")
     start_line: int = Field(description="Starting line number (1-indexed)")
     end_line: int = Field(description="Ending line number (1-indexed, inclusive)")
@@ -22,11 +18,7 @@ class Shingle(BaseModel):
 
 
 class ShingleList(BaseModel):
-
-
-    shingles: Sequence[Shingle | str] = Field(
-        description="Set of shingles (with line ranges or legacy strings)"
-    )
+    shingles: Sequence[Shingle | str] = Field(description="Set of shingles (with line ranges or legacy strings)")
 
     @property
     def size(self) -> int:
@@ -42,8 +34,6 @@ class ShingleList(BaseModel):
 
 
 class ShingledRegion(BaseModel):
-
-
     region: Region = Field(description="The code region")
     shingles: ShingleList = Field(description="Set of shingles extracted from the region")
 
@@ -54,8 +44,6 @@ class ShingledRegion(BaseModel):
 
 
 class CompactShingleList(ShingleList):
-
-
     @classmethod
     def from_contents(cls, contents: list[str]) -> "CompactShingleList":
         return cls.model_construct(shingles=contents)

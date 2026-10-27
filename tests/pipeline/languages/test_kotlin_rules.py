@@ -91,7 +91,6 @@ def test_kotlin_rules_conflict():
 
     tokens = shingled.shingles.get_contents()
 
-
     assert "simple_identifier(FUNC)" in tokens
     assert "simple_identifier(VAR_1)" not in tokens
 

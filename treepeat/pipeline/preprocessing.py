@@ -1,5 +1,3 @@
-
-
 import logging
 import sys
 import time
@@ -27,8 +25,6 @@ STAGES = ("parse", "extract", "shingle", "minhash")
 
 @dataclass
 class Preprocessed:
-
-
     shingled_regions: list[ShingledRegion] = field(default_factory=list)
     signatures: list[RegionSignature] = field(default_factory=list)
     files_parsed: int = 0
@@ -55,21 +51,15 @@ def _process_parsed_file(
             continue
 
         start = time.monotonic()
-        minhash = create_minhash_signature(
-            set(shingled.shingles.get_contents()), settings.minhash.num_perm
-        )
+        minhash = create_minhash_signature(set(shingled.shingles.get_contents()), settings.minhash.num_perm)
         out.timings["minhash"] += time.monotonic() - start
         out.shingled_regions.append(shingled)
-        out.signatures.append(
-            RegionSignature(region=region, minhash=minhash, shingle_count=shingled.shingle_count)
-        )
+        out.signatures.append(RegionSignature(region=region, minhash=minhash, shingle_count=shingled.shingle_count))
         out.counts["shingle"] += 1
         out.counts["minhash"] += 1
 
 
-def _process_file(
-    path: Path, shingler: ASTShingler, settings: PipelineSettings, out: Preprocessed
-) -> None:
+def _process_file(path: Path, shingler: ASTShingler, settings: PipelineSettings, out: Preprocessed) -> None:
     try:
         start = time.monotonic()
         parsed = parse_file(path)
@@ -79,7 +69,6 @@ def _process_file(
     except Exception as e:
         logger.warning("Failed to process %s: %s", path, e)
     finally:
-
         shingler.rule_engine.reset_identifiers()
         shingler.rule_engine.release_source()
 

@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 import pytest
@@ -82,10 +80,8 @@ end
 """
     shingle_str = " ".join(_shingle_source(source, [rule for rule, _ in build_default_rules()]))
 
-
     assert "require" not in shingle_str
     assert "comment" not in shingle_str
-
 
     assert "function_declaration" in shingle_str
     assert "table_constructor" in shingle_str

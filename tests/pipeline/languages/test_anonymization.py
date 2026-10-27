@@ -1,5 +1,3 @@
-
-
 from treepeat.pipeline.languages import LANGUAGE_CONFIGS
 from treepeat.pipeline.languages.base import rules_anonymize_region_name
 from treepeat.pipeline.rules.models import Rule, RuleAction
@@ -17,7 +15,6 @@ def test_javascript_default_rules_anonymize_function_and_class_names():
 
 def test_python_default_rules_anonymize_names_despite_different_capture_target():
 
-
     rules = _default_rules("python")
     assert rules_anonymize_region_name(rules, "python", "function")
     assert rules_anonymize_region_name(rules, "python", "function_definition")
@@ -26,14 +23,12 @@ def test_python_default_rules_anonymize_names_despite_different_capture_target()
 
 def test_empty_ruleset_anonymizes_nothing():
 
-
     assert not rules_anonymize_region_name([], "javascript", "function")
     assert not rules_anonymize_region_name([], "python", "class")
 
 
 def test_rules_only_apply_to_their_language():
     js_rules = _default_rules("javascript")
-
 
     assert not rules_anonymize_region_name(js_rules, "python", "function")
 
@@ -44,7 +39,6 @@ def test_non_code_region_type_is_never_anonymized():
 
 
 def test_rule_targeting_non_name_child_of_declaration_does_not_count():
-
 
     rule = Rule(
         name="Anonymize string literals inside functions",
@@ -58,7 +52,6 @@ def test_rule_targeting_non_name_child_of_declaration_does_not_count():
 
 
 def test_identifier_mentioned_only_in_predicate_string_does_not_count():
-
 
     rule = Rule(
         name="Replace calls named like identifier",

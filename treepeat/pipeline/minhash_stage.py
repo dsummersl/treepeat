@@ -1,5 +1,3 @@
-
-
 import logging
 import sys
 from itertools import islice
@@ -43,15 +41,10 @@ def compute_region_signatures(
     )
 
     signatures = []
-    iterable = (
-        tqdm(shingled_regions, desc="MinHash", unit="region", file=sys.stderr)
-        if progress
-        else shingled_regions
-    )
+    iterable = tqdm(shingled_regions, desc="MinHash", unit="region", file=sys.stderr) if progress else shingled_regions
 
     for shingled_region in iterable:
         try:
-
             shingle_contents = shingled_region.shingles.get_contents()
             minhash = create_minhash_signature(
                 set(shingle_contents),
@@ -71,9 +64,7 @@ def compute_region_signatures(
                 shingled_region.shingle_count,
             )
         except Exception as e:
-            logger.error(
-                "Failed to create MinHash for %s: %s", shingled_region.region.region_name, e
-            )
+            logger.error("Failed to create MinHash for %s: %s", shingled_region.region.region_name, e)
 
     logger.info("MinHash computation complete: %d signatures created", len(signatures))
     return signatures

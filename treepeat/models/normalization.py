@@ -1,11 +1,7 @@
-
-
 from pydantic import BaseModel, Field
 
 
 class NodeRepresentation(BaseModel):
-
-
     name: str = Field(description="Node type name (e.g., 'function_definition', 'identifier')")
     value: str | None = Field(
         default=None, description="Node value (e.g., 'my_func', '42') or None for structural nodes"
@@ -19,6 +15,4 @@ class NodeRepresentation(BaseModel):
 
 
 class SkipNode(Exception):
-
-
     pass

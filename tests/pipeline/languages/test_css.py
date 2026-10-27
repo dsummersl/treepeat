@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 import pytest
@@ -11,17 +9,14 @@ from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, buil
 fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "css" / "comprehensive.css"
 
 
-@pytest.mark.parametrize("rules,expected_min_regions", [
-    ([], 0),
-    ([rule for rule, _ in build_default_rules()], 1),
-    ([rule for rule, _ in build_loose_rules()], 1)
-])
+@pytest.mark.parametrize(
+    "rules,expected_min_regions",
+    [([], 0), ([rule for rule, _ in build_default_rules()], 1), ([rule for rule, _ in build_loose_rules()], 1)],
+)
 def test_css_rules_extract(rules, expected_min_regions):
 
     parsed = parse_fixture(fixture_comprehensive, "css")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)
-
-
 
     assert len(regions) >= expected_min_regions

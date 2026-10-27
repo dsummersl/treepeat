@@ -4,14 +4,9 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class LuaConfig(LanguageConfig):
-
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
-
-
-
                 name="Ignore require declarations",
                 languages=["lua"],
                 query="""(
@@ -25,19 +20,12 @@ class LuaConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
-
-
                 name="Ignore comments",
                 languages=["lua"],
                 query="(comment) @comment",
                 action=RuleAction.REMOVE,
             ),
             Rule(
-
-
-
-
-
                 name="Anonymize function names",
                 languages=["lua"],
                 query="""[
@@ -66,9 +54,6 @@ class LuaConfig(LanguageConfig):
                 params={"prefix": "VAR"},
             ),
             Rule(
-
-
-
                 name="Anonymize string literals",
                 languages=["lua"],
                 query="(string) @str",
@@ -76,8 +61,6 @@ class LuaConfig(LanguageConfig):
                 params={"value": "<STR>"},
             ),
             Rule(
-
-
                 name="Anonymize numeric literals",
                 languages=["lua"],
                 query="(number) @num",
@@ -92,9 +75,6 @@ class LuaConfig(LanguageConfig):
                 params={"value": "<LIT>"},
             ),
             Rule(
-
-
-
                 name="Anonymize binary expressions",
                 languages=["lua"],
                 query="(binary_expression) @binop",
@@ -102,7 +82,6 @@ class LuaConfig(LanguageConfig):
                 params={"token": "<BINOP>"},
             ),
             Rule(
-
                 name="Anonymize unary expressions",
                 languages=["lua"],
                 query="(unary_expression) @unop",
@@ -116,7 +95,5 @@ class LuaConfig(LanguageConfig):
         return [
             RegionExtractionRule.from_node_type("function_declaration"),
             RegionExtractionRule.from_node_type("function_definition"),
-
-
             RegionExtractionRule.from_node_type("table_constructor"),
         ]
