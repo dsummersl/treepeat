@@ -18,16 +18,11 @@ from treepeat.pipeline.verbose_metrics import record_stage_count, record_stage_t
 logger = logging.getLogger(__name__)
 
 
-def _filter_groups_by_min_lines(
-    groups: list[SimilarRegionGroup], min_lines: int
-) -> list[SimilarRegionGroup]:
-    """Filter similar groups to only include those meeting the minimum line count in all regions."""
+def _filter_groups_by_min_lines(groups: list[SimilarRegionGroup], min_lines: int) -> list[SimilarRegionGroup]:
+
     filtered = []
     for group in groups:
-        # Check if all regions meet the min_lines threshold
-        all_meet_threshold = all(
-            region.end_line - region.start_line + 1 >= min_lines for region in group.regions
-        )
+        all_meet_threshold = all(region.end_line - region.start_line + 1 >= min_lines for region in group.regions)
         if all_meet_threshold:
             filtered.append(group)
         else:
@@ -46,7 +41,7 @@ def _run_lsh_stage(
     rule_engine: RuleEngine,
     progress: bool = False,
 ) -> SimilarityResult:
-    """Run LSH similarity detection stage."""
+
     logger.info("Stage 5/5: Finding similar pairs...")
     _t = time.monotonic()
     similarity_result = detect_similarity(
@@ -69,13 +64,9 @@ def _run_lsh_stage(
     return similarity_result
 
 
-def _filter_and_log_groups(
-    result: SimilarityResult, min_lines: int
-) -> list[SimilarRegionGroup]:
+def _filter_and_log_groups(result: SimilarityResult, min_lines: int) -> list[SimilarRegionGroup]:
     for group in result.similar_groups:
-        logger.debug(
-            "  Group: %d regions, similarity=%.2f%%", len(group.regions), group.similarity * 100
-        )
+        logger.debug("  Group: %d regions, similarity=%.2f%%", len(group.regions), group.similarity * 100)
     filtered = _filter_groups_by_min_lines(result.similar_groups, min_lines)
     logger.info(
         "Region matching complete: %d groups after filtering (was %d)",
@@ -86,7 +77,7 @@ def _filter_and_log_groups(
 
 
 def run_pipeline(target_path: str | Path, progress: bool = False) -> SimilarityResult:
-    """Run the similarity detection pipeline on a target path."""
+
     settings = get_settings()
     logger.info("Starting pipeline for: %s (min_lines=%d)", target_path, settings.lsh.min_lines)
 
@@ -95,7 +86,6 @@ def run_pipeline(target_path: str | Path, progress: bool = False) -> SimilarityR
 
     rule_engine = build_rule_engine(settings)
 
-    # Stages 1-4 (parse, extract, shingle, MinHash) stream one file at a time.
     logger.info("Stages 1-4/5: Parsing, extracting, shingling and fingerprinting...")
     pre = preprocess(target_path, rule_engine, settings, progress=progress)
     if pre.files_parsed == 0:

@@ -4,8 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class RustConfig(LanguageConfig):
-    """Configuration for Rust language."""
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
@@ -21,10 +19,6 @@ class RustConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                # Lifetimes are borrow-checker annotations, not logic — omit non-static ones
-                # so that copy-pasted functions with renamed lifetime parameters ('a → 'b) are
-                # still detected as duplicates. 'static is preserved because it carries semantic
-                # content (permanent storage duration), unlike named lifetimes.
                 name="Ignore generic lifetimes",
                 languages=["rust"],
                 query='((lifetime) @life (#not-eq? @life "\'static"))',
@@ -43,8 +37,6 @@ class RustConfig(LanguageConfig):
                 action=RuleAction.REMOVE,
             ),
             Rule(
-                # Covers both outer (#[...]) and inner (#![...]) attribute forms.
-                # Inner attributes are a distinct node type in tree-sitter-rust.
                 name="Ignore attribute items",
                 languages=["rust"],
                 query="[(attribute_item) (inner_attribute_item)] @attr",
@@ -58,11 +50,6 @@ class RustConfig(LanguageConfig):
                 params={"value": "FUNC"},
             ),
             Rule(
-                # Covers struct, enum, trait, type alias, and union item names.
-                # Note: type_identifier nodes inside impl_item (e.g. `impl Foo`)
-                # are intentionally NOT anonymized — doing so would collapse
-                # impl blocks for unrelated types that happen to have similar
-                # method bodies, producing false-positive clone matches.
                 name="Anonymize type names",
                 languages=["rust"],
                 query="""[
@@ -80,15 +67,6 @@ class RustConfig(LanguageConfig):
     def get_loose_rules(self) -> list[Rule]:
         return [
             Rule(
-                # Removes the macro path before `!` for both simple (`println!`)
-                # and scoped (`log::info!`) forms, so calls differing only in
-                # macro name (e.g. log level) normalize identically. The `!`
-                # delimiter and token_tree arguments are preserved, so the
-                # presence and arity of the call still contributes to similarity.
-                # Note: tree-sitter-rust parses token_tree contents as structured
-                # nodes (string_literal, identifier, etc.), so the existing
-                # string-content and identifier rules already reach inside macro
-                # arguments.
                 name="Anonymize macro names",
                 languages=["rust"],
                 query="[(macro_invocation (identifier) @name) (macro_invocation (scoped_identifier) @name)]",
@@ -108,10 +86,6 @@ class RustConfig(LanguageConfig):
                 params={"prefix": "VAR"},
             ),
             Rule(
-                # Covers regular strings, raw strings, and character literals.
-                # byte strings (b"...") parse as string_literal and are included.
-                # Note: string_content child nodes must be removed separately by
-                # the "Ignore string content" rule to prevent content from leaking.
                 name="Anonymize string literals",
                 languages=["rust"],
                 query="[(string_literal) (raw_string_literal) (char_literal)] @str",
@@ -133,10 +107,6 @@ class RustConfig(LanguageConfig):
                 params={"value": "<BOOL>"},
             ),
             Rule(
-                # Covers arithmetic, comparison, logical, and bitwise operators.
-                # compound_assignment_expr (+=, -=, etc.) is a separate node type
-                # and is not anonymized here. The same gap exists in Go and Python
-                # configs and is accepted as a known limitation.
                 name="Anonymize binary expressions",
                 languages=["rust"],
                 query="(binary_expression) @binop",

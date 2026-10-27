@@ -3,11 +3,7 @@ from treepeat.pipeline.rules_factory import build_rule_engine, get_ruleset_with_
 
 
 def _javascript_rule_names(ruleset: str) -> list[str]:
-    return [
-        rule.name
-        for rule, _ in get_ruleset_with_descriptions(ruleset)
-        if rule.matches_language("javascript")
-    ]
+    return [rule.name for rule, _ in get_ruleset_with_descriptions(ruleset) if rule.matches_language("javascript")]
 
 
 def test_additional_regions_extend_default_rules() -> None:

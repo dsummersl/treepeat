@@ -1,5 +1,3 @@
-"""Tests for Lua language configuration and rules."""
-
 from pathlib import Path
 
 import pytest
@@ -13,12 +11,11 @@ from treepeat.pipeline.region_extraction import ExtractedRegion, extract_all_reg
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 from treepeat.pipeline.shingle import ASTShingler
 
-# Fixture path
 fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "lua" / "comprehensive.lua"
 
 
 def _shingle_source(source: str, rules, k: int = 2) -> list[str]:
-    """Shingle a Lua snippet with the given rules."""
+
     source_bytes = source.encode("utf-8")
     parsed = parse_source_code(source_bytes, "lua", Path("test.lua"))
     engine = RuleEngine(rules)
@@ -38,7 +35,7 @@ def _shingle_source(source: str, rules, k: int = 2) -> list[str]:
 
 
 def test_lua_is_registered():
-    """Lua is wired into the language registry and detected by extension."""
+
     assert isinstance(LANGUAGE_CONFIGS["lua"], LuaConfig)
     assert LANGUAGE_EXTENSIONS["lua"] == [".lua"]
     assert detect_language(Path("init.lua")) == "lua"
@@ -49,7 +46,7 @@ def test_lua_is_registered():
     [[rule for rule, _ in build_default_rules()], [rule for rule, _ in build_loose_rules()]],
 )
 def test_lua_rules_extract(rules):
-    """Test that Lua files can be processed with different rule sets."""
+
     parsed = parse_fixture(fixture_comprehensive, "lua")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)
@@ -59,7 +56,7 @@ def test_lua_rules_extract(rules):
 
 
 def test_lua_qualified_function_names_are_reported():
-    """Table-qualified declarations keep a useful region name."""
+
     parsed = parse_fixture(fixture_comprehensive, "lua")
     engine = RuleEngine([rule for rule, _ in build_default_rules()])
     names = {r.region.region_name for r in extract_all_regions([parsed], engine)}
@@ -69,7 +66,7 @@ def test_lua_qualified_function_names_are_reported():
 
 
 def test_lua_specific_rules():
-    """Test that Lua-specific default rules (requires, comments) work."""
+
     source = """
 local socket = require("socket")
 -- line comment
@@ -83,17 +80,15 @@ end
 """
     shingle_str = " ".join(_shingle_source(source, [rule for rule, _ in build_default_rules()]))
 
-    # Requires and comments should be removed
     assert "require" not in shingle_str
     assert "comment" not in shingle_str
 
-    # Structural elements should remain
     assert "function_declaration" in shingle_str
     assert "table_constructor" in shingle_str
 
 
 def test_lua_local_declarations_are_not_mistaken_for_requires():
-    """Only `require` declarations are dropped; other locals survive."""
+
     shingle_str = " ".join(
         _shingle_source('local port = compute("socket")', [rule for rule, _ in build_default_rules()])
     )
@@ -102,7 +97,7 @@ def test_lua_local_declarations_are_not_mistaken_for_requires():
 
 
 def test_lua_renamed_functions_produce_identical_shingles():
-    """Two identical functions differing only in name must shingle the same."""
+
     rules = [rule for rule, _ in build_default_rules()]
     a = _shingle_source("local function add(x, y)\n  return x + y\nend", rules)
     b = _shingle_source("local function plus(x, y)\n  return x + y\nend", rules)

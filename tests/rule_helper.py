@@ -9,47 +9,31 @@ from treepeat.pipeline.shingle import ASTShingler
 
 
 class RuleTester:
-    """Helper for testing language rules."""
-
     def _get_language_name(self, config) -> str:
-        """Infer language name from config class name (e.g., PythonConfig -> python)."""
+
         class_name = config.__class__.__name__
-        # Remove "Config" suffix and convert to lowercase
+
         return class_name.replace("Config", "").lower()
 
     def verify_rule(self, config, rule_name, source, expected_symbol, unexpected_symbol=None):
-        """Verify a single rule's effect on source code."""
-        # 1. Find the rule
+
         loose_rules = config.get_loose_rules()
         lang_name = self._get_language_name(config)
 
-        # Try to find rule matching both name AND language
-        rule = next(
-            (r for r in loose_rules if r.name == rule_name and r.matches_language(lang_name)), None
-        )
+        rule = next((r for r in loose_rules if r.name == rule_name and r.matches_language(lang_name)), None)
 
-        # Fallback: find by name only (legacy/loose behavior)
         if not rule:
             rule = next((r for r in loose_rules if r.name == rule_name), None)
 
         if not rule:
             raise ValueError(f"Rule '{rule_name}' not found in {config.__class__.__name__}")
 
-        # 2. Test with ONLY this rule
-        self._verify_with_rules(
-            config, [rule], rule_name, source, expected_symbol, unexpected_symbol, "Single Rule"
-        )
+        self._verify_with_rules(config, [rule], rule_name, source, expected_symbol, unexpected_symbol, "Single Rule")
 
-        # 3. Test with ALL rules from the config
-        # We use get_loose_rules as it contains everything
-        self._verify_with_rules(
-            config, loose_rules, rule_name, source, expected_symbol, unexpected_symbol, "All Rules"
-        )
+        self._verify_with_rules(config, loose_rules, rule_name, source, expected_symbol, unexpected_symbol, "All Rules")
 
-    def _verify_with_rules(
-        self, config, rules, rule_name, source, expected_symbol, unexpected_symbol, context
-    ):
-        """Helper to run verification with a specific set of rules."""
+    def _verify_with_rules(self, config, rules, rule_name, source, expected_symbol, unexpected_symbol, context):
+
         engine = RuleEngine(rules)
 
         lang_name = self._get_language_name(config)
@@ -96,7 +80,7 @@ class RuleTester:
         check_symbol(unexpected_symbol, token_str, False)
 
     def verify_rules(self, config, test_cases):
-        """Verify multiple rules and check for full coverage."""
+
         tested_rule_names = set()
         for case in test_cases:
             self.verify_rule(
@@ -108,7 +92,6 @@ class RuleTester:
             )
             tested_rule_names.add(case["rule_name"])
 
-        # Coverage check: ensure all rules in loose_rules (which includes default) are tested
         all_rules = config.get_loose_rules()
         defined_rule_names = {r.name for r in all_rules}
 

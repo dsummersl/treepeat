@@ -1,5 +1,3 @@
-"""Compact (interned) shingling must match the annotated shingler exactly."""
-
 from pathlib import Path
 
 import pytest

@@ -20,13 +20,16 @@ test:
 
 lint:
 	uv run ruff check .
+	uv run ast-grep scan treepeat tests
 
 vulture:
   # vulture erroneously flags pydantic model_config settings as unused.
 	uv run vulture --min-confidence 55 --ignore-names 'model_config' treepeat
 
 fix:
+	uv run ast-grep scan --update-all treepeat tests
 	uv run ruff check . --fix
+	uv run ruff format .
 
 type:
 	uv run mypy

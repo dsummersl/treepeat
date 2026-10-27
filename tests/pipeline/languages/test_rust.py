@@ -1,5 +1,3 @@
-"""Tests for Rust language configuration and rules."""
-
 from pathlib import Path
 
 import pytest
@@ -8,10 +6,7 @@ from tests.conftest import parse_fixture
 from treepeat.pipeline.region_extraction import extract_all_regions
 from treepeat.pipeline.rules.engine import RuleEngine, build_default_rules, build_loose_rules
 
-# Fixture path
-fixture_comprehensive = (
-    Path(__file__).parent.parent.parent / "fixtures" / "rust" / "comprehensive.rs"
-)
+fixture_comprehensive = Path(__file__).parent.parent.parent / "fixtures" / "rust" / "comprehensive.rs"
 
 
 @pytest.mark.parametrize(
@@ -19,25 +14,24 @@ fixture_comprehensive = (
     [[rule for rule, _ in build_default_rules()], [rule for rule, _ in build_loose_rules()]],
 )
 def test_rust_rules_extract(rules):
-    """Test that Rust files can be processed with different rule sets."""
+
     parsed = parse_fixture(fixture_comprehensive, "rust")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)
 
-    # All six extraction types must be present
     region_types = {r.region.region_type for r in regions}
     assert region_types == {
-        "function_item", "impl_item", "struct_item",
-        "enum_item", "trait_item", "macro_definition",
+        "function_item",
+        "impl_item",
+        "struct_item",
+        "enum_item",
+        "trait_item",
+        "macro_definition",
     }
 
 
 def test_lifetime_names_do_not_affect_similarity():
-    """Functions that differ only in lifetime parameter names must produce identical shingles.
 
-    'a and 'b are α-equivalent-ish; renaming them should not affect duplicate detection.
-    'static is intentionally excluded from this rule and is verified in test_rust_rules.py.
-    """
     from treepeat.models.similarity import Region
     from treepeat.pipeline.parse import parse_source_code
     from treepeat.pipeline.region_extraction import ExtractedRegion
@@ -69,7 +63,7 @@ def test_lifetime_names_do_not_affect_similarity():
 
 
 def test_rust_specific_rules():
-    """Test that Rust-specific default rules (use, comments, attributes) work."""
+
     from treepeat.models.similarity import Region
     from treepeat.pipeline.parse import parse_source_code
     from treepeat.pipeline.region_extraction import ExtractedRegion
@@ -114,7 +108,6 @@ impl Foo {
 
     shingle_str = " ".join(shingled.shingles.get_contents())
 
-    # Noise should be removed
     assert "use_declaration" not in shingle_str
     assert "extern_crate_declaration" not in shingle_str
     assert "line_comment" not in shingle_str
@@ -122,7 +115,6 @@ impl Foo {
     assert "attribute_item" not in shingle_str
     assert "inner_attribute_item" not in shingle_str
 
-    # Structural elements should remain
     assert "struct_item" in shingle_str
     assert "impl_item" in shingle_str
     assert "function_item" in shingle_str

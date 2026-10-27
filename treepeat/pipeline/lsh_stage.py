@@ -1,5 +1,3 @@
-"""LSH stage for finding similar region pairs."""
-
 import logging
 import sys
 from pathlib import Path
@@ -23,10 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def _sig_key(sig: RegionSignature) -> str:
-    """Return the canonical string key for a RegionSignature.
 
-    region_name is included to disambiguate shingle windows that share line ranges.
-    """
     r = sig.region
     return f"{r.path}:{r.region_name}:{r.start_line}-{r.end_line}"
 
@@ -35,13 +30,9 @@ def _create_lsh_index(
     signatures: list[RegionSignature],
     similarity_percent: float,
 ) -> MinHashLSH:
-    """Create and populate LSH index."""
+
     num_perm = signatures[0].minhash.hashvalues.shape[0]
 
-    # Use a lower threshold for LSH candidate finding to avoid missing matches
-    # Cap at 0.5 to avoid being too restrictive with high similarity thresholds
-    # For low thresholds, scale down proportionally to find appropriate candidates
-    # The actual similarity_percent filtering happens later in the pipeline
     lsh_similarity_percent = min(0.5, 0.7 * similarity_percent)
     lsh = MinHashLSH(lsh_similarity_percent, num_perm)
 
@@ -58,41 +49,37 @@ def _create_lsh_index(
 
 
 def _regions_overlap(r1: Region, r2: Region) -> bool:
-    """Check if two regions overlap in the same file."""
+
     if r1.path != r2.path:
         return False
     return not (r1.end_line < r2.start_line or r2.end_line < r1.start_line)
 
 
 class UnionFind:
-    """Union-Find data structure for grouping similar regions."""
-
     def __init__(self) -> None:
-        """Initialize union-find structure."""
+
         self.parent: dict[str, str] = {}
         self.rank: dict[str, int] = {}
 
     def find(self, key: str) -> str:
-        """Find the root of the set containing key with path compression."""
+
         if key not in self.parent:
             self.parent[key] = key
             self.rank[key] = 0
             return key
 
-        # Path compression
         if self.parent[key] != key:
             self.parent[key] = self.find(self.parent[key])
         return self.parent[key]
 
     def union(self, key1: str, key2: str) -> None:
-        """Union the sets containing key1 and key2 using union by rank."""
+
         root1 = self.find(key1)
         root2 = self.find(key2)
 
         if root1 == root2:
             return
 
-        # Union by rank
         if self.rank[root1] < self.rank[root2]:
             self.parent[root1] = root2
         elif self.rank[root1] > self.rank[root2]:
@@ -102,7 +89,7 @@ class UnionFind:
             self.rank[root1] += 1
 
     def get_groups(self) -> dict[str, list[str]]:
-        """Get all groups as a dictionary mapping root to members."""
+
         groups: dict[str, list[str]] = {}
         for key in self.parent:
             root = self.find(key)
@@ -113,7 +100,7 @@ class UnionFind:
 
 
 def _compute_pair_similarity(sig1: RegionSignature, sig2: RegionSignature) -> float:
-    """Compute similarity between two signatures."""
+
     if sig1.shingle_count == 0 and sig2.shingle_count == 0:
         return 0.0
     return float(sig1.minhash.jaccard(sig2.minhash))
@@ -122,7 +109,7 @@ def _compute_pair_similarity(sig1: RegionSignature, sig2: RegionSignature) -> fl
 def _calculate_group_similarity(
     group_sigs: list[RegionSignature],
 ) -> float:
-    """Calculate average pairwise similarity for a group."""
+
     if len(group_sigs) < 2:
         return 1.0
 
@@ -166,10 +153,7 @@ def _append_pairwise_similar(
     similarity_percent: float,
 ) -> None:
     pairwise_similar_keys = [
-        sk
-        for sk in similar_keys
-        if sk != current_key
-        if _is_pairwise_similar(sk, sig, key_to_sig, similarity_percent)
+        sk for sk in similar_keys if sk != current_key if _is_pairwise_similar(sk, sig, key_to_sig, similarity_percent)
     ]
     for similar_key in pairwise_similar_keys:
         uf.union(current_key, str(similar_key))
@@ -181,23 +165,14 @@ def _build_union_find_from_lsh(
     similarity_percent: float,
     progress: bool = False,
 ) -> tuple[UnionFind, dict[str, RegionSignature]]:
-    """Build union-find structure from LSH queries."""
+
     uf = UnionFind()
 
-    key_to_sig: dict[str, RegionSignature] = {
-        _sig_key(sig): sig
-        for sig in signatures
-    }
+    key_to_sig: dict[str, RegionSignature] = {_sig_key(sig): sig for sig in signatures}
 
-    # Use a lower threshold for pairwise filtering since LSH similarity is approximate
-    # The actual verified similarity may be higher than the MinHash Jaccard similarity
     min_pair_similarity = 0.8 * similarity_percent
 
-    iterable = (
-        tqdm(signatures, desc="LSH", unit="signature", file=sys.stderr)
-        if progress
-        else signatures
-    )
+    iterable = tqdm(signatures, desc="LSH", unit="signature", file=sys.stderr) if progress else signatures
 
     for sig in iterable:
         current_key = _sig_key(sig)
@@ -211,9 +186,7 @@ def _build_union_find_from_lsh(
             len(similar_keys),
         )
 
-        _append_pairwise_similar(
-            uf, current_key, similar_keys, sig, key_to_sig, min_pair_similarity
-        )
+        _append_pairwise_similar(uf, current_key, similar_keys, sig, key_to_sig, min_pair_similarity)
 
     return uf, key_to_sig
 
@@ -222,7 +195,7 @@ def _get_valid_group_signatures(
     member_keys: list[str],
     key_to_sig: dict[str, RegionSignature],
 ) -> list[RegionSignature] | None:
-    """Get signatures for member keys if at least 2 valid signatures exist."""
+
     group_sigs = [key_to_sig[key] for key in member_keys if key in key_to_sig]
     return group_sigs if len(group_sigs) >= 2 else None
 
@@ -232,16 +205,13 @@ def _create_group_from_keys(
     key_to_sig: dict[str, RegionSignature],
     similarity_percent: float,
 ) -> SimilarRegionGroup | None:
-    """Create a similarity group from member keys."""
+
     group_sigs = _get_valid_group_signatures(member_keys, key_to_sig)
     if group_sigs is None:
         return None
 
     group_similarity_percent = _calculate_group_similarity(group_sigs)
-    # Filter by a lower threshold (0.8 * similarity_percent) to avoid large groups with low average similarity
-    # This can happen when union-find transitively connects many regions
-    # We use 0.8 here because LSH similarity is approximate - the actual verified similarity may be higher
-    # Final filtering by the full similarity_percent happens after verification
+
     min_lsh_similarity = 0.8 * similarity_percent
     if group_similarity_percent < min_lsh_similarity:
         logger.debug(
@@ -276,8 +246,7 @@ def _collect_candidate_groups(
     similarity_percent: float,
     progress: bool = False,
 ) -> list[SimilarRegionGroup]:
-    """Collect similar region groups from LSH queries."""
-    # Build union-find structure
+
     uf, key_to_sig = _build_union_find_from_lsh(
         signatures,
         lsh,
@@ -285,16 +254,13 @@ def _collect_candidate_groups(
         progress=progress,
     )
 
-    # Extract groups from union-find
     groups_dict = uf.get_groups()
     groups: list[SimilarRegionGroup] = []
 
     for _root, member_keys in groups_dict.items():
-        # Skip single-region "groups"
         if len(member_keys) < 2:
             continue
 
-        # Create and validate group
         group = _create_group_from_keys(member_keys, key_to_sig, similarity_percent)
         if group is not None:
             groups.append(group)
@@ -305,7 +271,7 @@ def _collect_candidate_groups(
 def find_similar_groups(
     signatures: list[RegionSignature], similarity_percent: float, progress: bool = False
 ) -> list[SimilarRegionGroup]:
-    """Find similar region groups using LSH."""
+
     if len(signatures) < 2:
         logger.info("Need at least 2 regions to find similar groups")
         return []
@@ -335,7 +301,7 @@ def _verify_and_filter_groups(
     rules: "list[Rule]",
     progress: bool = False,
 ) -> list[SimilarRegionGroup]:
-    """Verify candidate groups and filter by minimum similarity similarity_percent."""
+
     from treepeat.pipeline.verification import verify_similar_groups
 
     logger.info("Verifying %d candidate group(s)", len(candidate_groups))
@@ -346,7 +312,6 @@ def _verify_and_filter_groups(
         progress=progress,
     )
 
-    # Filter groups that fall below minimum similarity after verification
     similar_groups = [g for g in verified_groups if g.similarity >= similarity_percent]
     if len(similar_groups) < len(verified_groups):
         logger.info(
@@ -403,15 +368,13 @@ def _filter_by_min_lines(
     if not filtered_signatures:
         return [], []
 
-    filtered_shingled = [
-        sr for sr in shingled_regions if (sr.region.path, sr.region.start_line) in kept_keys
-    ]
+    filtered_shingled = [sr for sr in shingled_regions if (sr.region.path, sr.region.start_line) in kept_keys]
 
     return filtered_signatures, filtered_shingled
 
 
 def _log_min_lines_filter(total: int, kept: int, min_lines: int) -> None:
-    """Log how many signatures were dropped below the min_lines threshold."""
+
     if kept < total:
         logger.info(
             "Filtered out %d region(s) below min_lines=%d before similarity detection",
@@ -428,15 +391,8 @@ def detect_similarity(
     rules: "list[Rule] | None" = None,
     progress: bool = False,
 ) -> SimilarityResult:
-    """Detect similar regions using LSH.
 
-    ``rules`` is the active ruleset, used during verification to decide whether
-    a name-only signature difference is intentional (see verification). When
-    omitted, signature verification runs without anonymization awareness.
-    """
-    filtered_signatures, filtered_shingled = _filter_by_min_lines(
-        signatures, shingled_regions, min_lines
-    )
+    filtered_signatures, filtered_shingled = _filter_by_min_lines(signatures, shingled_regions, min_lines)
     _log_min_lines_filter(len(signatures), len(filtered_signatures), min_lines)
 
     if not filtered_signatures:
@@ -448,9 +404,7 @@ def detect_similarity(
         progress=progress,
     )
 
-    total_pairs = sum(
-        len(g.regions) * (len(g.regions) - 1) // 2 for g in candidate_groups
-    )
+    total_pairs = sum(len(g.regions) * (len(g.regions) - 1) // 2 for g in candidate_groups)
     logger.info("Total candidate pairs entering verification: %d", total_pairs)
 
     if not candidate_groups:

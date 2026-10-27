@@ -9,7 +9,7 @@ from treepeat.pipeline.shingle import ASTShingler
 
 
 def _loose_tokens(source: str) -> list[str]:
-    """Shingle a snippet with the full loose ruleset."""
+
     engine = RuleEngine(LuaConfig().get_loose_rules())
     source_bytes = source.encode("utf-8")
     parsed = parse_source_code(source_bytes, "lua", Path("test.lua"))
@@ -80,8 +80,6 @@ def test_lua_rules_detailed(rule_tester):
                 "rule_name": "Anonymize string literals",
                 "source": 'local s = "hello"',
                 "expected_symbol": "<STR>",
-                # The content itself is stripped by the "Ignore string content"
-                # rule, so this rule alone is not expected to hide it.
                 "unexpected_symbol": None,
             },
             {
@@ -104,7 +102,7 @@ def test_lua_rules_detailed(rule_tester):
             },
             {
                 "rule_name": "Anonymize binary expressions",
-                "source": 'local x = a .. b',
+                "source": "local x = a .. b",
                 "expected_symbol": "<BINOP>",
                 "unexpected_symbol": "binary_expression",
             },
@@ -119,8 +117,7 @@ def test_lua_rules_detailed(rule_tester):
 
 
 def test_lua_function_name_rule_wins_over_identifier_anonymization():
-    # The function name must stay FUNC even though the loose ruleset also
-    # anonymizes every identifier.
+
     tokens = _loose_tokens("local function foo() end")
 
     assert "identifier(FUNC)" in tokens
@@ -128,8 +125,7 @@ def test_lua_function_name_rule_wins_over_identifier_anonymization():
 
 
 def test_lua_method_table_name_is_preserved():
-    # Only the trailing name segment is replaced; the table keeps its identity
-    # (anonymized as an ordinary identifier under the loose ruleset).
+
     tokens = _loose_tokens("function Obj:method() end")
 
     assert "identifier(FUNC)" in tokens

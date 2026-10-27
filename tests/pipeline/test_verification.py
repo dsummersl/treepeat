@@ -1,11 +1,3 @@
-"""Ruleset-aware signature verification behavior.
-
-Two JavaScript functions with identical bodies but different names should be
-reported as duplicates when the active ruleset anonymizes function names
-(default/loose), and rejected when it does not (none) — because the function
-name never enters the shingles, the signature check is the only differentiator.
-"""
-
 from pathlib import Path
 
 import pytest
@@ -43,6 +35,6 @@ def test_renamed_clone_matches_when_names_anonymized(ruleset):
 
 
 def test_renamed_clone_penalized_when_names_not_anonymized():
-    # Under 'none' the signature check fires: differing names -> not a match.
+
     result = _run_with_ruleset("none", similarity_percent=1.0)
     assert len(result.similar_groups) == 0

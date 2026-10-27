@@ -4,15 +4,13 @@ from treepeat.pipeline.languages.rust import RustConfig
 def test_macro_names_mode_separation(rule_tester):
     config = RustConfig()
     source = 'fn f() { println!("hello"); }'
-    # preserved in default mode
+
     rule_tester._verify_with_rules(
-        config, config.get_default_rules(),
-        "Anonymize macro names", source, "println", None, "Default Rules"
+        config, config.get_default_rules(), "Anonymize macro names", source, "println", None, "Default Rules"
     )
-    # removed in loose mode
+
     rule_tester._verify_with_rules(
-        config, config.get_loose_rules(),
-        "Anonymize macro names", source, None, "println", "Loose Rules"
+        config, config.get_loose_rules(), "Anonymize macro names", source, None, "println", "Loose Rules"
     )
 
 
@@ -53,7 +51,7 @@ def test_rust_rules_detailed(rule_tester):
             },
             {
                 "rule_name": "Anonymize macro names",
-                "source": "fn f() { log::info!(\"msg\"); log::debug!(\"msg\"); }",
+                "source": 'fn f() { log::info!("msg"); log::debug!("msg"); }',
                 "expected_symbol": None,
                 "unexpected_symbol": "info",
             },

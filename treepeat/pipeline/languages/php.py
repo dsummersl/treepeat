@@ -4,8 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class PHPConfig(LanguageConfig):
-    """Configuration for PHP language."""
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
@@ -44,7 +42,6 @@ class PHPConfig(LanguageConfig):
     def get_loose_rules(self) -> list[Rule]:
         return [
             Rule(
-                # Variable, member, constant and callable identifiers all contain name nodes.
                 name="Anonymize identifiers",
                 languages=["php"],
                 query="(name) @id",
@@ -52,7 +49,6 @@ class PHPConfig(LanguageConfig):
                 params={"prefix": "VAR"},
             ),
             Rule(
-                # Normalize leaves: replacing a string's value alone leaves its content intact.
                 name="Anonymize literal values",
                 languages=["php"],
                 query=(

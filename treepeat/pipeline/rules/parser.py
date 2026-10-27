@@ -4,24 +4,20 @@ from .models import Rule, RuleAction
 
 
 class RuleParseError(Exception):
-    """Raised when a rule cannot be parsed."""
-
     pass
 
 
 def _parse_action(action_str: str) -> RuleAction:
-    """Parse action string into RuleAction enum."""
+
     try:
         return RuleAction(action_str)
     except ValueError as ve:
         valid_actions = [action.value for action in RuleAction]
-        raise RuleParseError(
-            f"Invalid action '{action_str}'. Valid actions: {', '.join(valid_actions)}"
-        ) from ve
+        raise RuleParseError(f"Invalid action '{action_str}'. Valid actions: {', '.join(valid_actions)}") from ve
 
 
 def _validate_yaml_rule_fields(rule_dict: dict[str, Any]) -> None:
-    """Validate required fields in a YAML rule."""
+
     required_fields = ["name", "languages", "query", "action"]
     for field in required_fields:
         if field not in rule_dict:
@@ -30,7 +26,7 @@ def _validate_yaml_rule_fields(rule_dict: dict[str, Any]) -> None:
 
 
 def _parse_yaml_rule(rule_dict: dict[str, Any], ruleset_name: str) -> Rule:
-    """Parse a single rule from YAML dictionary."""
+
     _validate_yaml_rule_fields(rule_dict)
 
     name = rule_dict["name"]
@@ -53,7 +49,7 @@ def _get_extended_rules(
     ruleset: dict[str, Any],
     resolved: set[str],
 ) -> list[Rule]:
-    """Get rules from extended rulesets."""
+
     if "extends" not in ruleset:
         return []
     extended_name = ruleset["extends"]
@@ -61,7 +57,7 @@ def _get_extended_rules(
 
 
 def _parse_ruleset_rules(ruleset: dict[str, Any], ruleset_name: str) -> list[Rule]:
-    """Parse rules from a ruleset."""
+
     if "rules" not in ruleset:
         return []
     return [_parse_yaml_rule(rule_dict, ruleset_name) for rule_dict in ruleset["rules"]]
@@ -72,7 +68,7 @@ def _resolve_extends(
     ruleset_name: str,
     resolved: set[str],
 ) -> list[Rule]:
-    """Recursively resolve ruleset inheritance."""
+
     if ruleset_name in resolved:
         raise RuleParseError(f"Circular dependency detected in ruleset '{ruleset_name}'")
 
@@ -82,7 +78,6 @@ def _resolve_extends(
     resolved.add(ruleset_name)
     ruleset = rulesets[ruleset_name]
 
-    # Combine rules from extended rulesets and this ruleset
     extended_rules = _get_extended_rules(rulesets, ruleset, resolved)
     own_rules = _parse_ruleset_rules(ruleset, ruleset_name)
 

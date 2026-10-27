@@ -1,1 +1,1 @@
-"""Tests for rules module."""
+pass

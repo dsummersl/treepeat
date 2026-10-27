@@ -1,5 +1,3 @@
-"""Tests for YAML language configuration and Markdown ```yaml code block injection."""
-
 from pathlib import Path
 
 import pytest
@@ -18,11 +16,6 @@ fixture_config = FIXTURE_DIR / "yaml" / "config.yaml"
 fixture_guide = FIXTURE_DIR / "markdown" / "guide.md"
 
 
-# ---------------------------------------------------------------------------
-# Registration
-# ---------------------------------------------------------------------------
-
-
 def test_yaml_registered_in_configs():
     assert "yaml" in LANGUAGE_CONFIGS
     assert isinstance(LANGUAGE_CONFIGS["yaml"], YAMLConfig)
@@ -38,31 +31,24 @@ def test_yaml_region_extraction_rules_exist():
     assert "block_mapping_pair" in labels
 
 
-# ---------------------------------------------------------------------------
-# Standalone YAML parsing / extraction
-# ---------------------------------------------------------------------------
-
-
 def test_parse_yaml_no_errors():
     parsed = parse_file(fixture_config)
     assert parsed.language == "yaml"
     assert not parsed.root_node.has_error
 
 
-@pytest.mark.parametrize("rules", [
-    [rule for rule, _ in build_default_rules()],
-    [rule for rule, _ in build_loose_rules()],
-])
+@pytest.mark.parametrize(
+    "rules",
+    [
+        [rule for rule, _ in build_default_rules()],
+        [rule for rule, _ in build_loose_rules()],
+    ],
+)
 def test_yaml_regions_extracted(rules):
     parsed = parse_fixture(fixture_config, "yaml")
     engine = RuleEngine(rules)
     regions = extract_all_regions([parsed], engine)
     assert regions, "Expected at least one extracted region from the YAML fixture"
-
-
-# ---------------------------------------------------------------------------
-# Markdown ```yaml injection
-# ---------------------------------------------------------------------------
 
 
 def test_markdown_yaml_block_injected():
@@ -75,12 +61,12 @@ def test_markdown_yaml_block_injected():
     region = injected[0]
     assert region.injected_tree is not None
     assert region.injected_source is not None
-    # Region metadata preserves the file language, not the injection language.
+
     assert region.region.language == "markdown"
 
 
 def test_yml_alias_resolves_to_yaml():
-    """A ```yml fence resolves to the yaml language via the info-string alias."""
+
     from tree_sitter_language_pack import get_parser
 
     source = b"```yml\nname: test\n```\n"
@@ -88,19 +74,12 @@ def test_yml_alias_resolves_to_yaml():
 
     fenced_node = None
     for child in [tree.root_node, *tree.root_node.children]:
-        fenced_node = next(
-            (n for n in child.children if n.type == "fenced_code_block"), None
-        )
+        fenced_node = next((n for n in child.children if n.type == "fenced_code_block"), None)
         if fenced_node is not None:
             break
 
     assert fenced_node is not None, "Could not find fenced_code_block node"
     assert _resolve_code_block_language(fenced_node, source) == "yaml"
-
-
-# ---------------------------------------------------------------------------
-# Cross-file shingle similarity: embedded YAML mirrors a standalone YAML file
-# ---------------------------------------------------------------------------
 
 
 def _shingle_injected_region(region, engine, shingler):
@@ -130,8 +109,7 @@ def _shingle_standalone_file(path, language, rules):
 
 
 def test_embedded_yaml_shingles_overlap_with_standalone():
-    """A YAML block embedded in markdown shares shingles with the same
-    content in a standalone .yaml file, so similarity detection links them."""
+
     rules = [r for r, _ in build_loose_rules()]
 
     md_engine = RuleEngine(rules)
@@ -145,6 +123,4 @@ def test_embedded_yaml_shingles_overlap_with_standalone():
 
     assert md_shingles, "No shingles produced from markdown yaml block"
     assert standalone_shingles, "No shingles produced from standalone yaml file"
-    assert md_shingles & standalone_shingles, (
-        "Markdown yaml block and standalone yaml file share no shingles"
-    )
+    assert md_shingles & standalone_shingles, "Markdown yaml block and standalone yaml file share no shingles"

@@ -57,8 +57,10 @@ def main(before: Path, after: Path) -> None:
     if not names:
         raise click.ClickException("BEFORE and AFTER have no repos in common")
 
-    click.echo("| Repo | Wall before | Wall after | Δ | CPU before | CPU after | Δ "
-               "| Peak RSS before | Peak RSS after | Δ | Clones before | Clones after |")
+    click.echo(
+        "| Repo | Wall before | Wall after | Δ | CPU before | CPU after | Δ "
+        "| Peak RSS before | Peak RSS after | Δ | Clones before | Clones after |"
+    )
     click.echo("|" + "---|" * 12)
     for name in names:
         click.echo(_row(name, b_runs[name], a_runs[name]))

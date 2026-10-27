@@ -4,8 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class JavaConfig(LanguageConfig):
-    """Configuration for Java language."""
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
@@ -50,8 +48,7 @@ class JavaConfig(LanguageConfig):
                 name="Anonymize literals",
                 languages=["java"],
                 query=(
-                    "[(string_literal) (decimal_integer_literal) "
-                    "(decimal_floating_point_literal) (null_literal)] @lit"
+                    "[(string_literal) (decimal_integer_literal) (decimal_floating_point_literal) (null_literal)] @lit"
                 ),
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},

@@ -17,7 +17,7 @@ from treepeat.models.similarity import SimilarityResult, SimilarRegionGroup
 
 
 def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:
-    """Format similarity detection results as SARIF JSON."""
+
     sarif_log = _create_sarif_log(result)
 
     indent = 2 if pretty else None
@@ -26,7 +26,7 @@ def format_as_sarif(result: SimilarityResult, *, pretty: bool = True) -> str:
 
 
 def _create_sarif_log(result: SimilarityResult) -> Sarif:
-    """Create a SARIF log object from similarity results."""
+
     return Sarif(
         version="2.1.0",
         schema_uri="https://json.schemastore.org/sarif-2.1.0.json",
@@ -35,7 +35,7 @@ def _create_sarif_log(result: SimilarityResult) -> Sarif:
 
 
 def _create_run(result: SimilarityResult) -> Run:
-    """Create a SARIF run object."""
+
     return Run(
         tool=_create_tool(),
         results=_create_results(result),
@@ -43,7 +43,7 @@ def _create_run(result: SimilarityResult) -> Run:
 
 
 def _create_tool() -> Tool:
-    """Create the SARIF tool descriptor."""
+
     return Tool(
         driver=ToolDriver(
             name="treepeat",
@@ -81,11 +81,10 @@ def _create_tool() -> Tool:
 
 
 def _create_result_from_group(group: SimilarRegionGroup) -> Result:
-    """Create a SARIF result from a similarity group."""
+
     similarity_percent = group.similarity * 100
     level = _get_level(group.similarity)
 
-    # Create message describing the group
     region_descriptions = [
         f"{region.path}:{region.start_line}-{region.end_line} ({region.end_line - region.start_line + 1} lines)"
         for region in group.regions
@@ -94,10 +93,8 @@ def _create_result_from_group(group: SimilarRegionGroup) -> Result:
         region_descriptions
     )
 
-    # Use first region as primary location
     primary_region = group.regions[0]
 
-    # All other regions are related locations
     related_locations = [
         {
             "id": i,
@@ -157,15 +154,15 @@ def _create_result_from_group(group: SimilarRegionGroup) -> Result:
 
 
 def _create_results(similarity_result: SimilarityResult) -> list[Result]:
-    """Create SARIF result objects from similar region groups."""
+
     return [_create_result_from_group(group) for group in similarity_result.similar_groups]
 
 
 def _get_level(similarity: float) -> Level:
-    """Determine SARIF severity level based on similarity score."""
+
     if similarity >= 0.95:
-        return Level.ERROR  # Very high similarity
+        return Level.ERROR
     elif similarity >= 0.85:
-        return Level.WARNING  # High similarity
+        return Level.WARNING
     else:
-        return Level.NOTE  # Moderate similarity
+        return Level.NOTE

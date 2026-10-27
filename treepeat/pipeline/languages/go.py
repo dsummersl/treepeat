@@ -4,8 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class GoConfig(LanguageConfig):
-    """Configuration for Go language."""
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

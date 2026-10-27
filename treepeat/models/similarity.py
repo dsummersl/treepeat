@@ -1,5 +1,3 @@
-"""Models for similarity detection."""
-
 from pathlib import Path
 
 from datasketch import MinHash  # type: ignore[import-untyped]
@@ -7,8 +5,6 @@ from pydantic import BaseModel, Field
 
 
 class Region(BaseModel):
-    """A region within a file (function, class, section, paragraph, etc)."""
-
     path: Path = Field(description="Path to the source file")
     language: str = Field(description="Language (python, javascript, markdown, html, etc)")
     region_type: str = Field(description="Type of region (function, class, heading, section, etc)")
@@ -17,17 +13,12 @@ class Region(BaseModel):
     end_line: int = Field(ge=1, description="End line number (1-indexed)")
 
     def __repr__(self) -> str:
-        """Format as human-readable string."""
+
         path_str = str(self.path)[-10:]
-        return (
-            f"Region({self.region_name} ({self.region_type}) at "
-            f"{path_str}:{self.start_line}-{self.end_line})"
-        )
+        return f"Region({self.region_name} ({self.region_type}) at {path_str}:{self.start_line}-{self.end_line})"
 
 
 class RegionSignature(BaseModel):
-    """MinHash signature for a region."""
-
     model_config = {"arbitrary_types_allowed": True}
 
     region: Region = Field(description="The region")
@@ -36,16 +27,12 @@ class RegionSignature(BaseModel):
 
 
 class SimilarRegionGroup(BaseModel):
-    """A group of similar regions with their similarity score."""
-
     regions: list[Region] = Field(description="List of similar regions")
-    similarity: float = Field(
-        ge=0.0, le=1.0, description="Estimated Jaccard similarity (0.0 to 1.0)"
-    )
+    similarity: float = Field(ge=0.0, le=1.0, description="Estimated Jaccard similarity (0.0 to 1.0)")
 
     @property
     def is_self_similarity(self) -> bool:
-        """True if all regions are from the same file."""
+
         if not self.regions:
             return False
         first_path = self.regions[0].path
@@ -53,7 +40,7 @@ class SimilarRegionGroup(BaseModel):
 
     @property
     def size(self) -> int:
-        """Number of regions in the group."""
+
         return len(self.regions)
 
     def __repr__(self) -> str:
@@ -62,27 +49,23 @@ class SimilarRegionGroup(BaseModel):
 
 
 class SimilarityResult(BaseModel):
-    """Result of similarity detection."""
-
-    signatures: list[RegionSignature] = Field(
-        default_factory=list, description="MinHash signatures for all regions"
-    )
+    signatures: list[RegionSignature] = Field(default_factory=list, description="MinHash signatures for all regions")
     similar_groups: list[SimilarRegionGroup] = Field(
         default_factory=list, description="Groups of similar regions above threshold"
     )
 
     @property
     def total_files(self) -> int:
-        """Total number of unique files processed."""
+
         files = {sig.region.path for sig in self.signatures}
         return len(files)
 
     @property
     def success_count(self) -> int:
-        """Number of successfully processed regions."""
+
         return len(self.signatures)
 
     @property
     def self_similarity_count(self) -> int:
-        """Number of similar groups within the same file."""
+
         return sum(1 for group in self.similar_groups if group.is_self_similarity)

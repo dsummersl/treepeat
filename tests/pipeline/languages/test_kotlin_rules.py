@@ -60,7 +60,7 @@ def test_kotlin_rules_detailed(rule_tester):
 
 def test_kotlin_rules_conflict():
     config = KotlinConfig()
-    # Test that function name is FUNC even when Anonymize identifiers is present
+
     from pathlib import Path
 
     from treepeat.models.similarity import Region
@@ -90,8 +90,7 @@ def test_kotlin_rules_conflict():
     shingled = shingler.shingle_region(extracted, source_bytes)
 
     tokens = shingled.shingles.get_contents()
-    # Find the token for the function name. It should be simple_identifier(FUNC)
-    # If the bug exists, it will be simple_identifier(VAR_1)
+
     assert "simple_identifier(FUNC)" in tokens
     assert "simple_identifier(VAR_1)" not in tokens
 
@@ -127,5 +126,5 @@ def test_kotlin_class_rules_conflict():
     shingled = shingler.shingle_region(extracted, source_bytes)
 
     tokens = shingled.shingles.get_contents()
-    # Find the token for the class name. It should be type_identifier(CLASS)
+
     assert "type_identifier(CLASS)" in tokens

@@ -15,60 +15,44 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Threshold above which we verify against raw source text
-# Only check signature for near-perfect matches (98%+) to catch false 100% matches
-# where only the function/class name differs
+
 SOURCE_VERIFICATION_THRESHOLD = 0.98
 
 
 def _compute_ordered_similarity(shingles1: list[str], shingles2: list[str]) -> float:
-    """Compute order-sensitive similarity between two shingle lists.
 
-    Uses rapidfuzz's Indel normalized similarity, i.e. 2 * LCS / (len1 + len2):
-    the longest common subsequence respects shingle order while tolerating
-    insertions and deletions. rapidfuzz hashes the shingles once and runs a
-    bit-parallel LCS in C++, avoiding the per-pair index and match-block
-    bookkeeping of difflib.SequenceMatcher.
-    """
     if not shingles1 or not shingles2:
         return 0.0
     return Indel.normalized_similarity(shingles1, shingles2)
 
 
 def _read_source_lines(file_path: Path, start_line: int, end_line: int) -> list[str]:
-    """Read source lines from a file."""
+
     try:
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             lines = f.readlines()
-            # Convert to 0-indexed
-            return [line.rstrip() for line in lines[start_line - 1:end_line]]
+
+            return [line.rstrip() for line in lines[start_line - 1 : end_line]]
     except Exception as e:
         logger.warning("Failed to read source from %s: %s", file_path, e)
         return []
 
 
-def _check_signature_match(
-    file_path1: Path, start_line1: int,
-    file_path2: Path, start_line2: int
-) -> bool:
-    """Check if the first line (signature) of two regions matches.
+def _check_signature_match(file_path1: Path, start_line1: int, file_path2: Path, start_line2: int) -> bool:
 
-    This catches cases where function/class names differ but bodies are similar.
-    """
     lines1 = _read_source_lines(file_path1, start_line1, start_line1)
     lines2 = _read_source_lines(file_path2, start_line2, start_line2)
 
     if not lines1 or not lines2:
-        return True  # If we can't read, don't penalize
+        return True
 
-    # Compare first lines (function/class signatures)
     return lines1[0].strip() == lines2[0].strip()
 
 
 def _build_region_lookup(
     shingled_regions: list[ShingledRegion],
 ) -> dict[Path, dict[int, ShingledRegion]]:
-    """Build lookup map from region path and start line to shingled region."""
+
     region_to_shingled: dict[Path, dict[int, ShingledRegion]] = {}
     for sr in shingled_regions:
         if sr.region.path not in region_to_shingled:
@@ -81,22 +65,14 @@ _CODE_REGION_TYPES = ("function", "class", "method")
 
 
 def _both_names_anonymized(r1: "Region", r2: "Region", rules: "list[Rule]") -> bool:
-    """True if the active ruleset anonymizes the name of both regions.
 
-    When it does (e.g. JavaScript replaces function identifiers with FUNC), a
-    name-only signature difference is intentional — reading raw source would
-    undo that anonymization. Under the 'none' ruleset those rules are absent,
-    so name differences remain penalized, as expected.
-    """
     return rules_anonymize_region_name(rules, r1.language, r1.region_type) and (
         rules_anonymize_region_name(rules, r2.language, r2.region_type)
     )
 
 
-def _should_verify_signatures(
-    r1: "Region", r2: "Region", similarity: float, rules: "list[Rule]"
-) -> bool:
-    """Determine if signature verification should be performed for these regions."""
+def _should_verify_signatures(r1: "Region", r2: "Region", similarity: float, rules: "list[Rule]") -> bool:
+
     if similarity < SOURCE_VERIFICATION_THRESHOLD:
         return False
     if r1.region_type not in _CODE_REGION_TYPES or r2.region_type not in _CODE_REGION_TYPES:
@@ -110,7 +86,7 @@ def _compute_pair_similarity_with_verification(
     region_lookup: dict[Path, dict[int, ShingledRegion]],
     rules: "list[Rule]",
 ) -> float:
-    """Compute similarity between two regions with signature verification."""
+
     sr1 = region_lookup.get(r1.path, {}).get(r1.start_line)
     sr2 = region_lookup.get(r2.path, {}).get(r2.start_line)
 
@@ -122,24 +98,17 @@ def _compute_pair_similarity_with_verification(
         )
         return 0.0
 
-    # Compute shingle-based similarity using shingle contents
     shingle_similarity = _compute_ordered_similarity(
         sr1.shingles.get_contents(),
         sr2.shingles.get_contents(),
     )
 
-    # For high similarity code regions, verify that signatures match
-    # This catches cases where function/class names differ but bodies are similar
     if not _should_verify_signatures(r1, r2, shingle_similarity, rules):
         return shingle_similarity
 
-    signatures_match = _check_signature_match(
-        r1.path, r1.start_line,
-        r2.path, r2.start_line
-    )
+    signatures_match = _check_signature_match(r1.path, r1.start_line, r2.path, r2.start_line)
 
     if not signatures_match:
-        # Penalize signature mismatch - treat as 0.0 similarity
         logger.debug(
             "Signature mismatch for %s ↔ %s, treating as 0%% similar",
             r1.region_name,
@@ -155,7 +124,7 @@ def _verify_group_pairwise_similarity(
     region_lookup: dict[Path, dict[int, ShingledRegion]],
     rules: "list[Rule]",
 ) -> float:
-    """Calculate average pairwise order-sensitive similarity for a group."""
+
     if len(group_regions) < 2:
         return 1.0
 
@@ -164,9 +133,7 @@ def _verify_group_pairwise_similarity(
 
     for i, r1 in enumerate(group_regions):
         for r2 in group_regions[i + 1 :]:
-            similarity = _compute_pair_similarity_with_verification(
-                r1, r2, region_lookup, rules
-            )
+            similarity = _compute_pair_similarity_with_verification(r1, r2, region_lookup, rules)
             total_similarity += similarity
             pair_count += 1
 
@@ -179,30 +146,16 @@ def verify_similar_groups(
     rules: "list[Rule]",
     progress: bool = False,
 ) -> list["SimilarRegionGroup"]:
-    """Verify candidate groups using order-sensitive similarity.
 
-    For each group, recalculates similarity using pairwise rapidfuzz
-    LCS comparison to ensure matches respect line order (not just set similarity).
-    ``rules`` is the active ruleset; it drives whether a name-only signature
-    difference is penalized (see ``_should_verify_signatures``). Pass ``[]``
-    to opt out of anonymization-aware verification.
-    """
     logger.info("Verifying %d candidate group(s) with order-sensitive similarity", len(groups))
 
     region_lookup = _build_region_lookup(shingled_regions)
     verified_groups = []
 
-    iterable = (
-        tqdm(groups, desc="Verifying", unit="group", file=sys.stderr)
-        if progress
-        else groups
-    )
+    iterable = tqdm(groups, desc="Verifying", unit="group", file=sys.stderr) if progress else groups
 
     for group in iterable:
-        # Recalculate group similarity using order-sensitive verification
-        verified_similarity = _verify_group_pairwise_similarity(
-            group.regions, region_lookup, rules
-        )
+        verified_similarity = _verify_group_pairwise_similarity(group.regions, region_lookup, rules)
 
         logger.debug(
             "Verified group of %d regions: LSH=%.1f%%, Ordered=%.1f%%",
@@ -211,7 +164,6 @@ def verify_similar_groups(
             verified_similarity * 100,
         )
 
-        # Import here to avoid circular dependency
         from treepeat.models.similarity import SimilarRegionGroup
 
         verified_group = SimilarRegionGroup(

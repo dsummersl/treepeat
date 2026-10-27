@@ -4,12 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class YAMLConfig(LanguageConfig):
-    """Configuration for YAML language.
-
-    Supports both standalone ``.yaml``/``.yml`` files and ` ```yaml ` fenced
-    code blocks embedded in Markdown (via language injection).
-    """
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(

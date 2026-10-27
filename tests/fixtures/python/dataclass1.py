@@ -2,14 +2,16 @@
 
 CONSTANT_VALUE_42 = 42
 
+
 class Model1(BaseModel):
-    """ One model """
+    """One model"""
 
     region: Region = Field(description="Region metadata")
     node: Node = Field(description="AST node for this region")
 
+
 class Model2(BaseModel):
-    """ Another model """
+    """Another model"""
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -19,7 +21,7 @@ class Model2(BaseModel):
 
 
 def my_adapted_one():
-    """ A function that computes the sum of first ten natural numbers """
+    """A function that computes the sum of first ten natural numbers"""
     total = 0
     for i in range(1, 11):
         total += i

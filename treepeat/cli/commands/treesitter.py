@@ -92,8 +92,7 @@ def _extract_tokens_from_file(parsed_file: Any, shingler: Any) -> dict[int, list
 
 
 def _process_leaf_node(
-    node: Any, node_repr: Any, line_parts: dict[int, list[tuple[int, str]]],
-    include_node_type: bool = False
+    node: Any, node_repr: Any, line_parts: dict[int, list[tuple[int, str]]], include_node_type: bool = False
 ) -> None:
     """Process a leaf node and add its representation to line_parts."""
     line_num = node.start_point[0] + 1
@@ -116,8 +115,7 @@ def _process_leaf_node(
 
 
 def _process_internal_node(
-    node: Any, shingler: Any, language: str, source: bytes, root: Any,
-    line_parts: dict[int, list[tuple[int, str]]]
+    node: Any, shingler: Any, language: str, source: bytes, root: Any, line_parts: dict[int, list[tuple[int, str]]]
 ) -> None:
     """Process an internal node where all children were skipped."""
     from treepeat.models.normalization import SkipNode
@@ -134,8 +132,7 @@ def _process_internal_node(
 
 
 def _reconstruct_lines_from_parts(
-    line_parts: dict[int, list[tuple[int, str]]],
-    source_lines: list[str]
+    line_parts: dict[int, list[tuple[int, str]]], source_lines: list[str]
 ) -> dict[int, str]:
     """Reconstruct source lines from collected node parts, preserving original indentation."""
     reconstructed_lines: dict[int, str] = {}
@@ -146,7 +143,7 @@ def _reconstruct_lines_from_parts(
         # Extract indentation from original source line
         if line_num <= len(source_lines):
             original_line = source_lines[line_num - 1]
-            indentation = original_line[:len(original_line) - len(original_line.lstrip())]
+            indentation = original_line[: len(original_line) - len(original_line.lstrip())]
             reconstructed_lines[line_num] = indentation + tokens
         else:
             reconstructed_lines[line_num] = tokens
@@ -208,7 +205,7 @@ def _reconstruct_transformed_source(parsed_file: Any, shingler: Any) -> dict[int
 def _truncate_if_needed(text: str, max_width: int) -> str:
     """Truncate text if it exceeds max_width."""
     if len(text) > max_width - 1:
-        return text[:max_width - 4] + "..."
+        return text[: max_width - 4] + "..."
     return text
 
 
@@ -223,9 +220,7 @@ def _print_side_by_side_header(file_path: Any, language: str, col_width: int, sh
     console.print(f"{'-' * col_width}│{'-' * col_width}")
 
 
-def _display_transformed_view(
-    source_lines: list[str], parsed_file: Any, shingler: Any, col_width: int
-) -> None:
+def _display_transformed_view(source_lines: list[str], parsed_file: Any, shingler: Any, col_width: int) -> None:
     """Display transformed source view."""
     transformed_lines = _reconstruct_transformed_source(parsed_file, shingler)
 
@@ -240,9 +235,7 @@ def _display_transformed_view(
     console.print(f"[dim]Transformed lines: {len(transformed_lines)}[/dim]")
 
 
-def _display_tokens_view(
-    source_lines: list[str], parsed_file: Any, shingler: Any, col_width: int
-) -> None:
+def _display_tokens_view(source_lines: list[str], parsed_file: Any, shingler: Any, col_width: int) -> None:
     """Display tree-sitter tokens view."""
     tokens_by_line = _extract_tokens_from_file(parsed_file, shingler)
     total_tokens = 0

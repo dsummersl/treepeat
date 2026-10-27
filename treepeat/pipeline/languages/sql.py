@@ -4,8 +4,6 @@ from .base import LanguageConfig, RegionExtractionRule
 
 
 class SQLConfig(LanguageConfig):
-    """Configuration for SQL language."""
-
     def get_default_rules(self) -> list[Rule]:
         return [
             Rule(
@@ -33,8 +31,6 @@ class SQLConfig(LanguageConfig):
                 action=RuleAction.REPLACE_VALUE,
                 params={"value": "<LIT>"},
             ),
-            # Note: SQL grammar doesn't have a generic (keyword) node type
-            # Keywords are specific types like keyword_insert, keyword_into, etc.
             Rule(
                 name="Anonymize expressions",
                 languages=["sql"],

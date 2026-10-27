@@ -143,8 +143,7 @@ class First {
 """
     (tmp_path / "one.php").write_text(source)
     (tmp_path / "two.php").write_text(source.replace("First", "Second").replace("first", "second"))
-    # Isolate each kind: the existing LSH stage can group nested class/method
-    # candidates together and average their score below the exact-match threshold.
+
     set_settings(
         PipelineSettings(
             rules=RulesSettings(region_filters={"php": {region_type}}),

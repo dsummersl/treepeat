@@ -1,5 +1,3 @@
-"""Tests for display functions with special characters in file paths."""
-
 import importlib
 import io
 from pathlib import Path
@@ -32,7 +30,7 @@ def _capture_display_group(group: SimilarRegionGroup, monkeypatch) -> str:
 
 class TestDisplayGroupSpecialCharPaths:
     def test_bracket_path_id_segment_displayed_correctly(self, monkeypatch):
-        """Path with [id] segment must not be swallowed by Rich markup parsing."""
+
         path = "packages/web/src/pages/api/collections/[id]/people/handler.ts"
         region1 = _make_region(path)
         region2 = _make_region("other/path/handler.ts")
@@ -44,7 +42,7 @@ class TestDisplayGroupSpecialCharPaths:
         assert "packages/web/src/pages/api/collections/[id]/people/handler.ts" in output
 
     def test_bracket_path_multiple_segments_displayed_correctly(self, monkeypatch):
-        """Path with multiple bracket segments must render all of them."""
+
         path = "src/pages/[locale]/blog/[slug]/index.ts"
         region1 = _make_region(path)
         region2 = _make_region("other/handler.ts")
@@ -57,7 +55,7 @@ class TestDisplayGroupSpecialCharPaths:
         assert "src/pages/[locale]/blog/[slug]/index.ts" in output
 
     def test_plain_path_still_displayed(self, monkeypatch):
-        """Paths without special characters continue to display correctly."""
+
         path = "packages/web/src/handlers/api.ts"
         region1 = _make_region(path)
         region2 = _make_region("other/handler.ts")

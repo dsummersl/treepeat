@@ -1,5 +1,3 @@
-"""Order-sensitive shingle similarity used by group verification."""
-
 import random
 
 import pytest
@@ -8,7 +6,7 @@ from treepeat.pipeline.verification import _compute_ordered_similarity
 
 
 def _lcs_length(a: list[str], b: list[str]) -> int:
-    """Reference O(n*m) longest-common-subsequence length."""
+
     prev = [0] * (len(b) + 1)
     for x in a:
         cur = [0]
@@ -37,7 +35,7 @@ def test_order_matters():
 
 
 def test_insertion_is_tolerated():
-    # LCS = 4, so 2 * 4 / (4 + 5)
+
     assert _compute_ordered_similarity(["a", "b", "c", "d"], ["a", "b", "x", "c", "d"]) == pytest.approx(8 / 9)
 
 
