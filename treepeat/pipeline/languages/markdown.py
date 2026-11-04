@@ -19,6 +19,7 @@ _INFO_STRING_ALIASES = {
     "rs": "rust",
     "kt": "kotlin",
     "md": "markdown",
+    "mmd": "mermaid",
 }
 
 

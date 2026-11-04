@@ -1,0 +1,10 @@
+%% Request handling flow
+flowchart TD
+    Start[Receive request] --> Auth{Authenticated?}
+    Auth -->|Yes| Load[Load profile]
+    Auth -->|No| Reject[Return 401]
+    Load --> Render[Render page]
+    subgraph cache
+        Render --> Store[Write cache]
+        Store --> Done[Respond]
+    end

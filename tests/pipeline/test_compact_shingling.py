@@ -14,7 +14,7 @@ from treepeat.pipeline.shingle import ASTShingler, shingle_regions
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 
 
-SUFFIXES = {".py", ".js", ".ts", ".java", ".rs", ".kt", ".lua", ".php", ".yaml", ".yml", ".md", ".astro"}
+SUFFIXES = {".py", ".js", ".ts", ".java", ".rs", ".kt", ".lua", ".php", ".yaml", ".yml", ".md", ".mmd", ".astro"}
 
 
 def _fixture_files() -> list[Path]:
