@@ -10,6 +10,7 @@ from .jsx import JsxConfig
 from .kotlin import KotlinConfig
 from .lua import LuaConfig
 from .markdown import MarkdownConfig
+from .mermaid import MermaidConfig
 from .php import PHPConfig
 from .python import PythonConfig
 from .rust import RustConfig
@@ -30,6 +31,7 @@ LANGUAGE_CONFIGS: dict[str, LanguageConfig] = {
     "kotlin": KotlinConfig(),
     "lua": LuaConfig(),
     "markdown": MarkdownConfig(),
+    "mermaid": MermaidConfig(),
     "php": PHPConfig(),
     "python": PythonConfig(),
     "rust": RustConfig(),
@@ -51,6 +53,7 @@ LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "kotlin": [".kt", ".kts"],
     "lua": [".lua"],
     "markdown": [".md", ".markdown"],
+    "mermaid": [".mmd", ".mermaid"],
     "php": [".php", ".phtml"],
     "python": [".py"],
     "rust": [".rs"],
@@ -93,6 +96,7 @@ __all__ = [
     "RustConfig",
     "GoConfig",
     "MarkdownConfig",
+    "MermaidConfig",
     "AstroConfig",
     "YAMLConfig",
 ]

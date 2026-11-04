@@ -62,6 +62,22 @@ service:
     timeout: 5
 ```
 
+## Mermaid Example
+
+Sketch of the login flow:
+
+```mermaid
+flowchart TD
+    Begin[Accept login] --> Check{Valid user?}
+    Check -->|Yes| Fetch[Fetch account]
+    Check -->|No| Deny[Show error]
+    Fetch --> Show[Show dashboard]
+    subgraph persist
+        Show --> Save[Save session]
+        Save --> Finish[Redirect]
+    end
+```
+
 ## Plain Text Example
 
 This block has no language tag and should not trigger injection:
